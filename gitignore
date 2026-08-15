@@ -1,0 +1,25 @@
+# Sistema operacional
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Editores / IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Backups e checkpoints locais (mantenha só as versões que quer versionar de fato)
+*_CHECKPOINT_*.html
+*.bak
+*.orig
+*.tmp
+
+# Node (caso algum dia adicione ferramentas de build/lint)
+node_modules/
+npm-debug.log*
+
+# Arquivos de exportação gerados pelo próprio app (memória de cálculo exportada),
+# geralmente não precisam ser versionados junto com o código-fonte
+Memoria_Calculo_*.html

@@ -26,12 +26,33 @@ Também é possível acessar a versão publicada (se o GitHub Pages estiver ativ
 
 Cada módulo de fundação (Sapata, Radier, Fundação de Máquinas, Estacas) suporta **múltiplas instâncias** no mesmo fluxo, cada uma com sua própria seção na Visualização Técnica e deslocamento horizontal configurável, para representar várias fundações lado a lado na mesma seção transversal.
 
+## Radier Estaqueado (`radier_estaqueado_unico.html`)
+
+App standalone (também um único arquivo HTML, sem dependências) dedicado ao dimensionamento de **radier estaqueado** — uma fundação mista em que radier e grupo de estacas trabalham juntos, dividindo a carga entre si. Organizado em 5 abas, na ordem em que o cálculo normalmente é conduzido:
+
+1. **Geometria e Cargas** — dimensões do radier, pilares e cargas especiais, parâmetros do solo (Terzaghi)
+2. **Estacas — Capacidade e Arranjo** — capacidade de carga da estaca isolada por SPT (Aoki-Velloso e Décourt-Quaresma, lado a lado), arranjo em grade retangular e distribuição de carga no grupo (eficiência de grupo, bloco fictício)
+3. **Interação PDR** — repartição de carga entre radier e estacas pela Metodologia Simplificada de Cálculo (Randolph, 1994; Clancy & Randolph, 1993), incluindo verificação de punção da estaca no radier
+4. **Dimensionamento do Radier** — verificação geotécnica, classificação rígido×flexível, modelagem em grelha sobre base elástica (Winkler), punção nos pilares, armadura e quantitativos
+5. **Verificação das Estacas** — compressão, flambagem e flexo-compressão do fuste; atrito negativo; detalhamento e quantitativos de armadura
+
+Recursos adicionais do app:
+
+- **N.A. e carga do grupo sincronizados automaticamente** a partir da geometria/cargas já lançadas — sem precisar digitar o mesmo dado em mais de um lugar (com opção de sobrescrever manualmente quando necessário)
+- **Ícones de ajuda (?)** em cada seção calculada, com pop-up explicativo: fórmula, significado de cada variável, tabelas de coeficientes (geradas dos mesmos dados usados no cálculo, sempre sincronizadas) e uma ilustração esquemática
+- **Memória de cálculo única e didática**, cobrindo as 5 abas em ordem lógica, com sumário navegável, pronta para impressão/PDF
+- Preparado para futura integração como node(s) do `geo_flow_editor.html`: já expõe pontes `postMessage` (`radier-*` / `estacas-*`) capazes de receber dados de nodes como Nível d'Água, Boletim de Sondagem, Solo Multicamadas e Sobrecarga
+
+Ver `relatorio_validacao_radier_estaqueado.docx` para o histórico de validação do motor de cálculo contra casos reais/publicados (Westend, Messeturm, Burj Khalifa) e exercícios resolvidos de referência.
+
 ## Estrutura do repositório
 
 ```
-geo_flow_editor.html   → aplicativo completo (HTML + CSS + JS em um arquivo só)
-README.md              → este arquivo
-.gitignore             → arquivos e pastas ignorados pelo Git
+geo_flow_editor.html                       → editor de fluxo completo (HTML + CSS + JS em um arquivo só)
+radier_estaqueado_unico.html               → app standalone de Radier Estaqueado (ver seção acima)
+relatorio_validacao_radier_estaqueado.docx → relatório de validação do módulo de Radier Estaqueado
+README.md                                  → este arquivo
+.gitignore                                 → arquivos e pastas ignorados pelo Git
 ```
 
 ## Aviso técnico

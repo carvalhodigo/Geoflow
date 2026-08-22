@@ -303,6 +303,62 @@ body{font-family:system-ui,sans-serif;font-size:13px;background:var(--bg);color:
 [data-step-panel]{display:none}
 [data-step-panel].active{display:block}
 
+/* ═══ Ícones de ajuda e pop-up explicativo ═══ */
+.section-title{position:relative}
+.help-ic{
+  display:inline-flex;align-items:center;justify-content:center;
+  width:17px;height:17px;border-radius:50%;
+  background:var(--surf,#e8e2d6);border:1.4px solid var(--accent,#1f6b52);
+  color:var(--accent,#1f6b52);font-size:11px;font-weight:800;font-family:system-ui,sans-serif;
+  cursor:pointer;margin-left:7px;vertical-align:middle;line-height:1;padding:0;
+  transition:transform .12s, background .12s;flex-shrink:0
+}
+.help-ic:hover{background:var(--accent,#1f6b52);color:#fff;transform:scale(1.12)}
+.help-modal-overlay{
+  display:none;position:fixed;inset:0;background:rgba(20,18,14,.55);
+  z-index:9999;align-items:flex-start;justify-content:center;padding:5vh 16px;overflow-y:auto
+}
+.help-modal-overlay.open{display:flex}
+.help-modal{
+  background:#fffdf9;border-radius:10px;max-width:640px;width:100%;
+  box-shadow:0 10px 40px rgba(0,0,0,.35);padding:0;overflow:hidden;
+  animation:helpPop .16s ease-out
+}
+@keyframes helpPop{from{opacity:0;transform:translateY(10px) scale(.98)}to{opacity:1;transform:none}}
+.help-modal-head{
+  background:var(--accent,#1f6b52);color:#fff;padding:14px 18px;
+  display:flex;align-items:center;justify-content:space-between;gap:10px
+}
+.help-modal-head h3{margin:0;font-size:15px;font-weight:700}
+.help-modal-close{
+  background:rgba(255,255,255,.18);border:none;color:#fff;width:26px;height:26px;
+  border-radius:50%;font-size:15px;cursor:pointer;flex-shrink:0;line-height:1
+}
+.help-modal-close:hover{background:rgba(255,255,255,.32)}
+.help-modal-body{padding:16px 20px 20px;font-size:12.5px;line-height:1.65;color:#282420;max-height:75vh;overflow-y:auto}
+.help-modal-body p{margin:0 0 10px}
+.help-modal-body b{color:#1f6b52}
+.help-modal-body ul{margin:6px 0 12px 18px;padding:0}
+.help-modal-body li{margin-bottom:4px}
+.help-modal-body .help-formula{
+  background:#f0ece0;padding:8px 11px;border-radius:4px;font-family:var(--mono,monospace);
+  font-size:11.5px;margin:8px 0;overflow-x:auto
+}
+.help-modal-body .help-svg-box{
+  background:#f1ede2;border:1px solid var(--bdr,#bdb8ae);border-radius:6px;
+  padding:10px;margin:10px 0;text-align:center
+}
+.help-modal-body .help-svg-box svg{max-width:100%;height:auto;max-height:220px}
+.help-modal-body .help-refs{font-size:10.5px;color:#8a8680;border-top:1px dashed #bdb8ae;padding-top:8px;margin-top:12px}
+.help-tbl-wrap{margin:10px 0;overflow-x:auto}
+.help-tbl{border-collapse:collapse;width:100%;font-size:10.8px}
+.help-tbl caption{text-align:left;font-size:10px;color:#8a8680;font-style:italic;margin-bottom:4px;caption-side:top}
+.help-tbl th,.help-tbl td{border:1px solid #d8d2c4;padding:4px 7px;text-align:center}
+.help-tbl th{background:#e8e2d6;color:#282420;font-weight:700}
+.help-tbl td:first-child{text-align:left}
+.help-tbl tr:nth-child(even) td{background:#faf8f3}
+@media print{ .help-ic,.help-modal-overlay{display:none !important} }
+
 </style>
 </head>
 <body>
@@ -467,13 +523,11 @@ body{font-family:system-ui,sans-serif;font-size:13px;background:var(--bg);color:
       <input type="number" id="in-bfaixa" value="6.00" step="0.1" min="0.5">
       <div class="hint">Geralmente a menor dimensão do radier ou a largura tributária perpendicular ao vão analisado <span class="norm-ref">ACI 336.2R</span>.</div>
     </div>
-    <div class="field-row">
-      <div class="field"><label>Profundidade do N.A. abaixo do topo do radier (m)</label>
-        <input type="number" id="in-na" value="99" step="0.1" min="0"></div>
-      <div class="field"><label>γ<sub>água</sub> (kN/m³)</label>
-        <input type="number" id="in-gagua" value="10" step="0.1" min="9"></div>
+    <div class="field">
+      <label>γ<sub>água</sub> (kN/m³)</label>
+      <input type="number" id="in-gagua" value="10" step="0.1" min="9">
     </div>
-    <div class="hint">Deixe a profundidade do N.A. bem alta (ex.: 99) se não houver água acima da base do radier — desativa a verificação de subpressão.</div>
+    <div class="hint">A profundidade do N.A. é definida uma única vez, na aba <b>Estacas → Dados Globais</b> (referenciada ao terreno, mesmo dado usado no perfil de sondagem). Aqui ela é comparada com D<sub>f</sub> (profundidade de assentamento, acima) para a verificação de subpressão/flutuação abaixo — se o N.A. estiver mais raso que D<sub>f</sub>, a base do radier fica submersa.</div>
     <div class="field-row">
       <div class="field"><label>Recalque total admissível (mm)</label>
         <input type="number" id="in-recalque-adm" value="50" step="5" min="5"></div>
@@ -635,17 +689,8 @@ body{font-family:system-ui,sans-serif;font-size:13px;background:var(--bg);color:
 
   <div class="card global">
     <div class="card-title">📐 Arranjo de Estacas (compartilhado entre Passo 2 e Passo 5)</div>
-    <div class="field">
-      <label>Tipo de arranjo</label>
-      <select id="g-arranjo">
-        <option value="grade">Grade retangular N×M (linha, quadrado etc.)</option>
-        <option value="triangular">Triangular equilátero (3 estacas)</option>
-        <option value="quad_central">Quadrado + central (5 estacas)</option>
-        <option value="hexagono">Hexágono regular (6 estacas)</option>
-        <option value="hex_central">Hexágono + central (7 estacas)</option>
-      </select>
-      <div class="hint">Mesma geometria usada na distribuição de carga do grupo (Passo 2) e no dimensionamento do bloco (Passo 5). O Passo 5 (Blévot) só tem fórmula verificada para grade 1×2, 2×1 e 2×2 — outras grades aparecem no Passo 2, mas o Passo 5 avisa que não são cobertas.</div>
-    </div>
+    <input type="hidden" id="g-arranjo" value="grade">
+    <div class="hint" style="margin-bottom:9px">Arranjo em <b>grade retangular N×M</b> — é o único tipo que faz sentido para um radier estaqueado (as estacas cobrem a área do radier em malha, e não um bloco isolado). Mesma geometria usada na distribuição de carga do grupo (Passo 2) e no dimensionamento do bloco fictício (Passo 5).</div>
     <div id="arr-grade">
       <div class="field-row">
         <div class="field"><label>Nº de colunas (X)</label>
@@ -663,22 +708,6 @@ body{font-family:system-ui,sans-serif;font-size:13px;background:var(--bg);color:
       <div class="hint">Lê L×B da aba <b>Radier</b> e calcula quantas colunas/linhas cabem, respeitando s<sub>x</sub>/s<sub>y</sub> acima como espaçamento desejado — substitui N<sub>x</sub>/N<sub>y</sub> por essa grade cobrindo o radier inteiro (deixando ~s<sub>x</sub>/2 e ~s<sub>y</sub>/2 de borda). Ajuste manualmente depois, se quiser.</div>
       <div id="msg-criar-estacas-auto" style="display:none;margin-top:6px;padding:6px 8px;background:#eaf4ee;border:1px solid #2d6b4a;border-radius:3px;font-size:10.5px;color:#1f5238"></div>
     </div>
-    <div id="arr-triangular" style="display:none">
-      <div class="field"><label>Lado do triângulo l<sub>t</sub> (m)</label>
-        <input type="number" id="g-lt3" value="1.00" step="0.05" min="0.3"></div>
-    </div>
-    <div id="arr-quadcentral" style="display:none">
-      <div class="field-row">
-        <div class="field"><label>Espaçamento e<sub>x</sub> (m)</label>
-          <input type="number" id="g-ex" value="0.90" step="0.05" min="0.3"></div>
-        <div class="field"><label>Espaçamento e<sub>y</sub> (m)</label>
-          <input type="number" id="g-ey" value="0.90" step="0.05" min="0.3"></div>
-      </div>
-    </div>
-    <div id="arr-hexagono" style="display:none">
-      <div class="field"><label>Lado do hexágono l<sub>t</sub> (m)</label>
-        <input type="number" id="g-lt6" value="0.90" step="0.05" min="0.3"></div>
-    </div>
     <div class="field">
       <label>Espaçamento mínimo exigido (× D)</label>
       <input type="number" id="g-espmin" value="2.5" step="0.1" min="1.5">
@@ -687,6 +716,7 @@ body{font-family:system-ui,sans-serif;font-size:13px;background:var(--bg);color:
 
   <div class="card global">
     <div class="card-title">⚖️ Carga do Grupo de Estacas <span class="norm-ref">compartilhada com o Passo 2</span></div>
+    <div id="carga-grupo-auto-status" style="font-size:10px;padding:5px 7px;border-radius:3px;margin-bottom:7px;background:#eaf4ee;color:#2d6b4a"></div>
     <div class="field">
       <label>Carga vertical total N<sub>k</sub> (kN, serviço)</label>
       <input type="number" id="g-Nk" value="1800" step="10" min="0">
@@ -697,13 +727,14 @@ body{font-family:system-ui,sans-serif;font-size:13px;background:var(--bg);color:
       <div class="field"><label>M<sub>y</sub> (kN·m, serviço)</label>
         <input type="number" id="g-My" value="150" step="5"></div>
     </div>
-    <div class="hint">Momentos em relação ao centroide do arranjo de estacas. Usados na distribuição de carga (Passo 2) <b>e</b> agora também no dimensionamento do bloco de coroamento (Passo 5) — a mesma carga excêntrica gera reações desiguais nas estacas nos dois passos.</div>
+    <button type="button" id="btn-sync-carga-radier" style="width:100%;padding:7px;font-size:10.5px;font-weight:700;background:#1f6b52;color:#fff;border:none;border-radius:3px;cursor:pointer;margin-top:2px">🔄 Recalcular a partir da carga do Radier (aba 1)</button>
+    <div class="hint">Por padrão N<sub>k</sub>/M<sub>x</sub>/M<sub>y</sub> vêm <b>automaticamente</b> da resultante de cargas já lançada na aba Radier (pilares + cargas especiais + peso próprio): N<sub>k</sub>=N<sub>total</sub>, M<sub>y</sub>=N<sub>total</sub>·e<sub>x</sub>, M<sub>x</sub>=N<sub>total</sub>·e<sub>y</sub> — assumindo o centro do arranjo de estacas coincidindo com o centro geométrico do radier (ajuste manualmente se o arranjo estiver descentralizado). Se a aba Interação PDR for calculada, N<sub>k</sub> passa a vir de lá (P<sub>p</sub>, a fração da carga que vai para as estacas) em vez do N<sub>total</sub> inteiro. Editar qualquer um dos três campos à mão <b>desliga</b> a sincronização automática — use o botão acima para religá-la.</div>
   </div>
 
   <div class="card" style="background:#282420;border-color:#282420">
     <div class="card-title" style="color:#e8c860">📋 Status das Etapas</div>
     <div id="status-etapas" style="font-size:10px;color:#cfc8ba;line-height:1.8"></div>
-    <button id="btn-memoria-e" type="button">🗂 GERAR MEMÓRIA DE CÁLCULO COMPLETA</button>
+    <button id="btn-memoria-e" type="button">🗂 GERAR MEMÓRIA DE CÁLCULO COMPLETA (RADIER + ESTACAS)</button>
   </div>
 
   <!-- ============ PASSO 1: ESTACA ISOLADA ============ -->
@@ -795,17 +826,17 @@ body{font-family:system-ui,sans-serif;font-size:13px;background:var(--bg);color:
     <div class="diagram-cap">Perfil de sondagem × estaca</div>
   </div>
 
-  <div class="section-title"><span class="n">1</span>Método Aoki-Velloso (1975)</div>
+  <div class="section-title"><span class="n">1</span>Método Aoki-Velloso (1975)<button class="help-ic" type="button" onclick="abrirAjuda('s1-aoki')" title="Ajuda">?</button></div>
   <div class="section-sub">R = R<sub>p</sub> + R<sub>l</sub> ; r<sub>p</sub> = K·N<sub>SPT,ponta</sub>/F1 ; r<sub>l</sub> = (α/100)·K·N<sub>SPT</sub>/F2</div>
   <table class="iso-table" id="s1-tbl-aoki"></table>
   <div class="result-grid" id="s1-grid-aoki"></div>
   <div class="formula-box" id="s1-form-aoki"></div>
 
-  <div class="section-title"><span class="n">2</span>Método Décourt-Quaresma (1978)</div>
+  <div class="section-title"><span class="n">2</span>Método Décourt-Quaresma (1978)<button class="help-ic" type="button" onclick="abrirAjuda('s1-dq')" title="Ajuda">?</button></div>
   <div class="result-grid" id="s1-grid-dq"></div>
   <div class="formula-box" id="s1-form-dq"></div>
 
-  <div class="section-title"><span class="n">3</span>Comparação e Carga Admissível</div>
+  <div class="section-title"><span class="n">3</span>Comparação e Carga Admissível<button class="help-ic" type="button" onclick="abrirAjuda('s1-comp')" title="Ajuda">?</button></div>
   <table class="iso-table" id="s1-tbl-comp"></table>
   <div id="s1-banner-comp"></div>
 
@@ -823,19 +854,19 @@ body{font-family:system-ui,sans-serif;font-size:13px;background:var(--bg);color:
     <div class="diagram-cap">Planta do grupo — reação N<sub>i</sub> por estaca</div>
   </div>
 
-  <div class="section-title"><span class="n">1</span>Distribuição de Carga entre as Estacas</div>
+  <div class="section-title"><span class="n">1</span>Distribuição de Carga entre as Estacas<button class="help-ic" type="button" onclick="abrirAjuda('s2-distrib')" title="Ajuda">?</button></div>
   <div class="section-sub">N<sub>i</sub> = N/n<sub>est</sub> + (M<sub>y</sub>·x<sub>i</sub>)/Σx² + (M<sub>x</sub>·y<sub>i</sub>)/Σy²</div>
   <table class="iso-table" id="s2-tbl-distrib"></table>
   <div class="result-grid" id="s2-grid-distrib"></div>
   <div class="formula-box" id="s2-form-distrib"></div>
   <div id="s2-banner-distrib"></div>
 
-  <div class="section-title"><span class="n">2</span>Eficiência de Grupo — Converse-Labarre</div>
+  <div class="section-title"><span class="n">2</span>Eficiência de Grupo — Converse-Labarre<button class="help-ic" type="button" onclick="abrirAjuda('s2-eficiencia')" title="Ajuda">?</button></div>
   <div class="result-grid" id="s2-grid-efic"></div>
   <div class="formula-box" id="s2-form-efic"></div>
   <div id="s2-banner-efic"></div>
 
-  <div class="section-title"><span class="n">3</span>Espaçamento Mínimo</div>
+  <div class="section-title"><span class="n">3</span>Espaçamento Mínimo<button class="help-ic" type="button" onclick="abrirAjuda('s2-espacamento')" title="Ajuda">?</button></div>
   <ul class="checklist" id="s2-checklist-esp"></ul>
 
   <div id="card-verif-interacao-e" style="display:none;background:#f3ecfa;border:1px solid #6b3090;border-radius:6px;padding:10px 14px;margin:10px 0;font-size:11.5px;color:#4a3560">
@@ -843,7 +874,7 @@ body{font-family:system-ui,sans-serif;font-size:13px;background:var(--bg);color:
     <div id="card-verif-interacao-body-e"></div>
   </div>
 
-  <div class="section-title"><span class="n">4</span>Geometria do Bloco Fictício</div>
+  <div class="section-title"><span class="n">4</span>Geometria do Bloco Fictício<button class="help-ic" type="button" onclick="abrirAjuda('s2-blocoficticio')" title="Ajuda">?</button></div>
   <div class="diagram-box">
     <svg id="s2-svg-corte-ficticio" viewBox="0 0 460 300" xmlns="http://www.w3.org/2000/svg"></svg>
     <div class="diagram-cap">Envelope do grupo convertido em bloco fictício</div>
@@ -940,24 +971,29 @@ body{font-family:system-ui,sans-serif;font-size:13px;background:var(--bg);color:
 
   <div id="i-banner-resumo"></div>
 
-  <div class="section-title"><span class="n">1</span>Rigidez do Radier Isolado (K<sub>rad</sub>)</div>
+  <div class="section-title"><span class="n">1</span>Rigidez do Radier Isolado (K<sub>rad</sub>)<button class="help-ic" type="button" onclick="abrirAjuda('i-krad')" title="Ajuda">?</button></div>
   <div class="result-grid" id="i-grid-krad"></div>
   <div class="formula-box" id="i-form-krad"></div>
 
-  <div class="section-title"><span class="n">2</span>Rigidez do Grupo de Estacas (K<sub>pg</sub>)</div>
+  <div class="section-title"><span class="n">2</span>Rigidez do Grupo de Estacas (K<sub>pg</sub>)<button class="help-ic" type="button" onclick="abrirAjuda('i-kpg')" title="Ajuda">?</button></div>
   <div class="result-grid" id="i-grid-kpg"></div>
   <div class="formula-box" id="i-form-kpg"></div>
 
-  <div class="section-title"><span class="n">3</span>Combinação e Repartição de Carga</div>
+  <div class="section-title"><span class="n">3</span>Combinação e Repartição de Carga<button class="help-ic" type="button" onclick="abrirAjuda('i-kpr')" title="Ajuda">?</button></div>
   <div class="result-grid" id="i-grid-kpr"></div>
   <div class="formula-box" id="i-form-kpr"></div>
 
-  <div class="section-title"><span class="n">4</span>Recálculo do Radier e das Estacas</div>
+  <div class="section-title"><span class="n">4</span>Recálculo do Radier e das Estacas<button class="help-ic" type="button" onclick="abrirAjuda('i-recalculo')" title="Ajuda">?</button></div>
   <div class="section-sub">P_r enviado direto para a verificação do Radier · P_p enviado para a verificação das Estacas — veja os cards roxos em cada aba</div>
   <ul class="checklist" id="i-checklist-recalculo"></ul>
 
-  <div class="section-title"><span class="n">5</span>Punção das Estacas no Radier</div>
+  <div class="section-title"><span class="n">5</span>Punção das Estacas no Radier<button class="help-ic" type="button" onclick="abrirAjuda('i-puncao')" title="Ajuda">?</button></div>
   <div class="section-sub">A estaca empurrando a laje por baixo — mesma lógica de punção de pilar (NBR 6118 §19.5), com perímetro circular e a reação da estaca (ajustada para a base P<sub>p</sub>) como carga</div>
+  <div class="diagram-box">
+    <svg id="i-svg-puncao-planta" viewBox="0 0 280 300" xmlns="http://www.w3.org/2000/svg" style="max-width:48%;display:inline-block;vertical-align:top"></svg>
+    <svg id="i-svg-puncao-corte" viewBox="0 0 280 300" xmlns="http://www.w3.org/2000/svg" style="max-width:48%;display:inline-block;vertical-align:top"></svg>
+    <div class="diagram-cap">Punção da estaca no radier — planta (perímetros críticos u₀ na face e u a 2d) e corte (cone de punção, espessura H, altura útil d)</div>
+  </div>
   <div class="result-grid" id="i-grid-puncao-estaca"></div>
   <ul class="checklist" id="i-checklist-puncao-estaca"></ul>
   <div class="formula-box" id="i-form-puncao-estaca"></div>
@@ -1011,14 +1047,14 @@ body{font-family:system-ui,sans-serif;font-size:13px;background:var(--bg);color:
         <input type="number" id="in-phi-amarracao" value="8" step="1" min="5"></div>
     </div>
     <div class="hint">Barras verticais tipo "grampo"/espaçador ligando a malha inferior à superior, mantendo o espaçamento entre camadas durante a concretagem e contribuindo para o comportamento monolítico da seção. Não substitui a armadura de punção calculada na Seção 4.</div>
-  </div><button id="btn-memoria" type="button">🗂 GERAR MEMÓRIA DE CÁLCULO</button></div><div id="main-r-dim"><div id="banner-resumo"></div><div id="card-verif-interacao-r" style="display:none;background:#f3ecfa;border:1px solid #6b3090;border-radius:6px;padding:10px 14px;margin-bottom:10px;font-size:11.5px;color:#4a3560">
+  </div><button id="btn-memoria" type="button">🗂 GERAR MEMÓRIA DE CÁLCULO COMPLETA (RADIER + ESTACAS)</button></div><div id="main-r-dim"><div id="banner-resumo"></div><div id="card-verif-interacao-r" style="display:none;background:#f3ecfa;border:1px solid #6b3090;border-radius:6px;padding:10px 14px;margin-bottom:10px;font-size:11.5px;color:#4a3560">
     <div style="font-weight:700;color:#6b3090;margin-bottom:4px">🔗 Verificação de robustez — e se 100% da carga fosse pro radier?</div>
     <div id="card-verif-interacao-body-r"></div>
     <div style="font-size:9.5px;color:#8a7a9a;margin-top:6px">O dimensionamento principal (acima) já usa P_r, a fração real calculada pela Interação. Este card mostra o cenário conservador — se as estacas falharem/forem mal executadas e 100% da carga tiver que passar pelo radier, ele ainda resiste (ao menos à pressão de contato)? Não é o dimensionamento, é uma verificação de reserva.</div>
-  </div><div class="section-title"><span class="n">1</span>Verificação Geotécnica</div><div class="section-sub">NBR 6122 §4/§8 — pressões de contato pelo método rígido (flexão composta oblíqua)</div><div class="result-grid" id="grid-geo"></div><ul class="checklist" id="checklist-geo"></ul><div class="formula-box" id="form-geo"></div><div class="diagram-box">
+  </div><div class="section-title"><span class="n">1</span>Verificação Geotécnica<button class="help-ic" type="button" onclick="abrirAjuda('r-geo')" title="Ajuda">?</button></div><div class="section-sub">NBR 6122 §4/§8 — pressões de contato pelo método rígido (flexão composta oblíqua)</div><div class="result-grid" id="grid-geo"></div><ul class="checklist" id="checklist-geo"></ul><div class="formula-box" id="form-geo"></div><div class="diagram-box">
     <svg id="svg-tensoes" viewBox="0 0 560 400" xmlns="http://www.w3.org/2000/svg"></svg>
     <div class="diagram-cap">Distribuição de tensões de contato no solo (planta) — método rígido; isolinhas retas pois o campo de pressão é plano (flexão composta oblíqua). Roxo = tração/descolamento (p&lt;0). Passe o mouse para ver o valor exato em cada ponto.</div>
-  </div><div class="section-title"><span class="n">2</span>Classificação de Rigidez</div><div class="section-sub">Rígido × flexível — analogia de viga sobre base elástica (Meyerhof / ACI 336.2R)</div><div class="result-grid" id="grid-rigidez"></div><ul class="checklist" id="checklist-rigidez"></ul><div class="formula-box" id="form-rigidez"></div><div class="section-title"><span class="n">3</span>Modelagem em Grelha sobre Base Elástica (Winkler)</div><div class="section-sub">Diferenças finitas em malha — placa sobre molas de Winkler: D∇⁴w + Kv·w = q(x,y) — recomendada quando o radier é classificado como flexível</div><div id="banner-winkler"></div><div class="result-grid" id="grid-winkler"></div><div class="diagram-box">
+  </div><div class="section-title"><span class="n">2</span>Classificação de Rigidez<button class="help-ic" type="button" onclick="abrirAjuda('r-rigidez')" title="Ajuda">?</button></div><div class="section-sub">Rígido × flexível — analogia de viga sobre base elástica (Meyerhof / ACI 336.2R)</div><div class="result-grid" id="grid-rigidez"></div><ul class="checklist" id="checklist-rigidez"></ul><div class="formula-box" id="form-rigidez"></div><div class="section-title"><span class="n">3</span>Modelagem em Grelha sobre Base Elástica (Winkler)<button class="help-ic" type="button" onclick="abrirAjuda('r-winkler')" title="Ajuda">?</button></div><div class="section-sub">Diferenças finitas em malha — placa sobre molas de Winkler: D∇⁴w + Kv·w = q(x,y) — recomendada quando o radier é classificado como flexível</div><div id="banner-winkler"></div><div class="result-grid" id="grid-winkler"></div><div class="diagram-box">
     <svg id="svg-winkler-w" viewBox="0 0 560 400" xmlns="http://www.w3.org/2000/svg"></svg>
     <div class="diagram-cap">Recalque vertical w (planta) obtido pela grelha Winkler — análogo ao mapa de "Displacements" de softwares de grelha/pórtico (ex.: SAP2000). Passe o mouse para ver o valor em cada ponto.</div>
   </div><div class="diagram-box">
@@ -1033,7 +1069,7 @@ body{font-family:system-ui,sans-serif;font-size:13px;background:var(--bg);color:
   </div><div class="diagram-box">
     <svg id="svg-winkler-corte-y" viewBox="0 0 560 260" xmlns="http://www.w3.org/2000/svg"></svg>
     <div class="diagram-cap" id="cap-corte-y">Corte transversal (direção Y)</div>
-  </div><ul class="checklist" id="checklist-winkler"></ul><div class="formula-box" id="form-winkler"></div><div class="section-title"><span class="n">4</span>Verificação à Punção nos Pilares</div><div class="section-sub">NBR 6118 §19.5.2 — perímetro crítico C′ a 2d da face do pilar, cantos arredondados (raio 2d)</div><table class="pun-table" id="tbl-puncao"></table><div class="formula-box" id="form-puncao"></div><div class="section-title"><span class="n">5</span>Detalhamento de Armadura (esquemático)</div><div class="section-sub">Malha inferior/superior estimada a partir de ρ informado + armadura de punção no pilar mais crítico</div><div class="diagram-box">
+  </div><ul class="checklist" id="checklist-winkler"></ul><div class="formula-box" id="form-winkler"></div><div class="section-title"><span class="n">4</span>Verificação à Punção nos Pilares<button class="help-ic" type="button" onclick="abrirAjuda('r-puncao')" title="Ajuda">?</button></div><div class="section-sub">NBR 6118 §19.5.2 — perímetro crítico C′ a 2d da face do pilar, cantos arredondados (raio 2d)</div><table class="pun-table" id="tbl-puncao"></table><div class="formula-box" id="form-puncao"></div><div class="section-title"><span class="n">5</span>Detalhamento de Armadura (esquemático)<button class="help-ic" type="button" onclick="abrirAjuda('r-armadura')" title="Ajuda">?</button></div><div class="section-sub">Malha inferior/superior estimada a partir de ρ informado + armadura de punção no pilar mais crítico</div><div class="diagram-box">
     <svg id="svg-corte-armado" viewBox="0 0 560 320" xmlns="http://www.w3.org/2000/svg"></svg>
     <div class="diagram-cap">Corte armado — malha inferior (N1/N2, momento positivo) e superior (N3/N4, momento negativo sobre pilares)</div>
   </div><div class="diagram-box">
@@ -1045,7 +1081,7 @@ body{font-family:system-ui,sans-serif;font-size:13px;background:var(--bg);color:
   </div><div class="diagram-box">
     <svg id="svg-planta-armadura" viewBox="0 0 520 260" xmlns="http://www.w3.org/2000/svg"></svg>
     <div class="diagram-cap">Planta de detalhamento junto ao pilar mais crítico — malha de flexão e, se aplicável, armadura de punção (studs radiais)</div>
-  </div><div class="result-grid" id="grid-armadura"></div><ul class="checklist" id="checklist-armadura"></ul><div class="formula-box" id="form-armadura"></div><div class="section-title"><span class="n">6</span>Quantitativos de Aço e Concreto</div><div class="section-sub">Estimativa de volumes e pesos a partir das armaduras dimensionadas — apoio a orçamento preliminar, não uma planilha de suprimentos final</div><table class="pun-table" id="tbl-concreto"></table><p style="font-weight:700;font-size:11.5px;margin:14px 0 4px;color:var(--tx)">Resumo de armaduras por posição</p><table class="pun-table" id="tbl-posicoes"></table><div class="result-grid" id="grid-quantitativos"></div><div class="formula-box" id="form-quantitativos"></div><div class="warn-box">
+  </div><div class="result-grid" id="grid-armadura"></div><ul class="checklist" id="checklist-armadura"></ul><div class="formula-box" id="form-armadura"></div><div class="section-title"><span class="n">6</span>Quantitativos de Aço e Concreto<button class="help-ic" type="button" onclick="abrirAjuda('r-quant')" title="Ajuda">?</button></div><div class="section-sub">Estimativa de volumes e pesos a partir das armaduras dimensionadas — apoio a orçamento preliminar, não uma planilha de suprimentos final</div><table class="pun-table" id="tbl-concreto"></table><p style="font-weight:700;font-size:11.5px;margin:14px 0 4px;color:var(--tx)">Resumo de armaduras por posição</p><table class="pun-table" id="tbl-posicoes"></table><div class="result-grid" id="grid-quantitativos"></div><div class="formula-box" id="form-quantitativos"></div><div class="warn-box">
     <b>⚠ Apoio técnico ao pré-dimensionamento.</b>
     Simplificações adotadas: método rígido (não captura momentos locais entre pilares — válido apenas quando a faixa é classificada como rígida na Seção 2); estimativa de Kv por correlação quando não informado; flexo-punção considerada apenas no pilar mais crítico e apenas quando o momento desbalanceado é informado manualmente; dimensionamento à flexão baseado em apenas dois pontos representativos da grelha Winkler (momento sobre pilares e no centro do radier), não um envelope completo de projeto; armadura de punção calculada com f<sub>ywd</sub> conservador fixo em 250 MPa (a norma permite valores maiores para lajes mais espessas, não implementado por falta de confirmação segura dos coeficientes).
     <b>Ainda fora do escopo desta ferramenta:</b> verificação ao cisalhamento simples fora do perímetro de punção (a NBR 6118 não exige essa verificação separadamente para lajes lisas/radiers — a punção já cobre o cisalhamento nessas peças); detalhamento executivo completo de armaduras (ganchos, traspasses, dobras) — apenas o comprimento de ancoragem básico reto é estimado.
@@ -1226,17 +1262,17 @@ body{font-family:system-ui,sans-serif;font-size:13px;background:var(--bg);color:
     <div class="diagram-cap">Esquema da estaca — trecho confinado e trecho livre</div>
   </div>
 
-  <div class="section-title"><span class="n">1</span>Compressão Simples do Fuste</div>
+  <div class="section-title"><span class="n">1</span>Compressão Simples do Fuste<button class="help-ic" type="button" onclick="abrirAjuda('s3-compressao')" title="Ajuda">?</button></div>
   <div class="result-grid" id="s3-grid-compressao"></div>
   <div class="formula-box" id="s3-form-compressao"></div>
   <div id="s3-banner-compressao"></div>
 
-  <div class="section-title"><span class="n">2</span>Flambagem — Trecho sem Apoio Lateral</div>
+  <div class="section-title"><span class="n">2</span>Flambagem — Trecho sem Apoio Lateral<button class="help-ic" type="button" onclick="abrirAjuda('s3-flambagem')" title="Ajuda">?</button></div>
   <div class="result-grid" id="s3-grid-flambagem"></div>
   <div class="formula-box" id="s3-form-flambagem"></div>
   <div id="s3-banner-flambagem"></div>
 
-  <div class="section-title"><span class="n">3</span>Flexo-compressão (N<sub>d</sub> + M<sub>d</sub>)</div>
+  <div class="section-title"><span class="n">3</span>Flexo-compressão (N<sub>d</sub> + M<sub>d</sub>)<button class="help-ic" type="button" onclick="abrirAjuda('s3-flexocompressao')" title="Ajuda">?</button></div>
   <div class="diagram-box">
     <svg id="s3-svg-nm" viewBox="0 0 460 340" xmlns="http://www.w3.org/2000/svg"></svg>
     <div class="diagram-cap">Diagrama de interação N-M</div>
@@ -1260,16 +1296,16 @@ body{font-family:system-ui,sans-serif;font-size:13px;background:var(--bg);color:
     <div class="diagram-cap">Zona de atrito negativo × zona de atrito positivo</div>
   </div>
 
-  <div class="section-title"><span class="n">1</span>Tensão Efetiva e Atrito Negativo por Camada</div>
+  <div class="section-title"><span class="n">1</span>Tensão Efetiva e Atrito Negativo por Camada<button class="help-ic" type="button" onclick="abrirAjuda('s4-atrito')" title="Ajuda">?</button></div>
   <table class="iso-table" id="s4-tbl-atrito"></table>
   <div class="result-grid" id="s4-grid-atrito"></div>
   <div class="formula-box" id="s4-form-atrito"></div>
 
-  <div class="section-title"><span class="n">2</span>Efeito Estrutural</div>
+  <div class="section-title"><span class="n">2</span>Efeito Estrutural<button class="help-ic" type="button" onclick="abrirAjuda('s4-estrutural')" title="Ajuda">?</button></div>
   <div class="result-grid" id="s4-grid-estrutural"></div>
   <div id="s4-banner-estrutural"></div>
 
-  <div class="section-title"><span class="n">3</span>Efeito Geotécnico</div>
+  <div class="section-title"><span class="n">3</span>Efeito Geotécnico<button class="help-ic" type="button" onclick="abrirAjuda('s4-geotecnico')" title="Ajuda">?</button></div>
   <div class="result-grid" id="s4-grid-geotecnico"></div>
   <div id="s4-banner-geotecnico"></div>
 
@@ -1281,7 +1317,7 @@ body{font-family:system-ui,sans-serif;font-size:13px;background:var(--bg);color:
   <p class="section-sub" style="margin:0 0 10px;font-style:italic">Converte as áreas de aço calculadas nos passos anteriores em bitolas comerciais reais (arredondando para cima), monta o detalhamento da estaca, e fecha com os quantitativos de aço (por bitola) e concreto — o material para levar direto pra planilha de orçamento ou nota de pedido.</p>
   <div id="s6-banner-pre"></div>
 
-  <div class="section-title"><span class="n">1</span>Detalhamento da Estaca</div>
+  <div class="section-title"><span class="n">1</span>Detalhamento da Estaca<button class="help-ic" type="button" onclick="abrirAjuda('s6-detalhamento')" title="Ajuda">?</button></div>
   <div class="diagram-box">
     <svg id="s6-svg-secao-estaca" viewBox="0 0 300 300" xmlns="http://www.w3.org/2000/svg"></svg>
     <div class="diagram-cap">Seção transversal da estaca — armadura longitudinal e estribo/espiral</div>
@@ -1315,11 +1351,11 @@ body{font-family:system-ui,sans-serif;font-size:13px;background:var(--bg);color:
   
   
 
-  <div class="section-title"><span class="n">2</span>Quantitativo de Aço</div>
+  <div class="section-title"><span class="n">2</span>Quantitativo de Aço<button class="help-ic" type="button" onclick="abrirAjuda('s6-aco')" title="Ajuda">?</button></div>
   <table class="iso-table" id="s6-tbl-aco"></table>
   <div class="result-grid" id="s6-grid-aco"></div>
 
-  <div class="section-title"><span class="n">3</span>Quantitativo de Concreto</div>
+  <div class="section-title"><span class="n">3</span>Quantitativo de Concreto<button class="help-ic" type="button" onclick="abrirAjuda('s6-concreto')" title="Ajuda">?</button></div>
   <table class="iso-table" id="s6-tbl-concreto"></table>
   <div class="result-grid" id="s6-grid-concreto"></div>
 
@@ -2642,9 +2678,17 @@ function calcularRadier(){
   const cobMinCAA = {1:2.0, 2:2.5, 3:3.5, 4:4.5}[caa]; // cm, NBR 6118 Tabela 7.2 (componente "laje")
   const ok_cobrimento = cob >= cobMinCAA;
   const ok_espessura = H >= 0.16; // §13.2.4.1 — mínimo para lajes lisas
-  const naDepth = parseFloat($('in-na').value), gagua = parseFloat($('in-gagua').value)||10;
-  const temNA = naDepth < H;
-  const empuxoNA = temNA ? gagua*(H-naDepth) : 0; // kPa
+  // N.A. único do app: profundidade abaixo do terreno, definida em Dados Globais (aba Estacas) —
+  // mesmo dado usado no perfil de sondagem/capacidade das estacas. Aqui é referenciado à base do
+  // radier via Df (profundidade de assentamento), evitando um segundo campo de N.A. duplicado.
+  const Df = parseFloat($('in-df').value)||0;
+  // Lê o campo g-na diretamente (não via G_na()) porque esta função roda no carregamento
+  // inicial da página, antes do bloco <script> do módulo Estacas (onde G_na é declarada)
+  // ser executado — o elemento já existe no DOM (todo o HTML vem antes dos scripts), só a
+  // função ainda não.
+  const naDepthTerreno = +(($('g-na')||{}).value)||0, gagua = parseFloat($('in-gagua').value)||10;
+  const temNA = naDepthTerreno < Df;
+  const empuxoNA = temNA ? gagua*(Df-naDepthTerreno) : 0; // kPa, na base do radier
   const pesoProprioKpa = Wsw/A;
   const FS_flutuacao = temNA && empuxoNA>0 ? pesoProprioKpa/empuxoNA : Infinity;
   const ok_flutuacao = !temNA || FS_flutuacao>=1.1;
@@ -2653,7 +2697,6 @@ function calcularRadier(){
   const phiSoloDeg = parseFloat($('in-phi-solo').value)||0;
   const coesao = parseFloat($('in-coesao').value)||0;
   const gammaSolo = parseFloat($('in-gamma-solo').value)||18;
-  const Df = parseFloat($('in-df').value)||0;
   const terzaghiAtivo = phiSoloDeg>0 || coesao>0;
   let qult=0, FS_capacidade=Infinity, ok_capacidade=true, Nc=0,Nq=0,Ngamma=0;
   if(terzaghiAtivo){
@@ -2705,7 +2748,7 @@ function calcularRadier(){
       !ok_cobrimento ? `Aumente o cobrimento nominal para pelo menos ${fmt(cobMinCAA,1)} cm.` : null,
       !ok_cobrimento ? [{field:'in-cob',value:cobMinCAA}] : null, `cobrimento=${fmt(cobMinCAA,1)}cm`) +
     checkItemR('Subpressão / flutuação (N.A. acima da base do radier)', temNA?(ok_flutuacao?'ok':'bad'):'info',
-      temNA ? `Empuxo ascensional = ${fmt(empuxoNA,1)} kPa vs peso próprio = ${fmt(pesoProprioKpa,1)} kPa → FS = ${fmt(FS_flutuacao,2)} (mín. usual 1,1)` : 'N.A. abaixo da base do radier — subpressão não relevante.',
+      temNA ? `N.A. a ${fmt(naDepthTerreno,2)}m (Dados Globais) e base do radier a Df=${fmt(Df,2)}m → empuxo ascensional = ${fmt(empuxoNA,1)} kPa vs peso próprio = ${fmt(pesoProprioKpa,1)} kPa → FS = ${fmt(FS_flutuacao,2)} (mín. usual 1,1)` : `N.A. (${fmt(naDepthTerreno,2)}m, definido em Dados Globais) abaixo da base do radier (Df=${fmt(Df,2)}m) — subpressão não relevante.`,
       'NBR 6122',
       temNA && !ok_flutuacao ? `Aumentar espessura/peso do radier, adicionar ancoragens (tirantes) ou rebaixar o N.A. durante a obra. Sugestão: H=${fmt(sugH_flutuacao*100,0)}cm.` : null,
       temNA && !ok_flutuacao ? [{field:'in-H',value:sugH_flutuacao}] : null, `H=${fmt(sugH_flutuacao*100,0)}cm`) +
@@ -3326,6 +3369,7 @@ function calcularRadier(){
 
   // Expose key aggregate results for the Geo·Flow bridge (Δσv, área de contato etc.)
   window._radierResumo = {L,B,H,sadm,Ntotal:NtotalReal,NtotalProjeto:Ntotal,fatorProjeto,pAvg,ex,ey,pMax,pMin,fck,cob,gc};
+  if(typeof sincronizarCargaGrupoComRadier==='function') sincronizarCargaGrupoComRadier(false);
 }
 
 document.querySelectorAll('#side-r input, #side-r select, #side-r-dim input, #side-r-dim select').forEach(el=>el.addEventListener('input',calcularRadier));
@@ -3340,31 +3384,16 @@ $('in-caa').addEventListener('change',function(){
   calcularRadier();
 });
 
+// gerarMemoria() (botão da aba Radier) e buildMemoriaCompleta()/btn-memoria-e (aba Estacas)
+// agora convergem para o MESMO relatório único — ver função gerarMemoriaGeral(), definida
+// mais abaixo no arquivo (depois que os módulos Estacas/Interação também estiverem carregados).
 function gerarMemoria(){
+  if(typeof gerarMemoriaGeral==='function'){ gerarMemoriaGeral(); return; }
+  // fallback (não deveria ocorrer): abre só a parte do Radier, caso a memória geral não tenha carregado
   const body = $('main-r').innerHTML + $('main-r-dim').innerHTML;
-  const appCss = document.querySelector('style').textContent;
-  const L=$('in-L').value,B=$('in-B').value,H=$('in-H').value;
-  const html = `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8"><title>Memória de Cálculo — Radier</title>
-  <style>
-    ${appCss}
-    body{font-family:system-ui,sans-serif;max-width:960px;margin:30px auto;color:#282420;line-height:1.5;background:#fff}
-    #main-r,#main-r-dim{padding:0}
-    h1{font-size:22px;border-bottom:3px solid #2a5a8c;padding-bottom:8px;color:#282420;font-family:system-ui}
-    .memo-sub{color:#8a8680;font-size:11px;margin:4px 0 22px;font-style:italic}
-    .memo-tbl{border-collapse:collapse;margin:0 0 24px}
-    .memo-tbl th,.memo-tbl td{border:1px solid #bdb8ae;padding:6px 14px;font-size:11px;text-align:center}
-    .memo-tbl th{background:var(--surf)}
-    .section-title{page-break-after:avoid}
-    .diagram-box{page-break-inside:avoid}
-    .fstepR{page-break-inside:avoid}
-    @media print{ .no-print{display:none} body{margin:0} }
-  </style></head><body>
-  <h1>🧱 Memória de Cálculo — Dimensionamento de Radier</h1>
-  <p class="memo-sub">Conforme NBR 6122:2019/2022, NBR 6118:2023, ACI 336.2R-88 e Terzaghi (1943) · Gerado em ${new Date().toLocaleString('pt-BR')} · apoio técnico ao pré-dimensionamento — passo a passo com fórmula, referência normativa, substituição numérica e resultado.</p>
-  <table class="memo-tbl"><tr><th>L (m)</th><th>B (m)</th><th>H (m)</th></tr><tr><td>${L}</td><td>${B}</td><td>${H}</td></tr></table>
-  ${body}
-  </body></html>`;
-  const w = window.open('','_blank'); w.document.write(html); w.document.close();
+  const w = window.open('','_blank');
+  w.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Memória — Radier</title></head><body>${body}</body></html>`);
+  w.document.close();
 }
 $('btn-memoria').addEventListener('click',gerarMemoria);
 
@@ -3374,7 +3403,7 @@ calcularRadier();
 (function(){
   const FIELD_IDS=['in-L','in-B','in-H','in-gc','in-q-dist','in-fck','in-cob','in-caa','in-fyk',
     'in-elu-modo','in-gammaf','in-malha-h','in-iso-step','in-sadm','in-kv-modo','in-kv','in-vao',
-    'in-phi-solo','in-coesao','in-gamma-solo','in-df','in-bfaixa','in-na','in-gagua',
+    'in-phi-solo','in-coesao','in-gamma-solo','in-df','in-bfaixa','in-gagua',
     'in-recalque-adm','in-distorcao-lim','in-rho','in-phi','in-mdesb','in-cobertura-sup',
     'in-esp-amarracao','in-phi-amarracao'];
 
@@ -3441,6 +3470,18 @@ calcularRadier();
           if(el&&st.fields[id]!=null&&st.fields[id]!=='') el.value=st.fields[id];
         });
       }
+      // ── Entradas por conexão (chaves semânticas) ──
+      // Node "Nível d'Água" (outputs zw, yw): yw = peso específico da água → in-gagua.
+      // (zw, a profundidade, pertence ao módulo Estacas — ver bridge "estacas-*" — pois é
+      // lá que fica o campo único g-na, referenciado ao terreno/perfil de sondagem.)
+      if(st.yw!=null && document.getElementById('in-gagua')) document.getElementById('in-gagua').value=st.yw;
+      // Node "Solo Multicamadas" (outputs phi, coh, garg, ...): parâmetros de capacidade
+      // de carga (Terzaghi) do card Solo.
+      if(st.phi!=null && document.getElementById('in-phi-solo')) document.getElementById('in-phi-solo').value=st.phi;
+      if(st.coh!=null && document.getElementById('in-coesao')) document.getElementById('in-coesao').value=st.coh;
+      if(st.garg!=null && document.getElementById('in-gamma-solo')) document.getElementById('in-gamma-solo').value=st.garg;
+      // Node "Sobrecarga" (outputs q, dsv): carga distribuída adicional no radier.
+      if(st.q!=null && document.getElementById('in-q-dist')) document.getElementById('in-q-dist').value=st.q;
       if(Array.isArray(st.pilares)&&st.pilares.length&&typeof addPilar==='function'){
         document.getElementById('pilares-body').innerHTML='';
         pilIds.length=0;
@@ -3779,28 +3820,9 @@ function distribuirCarga(coords, Ntotal, Mx, My){
 }
 
 // ═══ arranjo de estacas compartilhado entre Passo 2 e Passo 5 ═══
+// Fixado em grade retangular N×M — é o único arranjo que faz sentido para
+// um radier estaqueado (estacas distribuídas em malha sob toda a área do radier).
 function ARR_dados(){
-  const tipo = $('g-arranjo').value;
-  if(tipo==='triangular'){
-    const lt=+$('g-lt3').value||1;
-    const R=lt/Math.sqrt(3);
-    // ordem: [0]=apice embaixo, [1]=superior-esquerda, [2]=superior-direita (igual a referencia de desenho)
-    const coords=[-180,60,-60].map(ang=>{ const rad=(90+ang)*Math.PI/180; return {x:R*Math.cos(rad), y:R*Math.sin(rad)}; });
-    return {tipo,coords,lt,R,n:3};
-  }
-  if(tipo==='quad_central'){
-    const ex=+$('g-ex').value||0.9, ey=+$('g-ey').value||0.9;
-    const coords=[{x:-ex/2,y:-ey/2},{x:ex/2,y:-ey/2},{x:-ex/2,y:ey/2},{x:ex/2,y:ey/2},{x:0,y:0,direct:true}];
-    return {tipo,coords,ex,ey,n:5};
-  }
-  if(tipo==='hexagono' || tipo==='hex_central'){
-    const lt=+$('g-lt6').value||0.9;
-    const R=lt;
-    const perif=[0,1,2,3,4,5].map(i=>{ const rad=(90+i*60)*Math.PI/180; return {x:R*Math.cos(rad), y:R*Math.sin(rad)}; });
-    const coords = tipo==='hex_central' ? [...perif,{x:0,y:0,direct:true}] : perif;
-    return {tipo,coords,lt,R,n:coords.length};
-  }
-  // grade retangular N x M (padrao)
   const nx=Math.max(1,Math.round(+$('g-nx').value||1));
   const ny=Math.max(1,Math.round(+$('g-ny').value||1));
   const sx=+$('g-sx').value||0.9, sy=+$('g-sy').value||0.9;
@@ -3811,11 +3833,6 @@ function ARR_dados(){
   return {tipo:'grade',coords,nx,ny,sx,sy,n:coords.length};
 }
 $('g-arranjo').addEventListener('change',()=>{
-  const t = $('g-arranjo').value;
-  $('arr-grade').style.display = t==='grade' ? 'block':'none';
-  $('arr-triangular').style.display = t==='triangular' ? 'block':'none';
-  $('arr-quadcentral').style.display = t==='quad_central' ? 'block':'none';
-  $('arr-hexagono').style.display = (t==='hexagono'||t==='hex_central') ? 'block':'none';
   calcularS2(); calcularS5();
 });
 
@@ -3905,6 +3922,35 @@ let camadasS1 = [
 ];
 
 function somaCamadasS1(){ return camadasS1.reduce((s,c)=>s+c.dz,0); }
+
+// ── Adaptador: converte camadas do node "Boletim de Sondagem" (tipos genéricos
+// argila/areia/silte/aterro/rocha/outro + golpes N-SPT) no formato de camadasS1
+// (subtipo Aoki-Velloso mais fino + N-SPT). É uma tradução aproximada — o subtipo
+// fino (ex.: "Argila arenosa" vs "Argila") não existe no boletim, então usa-se o
+// genérico de cada família; ajuste manualmente na tabela do Passo 1 se necessário.
+const BS_TIPO_TO_SOLO_IDX = {argila:10, areia:0, silte:5, aterro:0, rocha:0, outro:10};
+function converterBSparaCamadasS1(bsLayers, bsGolpes){
+  if(!Array.isArray(bsLayers) || !bsLayers.length) return null;
+  // N-SPT médio por camada, a partir dos golpes cujo prof cai dentro do intervalo [topo,base)
+  const nMedioPorFaixa = (topo,base)=>{
+    if(!Array.isArray(bsGolpes) || !bsGolpes.length) return null;
+    const golpesNaFaixa = bsGolpes.filter(g=>{
+      const p = +g.prof;
+      return isFinite(p) && p>=topo-1e-6 && p<base+1e-6;
+    });
+    if(!golpesNaFaixa.length) return null;
+    const soma = golpesNaFaixa.reduce((s,g)=>s+(+g.nf||+g.nspt||0),0);
+    return Math.round(soma/golpesNaFaixa.length);
+  };
+  const camadas = bsLayers.map(l=>{
+    const topo = +l.topo||0, base = +l.base||(topo+1);
+    const dz = Math.max(0.1, base-topo);
+    const soloIdx = BS_TIPO_TO_SOLO_IDX[l.tipo] ?? 10;
+    const n = nMedioPorFaixa(topo,base) ?? 10; // fallback conservador se não houver golpe na faixa
+    return {dz, n, solo:soloIdx};
+  });
+  return camadas.length ? camadas : null;
+}
 
 function renderCamadasS1(){
   const box=$('s1-camadas-body'); box.innerHTML='';
@@ -4730,8 +4776,8 @@ function drawPerfilS4(camadasArr, D, na){
   const pileW=22, pcx=x1-70;
   svg += `<rect x="${pcx-pileW/2}" y="${padTop}" width="${pileW}" height="${Ltot*scaleY+hPos-15}" fill="#e0dccf" stroke="#7a5030" stroke-width="2"/>`;
   svg = `<defs>
-    <marker id="s4-ahdown" markerWidth="7" markerHeight="7" refX="3.5" refY="6" orient="auto"><path d="M0,0 L7,0 L3.5,7 Z" fill="#96421f"/></marker>
-    <marker id="s4-ahup" markerWidth="7" markerHeight="7" refX="3.5" refY="1" orient="auto"><path d="M0,7 L7,7 L3.5,0 Z" fill="#2d6b4a"/></marker>
+    <marker id="s4-ahdown" viewBox="0 0 8 8" markerWidth="7" markerHeight="7" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 Z" fill="#96421f"/></marker>
+    <marker id="s4-ahup" viewBox="0 0 8 8" markerWidth="7" markerHeight="7" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 Z" fill="#2d6b4a"/></marker>
   </defs>` + svg;
   $('s4-svg-perfil').innerHTML = svg;
 }
@@ -5710,8 +5756,8 @@ $('g-tipoestaca').addEventListener('change',()=>{ atualizarCoefEstacaS1(); calcu
 }));
 ['g-fck','g-fyk','g-gammaf'].forEach(id=>$(id).addEventListener('input',()=>{ atualizarES3(); calcularS3(); calcularS5(); }));
 $('g-fs').addEventListener('input',()=>{ calcularS1(); calcularS4(); });
-$('g-na').addEventListener('input',()=>{ calcularS1(); calcularS4(); });
-['g-nx','g-ny','g-sx','g-sy','g-lt3','g-ex','g-ey','g-lt6','g-espmin'].forEach(id=>$(id).addEventListener('input',()=>{ calcularS2(); calcularS5(); }));
+$('g-na').addEventListener('input',()=>{ calcularS1(); calcularS4(); if(typeof calcularRadier==='function') calcularRadier(); });
+['g-nx','g-ny','g-sx','g-sy','g-espmin'].forEach(id=>$(id).addEventListener('input',()=>{ calcularS2(); calcularS5(); }));
 
 ['s1-F1','s1-F2','s1-alfaDQ','s1-betaDQ'].forEach(id=>$(id).addEventListener('input',calcularS1));
 ['s2-Radm','s2-transf','s2-L'].forEach(id=>$(id).addEventListener('input',calcularS2));
@@ -5723,62 +5769,210 @@ $('g-na').addEventListener('input',()=>{ calcularS1(); calcularS4(); });
   $(id).addEventListener('input',calcularS6);
   $(id).addEventListener('change',calcularS6);
 });
-['g-Nk','g-Mx','g-My'].forEach(id=>$(id).addEventListener('input',()=>{ calcularS2(); }));
+['g-Nk','g-Mx','g-My'].forEach(id=>$(id).addEventListener('input',()=>{
+  window._cargaGrupoManual = true; // digitação manual desliga a sincronização automática com o Radier
+  calcularS2();
+}));
 
 // (clique nas barras do desenho do bloco — svg-planta-bloco/corte-a/corte-b removidos, bloco não se aplica)
 
 // (toggles de visibilidade da Vista 3D do Bloco — removidos junto com a seção)
 
-// ═══════════════ MEMORIA DE CALCULO CONSOLIDADA ═══════════════
-function buildMemoriaCompleta(){
-  function bloco(titulo, ids){
-    return `<h2>${titulo}</h2>` + ids.map(id=>{ const el=$(id); return el?el.outerHTML:''; }).join('');
+// ═══════════════ MEMÓRIA DE CÁLCULO GERAL — RADIER ESTAQUEADO (relatório único) ═══════════════
+// Consolida, em ORDEM DIDÁTICA (estaca isolada → grupo → radier → interação PDR → estrutural
+// das estacas → atrito negativo → detalhamento), tudo que já é calculado e desenhado nas 5 abas
+// do app. Cada seção é capturada diretamente dos painéis de saída já renderizados (mesmas
+// tabelas, caixas de fórmula "passo a passo" e desenhos SVG que aparecem na tela) — não há
+// recálculo paralelo nem duplicação de lógica: o relatório é sempre fiel ao que está na tela.
+//
+// Substitui a antiga buildMemoriaCompleta() (que listava dezenas de IDs manualmente, inclusive
+// de um "Bloco de Coroamento" que não existe mais nesta variante de radier estaqueado) por uma
+// captura por CONTAINER (main-e, main-r, main-r-dim, main-i, main-e-verif) — mais robusta a
+// mudanças futuras de layout e sem seções fantasmas/vazias.
+function buildMemoriaCompleta(){ return gerarMemoriaGeral(true); }
+
+function gerarMemoriaGeral(retornarHtmlApenas){
+  // garante que todos os módulos estão com os valores mais recentes antes de capturar a tela
+  try{ if(typeof calcularS1==='function') calcularS1(); }catch(_){}
+  try{ if(typeof calcularS2==='function') calcularS2(); }catch(_){}
+  try{ if(typeof calcularS3==='function') calcularS3(); }catch(_){}
+  try{ if(typeof calcularS4==='function') calcularS4(); }catch(_){}
+  try{ if(typeof calcularS6==='function') calcularS6(); }catch(_){}
+  try{ if(typeof calcularRadier==='function') calcularRadier(); }catch(_){}
+  try{ if(typeof calcularInteracao==='function') calcularInteracao(); }catch(_){}
+
+  const appCss = document.querySelector('style') ? document.querySelector('style').textContent : '';
+
+  function secao(numero, titulo, subtitulo, conteudoHtml){
+    if(!conteudoHtml || !conteudoHtml.trim()) return '';
+    const anchorId = 'memo-sec-'+numero;
+    return `<section id="${anchorId}" class="memo-secao">
+      <h2><span class="memo-num">${numero}</span>${titulo}</h2>
+      ${subtitulo?`<p class="memo-sub-secao">${subtitulo}</p>`:''}
+      ${conteudoHtml}
+    </section>`;
   }
+  function conteudoDe(id){ const el=$(id); return el ? el.innerHTML : ''; }
+
+  // ── I. Dados Gerais do Projeto (capa/resumo) ──
+  const tipoEstacaTxt = $('g-tipoestaca').selectedOptions[0].text;
+  const arranjo = (typeof ARR_dados==='function') ? ARR_dados() : null;
+  const resumoRadier = window._radierResumo || {};
+  const dadosGeraisTbl = `
+    <table class="memo-tbl memo-tbl-capa">
+      <tr><th colspan="2">Estacas</th><th colspan="2">Radier</th></tr>
+      <tr><td>Tipo</td><td>${tipoEstacaTxt}</td><td>L × B × H</td><td>${fmt(resumoRadier.L,2)} × ${fmt(resumoRadier.B,2)} × ${fmt(resumoRadier.H,2)} m</td></tr>
+      <tr><td>Seção / D</td><td>${G_forma()==='circular'?'Circular':'Quadrada'}, D=${fmt(G_D(),2)}m</td><td>f<sub>ck</sub></td><td>${fmt(resumoRadier.fck,0)} MPa</td></tr>
+      <tr><td>Arranjo</td><td>${arranjo?`Grade ${arranjo.nx}×${arranjo.ny} (s<sub>x</sub>=${fmt(arranjo.sx,2)}m, s<sub>y</sub>=${fmt(arranjo.sy,2)}m), n=${arranjo.n}`:'—'}</td><td>σ<sub>adm</sub></td><td>${fmt(resumoRadier.sadm,0)} kPa</td></tr>
+      <tr><td>f<sub>ck</sub> / f<sub>yk</sub></td><td>${fmt(G_fck(),0)} / ${fmt(G_fyk(),0)} MPa</td><td>Cobrimento</td><td>${fmt(resumoRadier.cob,1)} cm</td></tr>
+      <tr><td>FS geotécnico / γ<sub>f</sub></td><td>${fmt(G_fs(),2)} / ${fmt(G_gammaf(),2)}</td><td>N total (c/ peso próprio)</td><td>${fmt(resumoRadier.Ntotal,0)} kN</td></tr>
+      <tr><td>N.A. (profundidade)</td><td>${fmt(G_na(),2)} m</td><td>e<sub>x</sub> / e<sub>y</sub></td><td>${fmt(resumoRadier.ex,3)} / ${fmt(resumoRadier.ey,3)} m</td></tr>
+    </table>`;
+  const secI = secao('I','Dados Gerais do Projeto',
+    'Parâmetros globais adotados em todas as etapas — editáveis em "Dados Globais" (aba Estacas) e nos cards da aba Radier.',
+    dadosGeraisTbl);
+
+  // ── II. Estaca isolada (aba Estacas, Passo 1) ──
+  const secII = secao('II','Estaca Isolada — Capacidade de Carga',
+    'Capacidade de carga de uma única estaca a partir do perfil de sondagem SPT, por dois métodos semiempíricos independentes calculados lado a lado.',
+    conteudoDe('main-e') ? (function(){
+      // dentro de #main-e só o painel data-step-panel="1" interessa aqui
+      const el = $('main-e');
+      const tmp = document.createElement('div'); tmp.innerHTML = el.innerHTML;
+      const p1 = tmp.querySelector('[data-step-panel="1"]');
+      return p1 ? p1.innerHTML : '';
+    })() : '');
+
+  // ── III. Grupo de estacas (aba Estacas, Passo 2) ──
+  const secIII = secao('III','Grupo de Estacas — Distribuição de Carga e Eficiência',
+    'A carga do radier (ou do pilar, se houver) é distribuída entre as estacas do grupo tratando o bloco como rígido; a eficiência de grupo verifica o efeito de sobreposição entre estacas próximas.',
+    (function(){
+      const el = $('main-e');
+      const tmp = document.createElement('div'); tmp.innerHTML = el ? el.innerHTML : '';
+      const p2 = tmp.querySelector('[data-step-panel="2"]');
+      return p2 ? p2.innerHTML : '';
+    })());
+
+  // ── IV. Radier — geometria, geotecnia, rigidez, punção e armadura ──
+  const secIV = secao('IV','Radier — Geometria, Verificação Geotécnica, Rigidez, Punção e Armadura',
+    'Planta e corte do radier, verificação das pressões de contato no solo (NBR 6122), classificação rígido×flexível, modelagem em grelha sobre base elástica (Winkler) quando flexível, punção nos pilares (NBR 6118 §19.5) e detalhamento/quantitativos de armadura.',
+    conteudoDe('main-r') + conteudoDe('main-r-dim'));
+
+  // ── V. Interação Radier-Estaca (PDR) ──
+  const secV = secao('V','Interação Radier-Estaca (PDR)',
+    'Repartição de carga entre o radier e o grupo de estacas pela Metodologia Simplificada de Cálculo (PDR) — combina a rigidez isolada do radier (K_rad) com a do grupo de estacas (K_pg), incluindo o fator de interação α_rp (Randolph, 1994).',
+    conteudoDe('main-i'));
+
+  // ── VI/VII/VIII. Estacas — verificação estrutural, atrito negativo, detalhamento (aba Estacas-verif) ──
+  function painelVerif(passo){
+    const el = $('main-e-verif');
+    const tmp = document.createElement('div'); tmp.innerHTML = el ? el.innerHTML : '';
+    const p = tmp.querySelector(`[data-step-panel="${passo}"]`);
+    return p ? p.innerHTML : '';
+  }
+  const secVI = secao('VI','Verificação Estrutural das Estacas',
+    'Compressão simples, flambagem (trecho sem apoio lateral, se houver) e flexo-compressão (integração de fibras na seção transversal), conforme NBR 6118.',
+    painelVerif(3));
+  const secVII = secao('VII','Atrito Negativo',
+    'Estimativa da carga de arrasto (P_n) quando o solo ao redor da estaca recalca mais do que ela, e seu efeito na estrutura da estaca e na capacidade geotécnica disponível — método β.',
+    painelVerif(4));
+  const secVIII = secao('VIII','Detalhamento e Quantitativos das Estacas',
+    'Armadura longitudinal e transversal da estaca (seção e perfil), a partir da verificação estrutural (Seção VI), e quantitativos de aço/concreto.',
+    painelVerif(6));
+
+  // ── Sumário executivo (rápida checagem de OK/reprovado, com base no que já foi calculado) ──
+  const okGeoRadier = resumoRadier.pMax!=null ? true : null; // (o próprio grid-geo/checklist-geo já traz o detalhe — aqui é só um atalho visual)
+  const sumarioLinhas = [
+    ['I', 'Dados Gerais do Projeto'],
+    ['II', 'Estaca Isolada — Capacidade de Carga'],
+    ['III', 'Grupo de Estacas — Distribuição e Eficiência'],
+    ['IV', 'Radier — Geotecnia, Rigidez, Punção e Armadura'],
+    ['V', 'Interação Radier-Estaca (PDR)'],
+    ['VI', 'Verificação Estrutural das Estacas'],
+    ['VII', 'Atrito Negativo'],
+    ['VIII', 'Detalhamento e Quantitativos das Estacas'],
+    ['IX', 'Referências Normativas e Bibliográficas'],
+  ];
+  const sumarioHtml = `<nav class="memo-toc no-print"><b>Sumário</b><ol>` +
+    sumarioLinhas.map(([n,t])=>`<li><a href="#memo-sec-${n}">${n}. ${t}</a></li>`).join('') +
+    `</ol></nav>`;
+
+  // ── IX. Referências ──
+  const secIX = secao('IX','Referências Normativas e Bibliográficas', '', `
+    <ul class="memo-ref-list">
+      <li>ABNT NBR 6122:2019/2022 — Projeto e execução de fundações</li>
+      <li>ABNT NBR 6118:2023 — Projeto de estruturas de concreto (armadura mínima §17.3, ancoragem §9.4, punção §19.5, laje sobre base elástica §13/§22)</li>
+      <li>ABNT NBR 12131 — Estacas — Prova de carga estática</li>
+      <li>Aoki, N. &amp; Velloso, D. (1975) — Método semiempírico de capacidade de carga</li>
+      <li>Décourt, L. &amp; Quaresma, A. (1978); Décourt, L. (1996) — Método semiempírico de capacidade de carga</li>
+      <li>Converse-Labarre — Eficiência de grupo de estacas</li>
+      <li>Terzaghi, K. &amp; Peck, R. — Mecânica dos solos, bloco fictício de estacas</li>
+      <li>Meyerhof, G.G. (1963) — Capacidade de carga; ACI 336.2R-88 — Classificação rígido×flexível de radiers</li>
+      <li>Método β — Atrito negativo (fricção negativa) em estacas</li>
+      <li>Randolph, M.F. (1994); Clancy, P. &amp; Randolph, M.F. (1993) — Interação radier-estaca (PDR); Poulos &amp; Davis (1980); Poulos (2001)</li>
+      <li>Cunha, R. — UnB/GPFees — Metodologia Simplificada de Cálculo (PDR) de Radier Estaqueado</li>
+    </ul>`);
+
+  const avisoFinal = `<div class="memo-aviso">
+    <b>⚠ Apoio técnico ao dimensionamento.</b> Este relatório consolida os cálculos realizados no app
+    (métodos semiempíricos de capacidade de carga, distribuição de carga por bloco rígido, verificação
+    geotécnica e estrutural do radier, interação radier-estaca pela Metodologia PDR, atrito negativo e
+    detalhamento de armadura). Não substitui projeto executivo, prova de carga estática, ensaio de
+    integridade (PIT), modelagem numérica (MEF/MEC) detalhada nem a responsabilidade técnica registrada
+    (ART/CREA) do profissional responsável pelo projeto.
+  </div>`;
+
   const html = `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8">
-  <title>Memoria de Calculo Completa - Fundacoes em Estacas</title>
+  <title>Memória de Cálculo — Radier Estaqueado</title>
   <style>
-    body{font-family:system-ui,sans-serif;font-size:12.5px;color:#282420;max-width:960px;margin:30px auto;padding:0 20px}
-    h1{font-size:20px;border-bottom:3px solid #282420;padding-bottom:8px}
-    h2{font-size:15px;color:#1f6b52;margin-top:26px;border-bottom:1px solid #ddd;padding-bottom:4px}
-    table{width:100%;border-collapse:collapse;font-size:11px;margin:8px 0}
-    th,td{border:1px solid #bdb8ae;padding:4px 6px;text-align:center}
-    th{background:#e8e2d6}
-    svg{max-width:100%;height:auto;border:1px solid #ddd;margin:6px 0}
-    .rb{display:inline-block;background:#e8e2d6;border:1px solid #bdb8ae;border-radius:3px;padding:5px 8px;margin:2px;font-size:11px}
-    .status-banner{padding:6px 10px;border-radius:3px;font-weight:700;font-size:11px;margin:4px 0}
-    .status-banner.ok{background:#eaf4ee;color:#2d6b4a}
-    .status-banner.bad{background:#fbeceb;color:#b43025}
-    .status-banner.warn{background:#fdf3e0;color:#9a6a10}
-    .status-banner.info{background:#eaf1f8;color:#2a5a8c}
-    .globais{background:#f1ede2;border:1px solid #282420;border-radius:4px;padding:10px 14px;margin:14px 0}
-    @media print{ body{margin:8px} }
+    ${appCss}
+    :root{ --memo-accent:#1f6b52; }
+    *{box-sizing:border-box}
+    body{font-family:system-ui,sans-serif;font-size:13px;max-width:980px;margin:0 auto;padding:32px 24px 60px;color:#282420;line-height:1.55;background:#fff}
+    #main-r,#main-r-dim,#main-e,#main-i,#main-e-verif{padding:0}
+    [data-step-panel]{display:block !important}
+    .help-ic,.help-modal-overlay{display:none !important} /* ícones de ajuda não fazem sentido no relatório estático */
+    h1{font-size:23px;border-bottom:4px solid var(--memo-accent);padding-bottom:10px;color:#282420;margin-bottom:4px}
+    .memo-sub{color:#8a8680;font-size:11px;margin:4px 0 20px;font-style:italic}
+    .memo-toc{background:#f1ede2;border:1px solid #bdb8ae;border-radius:6px;padding:14px 18px;margin:0 0 28px}
+    .memo-toc b{font-size:12px;text-transform:uppercase;letter-spacing:1px;color:var(--memo-accent)}
+    .memo-toc ol{margin:8px 0 0 20px;padding:0;columns:2;font-size:12px}
+    .memo-toc a{color:#282420;text-decoration:none}
+    .memo-toc a:hover{text-decoration:underline;color:var(--memo-accent)}
+    .memo-tbl{border-collapse:collapse;margin:0 0 20px;width:100%}
+    .memo-tbl th,.memo-tbl td{border:1px solid #bdb8ae;padding:6px 10px;font-size:11.5px;text-align:left}
+    .memo-tbl th{background:#e8e2d6;text-align:center}
+    .memo-tbl-capa td:nth-child(2n){font-weight:700}
+    .memo-secao{margin-top:36px;padding-top:6px;border-top:3px double #bdb8ae}
+    .memo-secao:first-of-type{border-top:none;margin-top:0}
+    .memo-secao h2{font-size:17px;color:var(--memo-accent);margin:0 0 4px;display:flex;align-items:center;gap:10px}
+    .memo-num{display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:50%;background:var(--memo-accent);color:#fff;font-size:13px;font-family:var(--mono);flex-shrink:0}
+    .memo-sub-secao{color:#8a8680;font-size:11.5px;margin:0 0 14px;font-style:italic;max-width:800px}
+    .memo-ref-list{font-size:12px;line-height:1.9;color:#444;padding-left:20px;columns:2}
+    .memo-aviso{background:#fff3ee;border-left:4px solid var(--memo-accent);padding:14px 16px;border-radius:0 6px 6px 0;font-size:11.5px;color:#5a4530;margin-top:32px;line-height:1.6}
+    .section-title{page-break-after:avoid}
+    .diagram-box{page-break-inside:avoid}
+    @media print{
+      .no-print{display:none}
+      body{margin:0;max-width:none}
+      .memo-secao{page-break-before:always;border-top:none}
+      .memo-secao:first-of-type{page-break-before:avoid}
+    }
   </style></head><body>
-  <h1>Memória de Cálculo — Fundações em Estacas (App Completo)</h1>
-  <div class="globais">
-    <b>Dados globais:</b> Tipo de estaca: ${$('g-tipoestaca').selectedOptions[0].text} ·
-    Seção: ${$('g-forma').value} D=${fmt(G_D(),2)}m ·
-    f<sub>ck</sub>=${fmt(G_fck(),0)}MPa · f<sub>yk</sub>=${fmt(G_fyk(),0)}MPa ·
-    FS=${fmt(G_fs(),2)} · γ<sub>f</sub>=${fmt(G_gammaf(),2)} · NA=${fmt(G_na(),1)}m
-  </div>
-
-  ${bloco('Passo 1 — Estaca Isolada', ['s1-svg-perfil','s1-tbl-aoki','s1-grid-aoki','s1-grid-dq','s1-tbl-comp','s1-banner-comp'])}
-  ${bloco('Passo 2 — Grupo de Estacas', ['s2-svg-planta','s2-tbl-distrib','s2-grid-distrib','s2-banner-distrib','s2-grid-efic','s2-banner-efic','s2-checklist-esp','s2-svg-corte-ficticio','s2-grid-ficticio'])}
-  ${bloco('Passo 3 — Verificação Estrutural', ['s3-svg-estaca','s3-grid-compressao','s3-banner-compressao','s3-grid-flambagem','s3-banner-flambagem','s3-svg-nm','s3-svg-secao','s3-grid-flexocompressao','s3-banner-flexocompressao'])}
-  ${bloco('Passo 4 — Atrito Negativo', ['s4-svg-perfil','s4-tbl-atrito','s4-grid-atrito','s4-form-atrito','s4-grid-estrutural','s4-banner-estrutural','s4-grid-geotecnico','s4-banner-geotecnico'])}
-  ${bloco('Passo 5 — Bloco de Coroamento', ['s5-tbl-cargas','s5-banner-cargas','s5-svg-area-comprimida','s5-banner-area-comprimida','s5-banner-afmin','s5-grid-tracao','s5-form-tracao','s5-banner-tracao','s5-svg-planta','s5-svg-corte','s5-grid-geom','s5-banner-rigidez','s5-grid-tirante','s5-svg-biela-explicativa','s5-grid-biela','s5-form-biela','s5-banner-biela','s5-grid-pilar','s5-form-pilar','s5-banner-pilar'])}
-  ${bloco('Passo 6 — Detalhamento e Quantitativos', ['s6-banner-pre','s6-svg-secao-estaca','s6-svg-perfil-estaca','s6-tbl-estaca','s6-form-estaca','s6-svg-planta-bloco','s6-svg-corte-a','s6-svg-corte-b','s6-tbl-bloco','s6-form-bloco','s6-svg-planta-arr','s6-svg-corte-arr','s6-tbl-arr','s6-form-arr','s6-banner-arr','s6-tbl-aco','s6-grid-aco','s6-tbl-concreto','s6-grid-concreto'])}
-
-  <div class="globais" style="margin-top:24px">
-    <b>⚠ Apoio técnico ao dimensionamento.</b> Este relatório consolida os 5 passos calculados no app. Métodos semiempíricos (Aoki-Velloso, Décourt-Quaresma), Blévot &amp; Frémy (1967) para o bloco, integração de fibras simplificada para flexo-compressão, método β para atrito negativo. Não substitui projeto executivo, prova de carga estática, verificação de punção, ensaio de integridade (PIT) nem responsabilidade técnica registrada (ART/CREA).
-  </div>
+  <h1>🧱 Memória de Cálculo — Radier Estaqueado</h1>
+  <p class="memo-sub">Conforme NBR 6122:2019/2022, NBR 6118:2023, ACI 336.2R-88, Terzaghi &amp; Peck, Aoki-Velloso (1975), Décourt-Quaresma (1978) e Randolph (1994) · Gerado em ${new Date().toLocaleString('pt-BR')} · apoio técnico ao pré-dimensionamento — passo a passo, com fórmula geral, referência normativa, substituição numérica e resultado em cada etapa.</p>
+  ${sumarioHtml}
+  ${secI}${secII}${secIII}${secIV}${secV}${secVI}${secVII}${secVIII}${secIX}
+  ${avisoFinal}
   </body></html>`;
-  return html;
-}
-$('btn-memoria-e').addEventListener('click',()=>{
-  const html = buildMemoriaCompleta();
-  const w = window.open('', '_blank');
+
+  if(retornarHtmlApenas) return html;
+  const w = window.open('','_blank');
+  if(!w){ alert('Não foi possível abrir a memória de cálculo — verifique se o navegador bloqueou o pop-up.'); return; }
   w.document.write(html); w.document.close();
-});
+}
+
+$('btn-memoria-e').addEventListener('click',()=>{ gerarMemoriaGeral(); });
 
 // ═══════════════ PASSO 6: DETALHAMENTO E QUANTITATIVOS ═══════════════
 // planta do bloco com tirante (segmentos reais do Passo 5) e malha esquematica
@@ -6648,7 +6842,7 @@ atualizarStatus();
 // window.__*_INITIAL_DATA__), para que este app possa futuramente virar um node do editor
 // sem precisar de reescrita — só registro do node type.
 (function(){
-  const FIELD_IDS = ['g-D','g-Mx','g-My','g-Nk','g-arranjo','g-espmin','g-ex','g-ey','g-fck','g-forma','g-fs','g-fyk','g-gammaf','g-lt3','g-lt6','g-na','g-nx','g-ny','g-sx','g-sy','g-tipoestaca','s1-F1','s1-F2','s1-Lprof','s1-alfaDQ','s1-betaDQ','s2-L','s2-Radm','s2-transf','s3-Aaco','s3-E','s3-L0','s3-Ltot','s3-Mk','s3-Nk','s3-coefadm','s3-dlinha','s3-fsflamb','s3-fyaco','s3-material','s3-nbarras','s3-rho','s3-sigmamadeira','s3-vinc','s4-Nkestr','s4-Ru','s5-As-estaca','s5-afmin','s5-apx','s5-apy','s5-cob','s5-h','s5-phi','s5-phi-estaca','s6-3d-tog-arr','s6-3d-tog-bloco','s6-3d-tog-estacas','s6-3d-tog-n1','s6-3d-tog-n3','s6-3d-tog-n4','s6-3d-tog-pele','s6-camadas-contorno','s6-gancho-arr','s6-narr-pilar','s6-passo-estribo','s6-passo-estribo-arr','s6-passo-pele','s6-perc-emenda-arr','s6-perda-concreto','s6-phi-arr-pilar','s6-phi-contorno','s6-phi-estribo','s6-phi-estribo-arr','s6-phi-long','s6-phi-malha','s6-phi-pele','s6-phi-tirante','s6-rho-malha'];
+  const FIELD_IDS = ['g-D','g-Mx','g-My','g-Nk','g-arranjo','g-espmin','g-fck','g-forma','g-fs','g-fyk','g-gammaf','g-nx','g-ny','g-sx','g-sy','g-tipoestaca','s1-F1','s1-F2','s1-Lprof','s1-alfaDQ','s1-betaDQ','s2-L','s2-Radm','s2-transf','s3-Aaco','s3-E','s3-L0','s3-Ltot','s3-Mk','s3-Nk','s3-coefadm','s3-dlinha','s3-fsflamb','s3-fyaco','s3-material','s3-nbarras','s3-rho','s3-sigmamadeira','s3-vinc','s4-Nkestr','s4-Ru','s5-As-estaca','s5-afmin','s5-apx','s5-apy','s5-cob','s5-h','s5-phi','s5-phi-estaca','s6-3d-tog-arr','s6-3d-tog-bloco','s6-3d-tog-estacas','s6-3d-tog-n1','s6-3d-tog-n3','s6-3d-tog-n4','s6-3d-tog-pele','s6-camadas-contorno','s6-gancho-arr','s6-narr-pilar','s6-passo-estribo','s6-passo-estribo-arr','s6-passo-pele','s6-perc-emenda-arr','s6-perda-concreto','s6-phi-arr-pilar','s6-phi-contorno','s6-phi-estribo','s6-phi-estribo-arr','s6-phi-long','s6-phi-malha','s6-phi-pele','s6-phi-tirante','s6-rho-malha'];
 
   function recalcularTudo(){
     // recalcula os 6 passos em sequência para garantir que o objeto BRIDGE (definido mais
@@ -6682,7 +6876,8 @@ atualizarStatus();
         n:    (typeof BRIDGE!=='undefined')?BRIDGE.s2n:null,      // nº de estacas do arranjo (Passo 2)
         eta:  (typeof BRIDGE!=='undefined')?BRIDGE.s2eta:null,    // eficiência de grupo Converse-Labarre (Passo 2)
         NiMax:(typeof BRIDGE!=='undefined')?BRIDGE.s2Nimax:null,  // carga máx. por estaca no grupo (Passo 2)
-        NkTotal: (typeof BRIDGE!=='undefined')?BRIDGE.s4NkTotal:null // carga total c/ atrito negativo, se calculado (Passo 4)
+        NkTotal: (typeof BRIDGE!=='undefined')?BRIDGE.s4NkTotal:null, // carga total c/ atrito negativo, se calculado (Passo 4)
+        zw: (typeof G_na==='function')?G_na():null // N.A. (fonte única do app) — exposto p/ nodes a jusante
       }
     };
   }
@@ -6737,6 +6932,22 @@ atualizarStatus();
         camadasS1.length = 0;
         st.camadasS1.forEach(c=>camadasS1.push({...c}));
         renderCamadasS1();
+      }
+      // ── Entradas por conexão (chaves semânticas, não pelos IDs internos do form) ──
+      // Node "Nível d'Água" (outputs zw, yw): zw = profundidade do N.A. a partir do
+      // terreno → mesmo referencial do g-na (fonte única, ver Dados Globais).
+      if((st.zw!=null || st.NA!=null) && document.getElementById('g-na')){
+        document.getElementById('g-na').value = (st.zw!=null?st.zw:st.NA);
+      }
+      // Node "Boletim de Sondagem" (outputs layers, golpes, avgNspt, waterDepth):
+      // substitui o perfil de camadas do Passo 1 pelo perfil real do boletim.
+      if(Array.isArray(st.layers) && st.layers.length && typeof converterBSparaCamadasS1==='function' && typeof renderCamadasS1==='function'){
+        const convertidas = converterBSparaCamadasS1(st.layers, st.golpes);
+        if(convertidas){ camadasS1.length=0; convertidas.forEach(c=>camadasS1.push(c)); renderCamadasS1(); }
+      }
+      // waterDepth do boletim é uma alternativa a zw/NA quando não há node de N.A. dedicado
+      if(st.zw==null && st.NA==null && st.waterDepth!=null && document.getElementById('g-na')){
+        document.getElementById('g-na').value = st.waterDepth;
       }
       if(typeof atualizarCoefEstacaS1==='function') atualizarCoefEstacaS1();
       recalcularTudo();
@@ -6799,6 +7010,41 @@ atualizarStatus();
     }catch(err){ console.warn('Erro ao substituir N_k pelo P_p da Interação:', err); }
   }
   window.aplicarVerifEstacas = aplicarVerifEstacas;
+
+  // ── Sincronização automática de Nk/Mx/My com a resultante de cargas do Radier (aba 1) ──
+  // Evita ter a carga total lançada duas vezes (uma nos pilares/cargas da aba Radier, outra
+  // aqui) — por padrão N_k/M_x/M_y aqui refletem N_total/e_x/e_y já calculados lá. Se a
+  // Interação PDR (aba 3) também rodar, ela tem prioridade sobre N_k (ver aplicarVerifEstacas
+  // acima), pois é uma estimativa mais realista da fração de carga que vai para as estacas.
+  function sincronizarCargaGrupoComRadier(forcar){
+    const r = window._radierResumo;
+    const status = document.getElementById('carga-grupo-auto-status');
+    if(!r || r.Ntotal==null || !isFinite(r.Ntotal)){
+      if(status){ status.style.background='#fdf3e0'; status.style.color='#9a6a10'; status.textContent='⚠ Sem carga calculada na aba Radier ainda — preencha L, B e ao menos um pilar/carga lá.'; }
+      return false;
+    }
+    if(window._cargaGrupoManual && !forcar){
+      if(status){ status.style.background='#eaf1f8'; status.style.color='#2a5a8c'; status.textContent='✎ Valores editados manualmente — sincronização automática desligada (use o botão 🔄 para religar).'; }
+      return false;
+    }
+    window._cargaGrupoManual = false;
+    const Nk = r.Ntotal, My = Nk*(r.ex||0), Mx = Nk*(r.ey||0);
+    document.getElementById('g-Nk').value = Nk.toFixed(0);
+    document.getElementById('g-Mx').value = Mx.toFixed(1);
+    document.getElementById('g-My').value = My.toFixed(1);
+    if(typeof calcularS2==='function') calcularS2();
+    if(typeof atualizarStatus==='function') atualizarStatus();
+    if(status){
+      status.style.background='#eaf4ee'; status.style.color='#2d6b4a';
+      status.innerHTML = `● Sincronizado com o Radier: N<sub>k</sub>=${Nk.toFixed(0)}kN (N<sub>total</sub>), M<sub>x</sub>=${Mx.toFixed(1)}, M<sub>y</sub>=${My.toFixed(1)} kN·m (de e<sub>x</sub>=${fmt(r.ex,3)}m, e<sub>y</sub>=${fmt(r.ey,3)}m)`;
+    }
+    return true;
+  }
+  window.sincronizarCargaGrupoComRadier = sincronizarCargaGrupoComRadier;
+  document.getElementById('btn-sync-carga-radier').addEventListener('click',()=>sincronizarCargaGrupoComRadier(true));
+  // primeira sincronização, já no carregamento da página (window._radierResumo já existe
+  // nesse ponto — o script do módulo Radier roda e chama calcularRadier() antes deste bloco)
+  sincronizarCargaGrupoComRadier(false);
 })();
 </script><script>
 // ═══════════ FASE 2+3: Interação PDR, recálculo cruzado e punção de estacas ═══════════
@@ -6956,6 +7202,62 @@ function calcularInteracao(){
     'τ_sd , τ_Rd1', `${fmt(tauSd,2)} , ${fmt(tauRd1,2)} MPa`,
     'Mesma formulação de τ_Rd1/τ_Rd2 já usada na punção dos pilares (NBR 6118 §19.5) — só o perímetro muda de retangular (pilar) para circular (estaca). N_d não desconta pressão de contato solo-laje na área crítica (simplificação a favor da segurança).'
   );
+
+  if(typeof desenharPuncaoEstaca==='function') desenharPuncaoEstaca(D,d,H,cobR,d_cm,statusP);
+}
+
+// ═══ Desenho esquemático da punção da estaca no radier (planta + corte) ═══
+// Mesma convenção visual (fora de escala, cotas em texto) dos demais desenhos do app.
+function desenharPuncaoEstaca(D,d,H,cob,d_cm,status){
+  const corStatus = {ok:'#2d6b4a', warn:'#9a6a10', bad:'#b43025'}[status] || '#2a5a8c';
+
+  // ── PLANTA: perímetro u0 (face da estaca) e perímetro crítico u (offset 2d) ──
+  const W=280,Hs=300, cx=W/2, cy=Hs/2-8;
+  const rPile_m = D/2, rCrit_m = D/2 + 2*d;
+  const scale = Math.min(85/rCrit_m, 40); // px por metro, com teto para estacas muito esbeltas
+  const rPile = rPile_m*scale, rCrit = rCrit_m*scale;
+  let svgP = `
+    <rect x="4" y="4" width="${W-8}" height="${Hs-8}" fill="#f1ede2" stroke="none"/>
+    <circle cx="${cx}" cy="${cy}" r="${rCrit.toFixed(1)}" fill="none" stroke="${corStatus}" stroke-width="1.6" stroke-dasharray="5,3"/>
+    <circle cx="${cx}" cy="${cy}" r="${rPile.toFixed(1)}" fill="#bdb8ae" stroke="#282420" stroke-width="1.4"/>
+    <line x1="${(cx-rCrit).toFixed(1)}" y1="${cy}" x2="${(cx+rCrit).toFixed(1)}" y2="${cy}" stroke="#8a8680" stroke-width="0.6" stroke-dasharray="2,2"/>
+    <line x1="${cx}" y1="${(cy-rCrit).toFixed(1)}" x2="${cx}" y2="${(cy+rCrit).toFixed(1)}" stroke="#8a8680" stroke-width="0.6" stroke-dasharray="2,2"/>
+    <line x1="${(cx-rPile).toFixed(1)}" y1="${(cy-rPile-14).toFixed(1)}" x2="${(cx+rPile).toFixed(1)}" y2="${(cy-rPile-14).toFixed(1)}" stroke="#282420" stroke-width="0.8" marker-start="url(#i-arw)" marker-end="url(#i-arw)"/>
+    <text x="${cx}" y="${(cy-rPile-18).toFixed(1)}" font-size="10" text-anchor="middle" fill="#282420">D=${fmt(D,2)}m</text>
+    <line x1="${(cx+rPile).toFixed(1)}" y1="${cy}" x2="${(cx+rCrit).toFixed(1)}" y2="${cy}" stroke="${corStatus}" stroke-width="0.9" marker-start="url(#i-arwC)" marker-end="url(#i-arwC)"/>
+    <text x="${(cx+(rPile+rCrit)/2).toFixed(1)}" y="${(cy-6).toFixed(1)}" font-size="9.5" text-anchor="middle" fill="${corStatus}">2d=${fmt(2*d,3)}m</text>
+    <text x="${cx}" y="${(cy+rPile+4).toFixed(1)}" font-size="8.5" text-anchor="middle" fill="#282420" font-weight="700">estaca</text>
+    <text x="${cx}" y="${(cy+rCrit+16).toFixed(1)}" font-size="9" text-anchor="middle" fill="${corStatus}">perímetro crítico u (a 2d)</text>
+    <text x="8" y="18" font-size="9" fill="#8a8680">PLANTA</text>`;
+  svgP = `<defs>
+      <marker id="i-arw" viewBox="0 0 8 8" refX="4" refY="4" markerWidth="6" markerHeight="6" orient="auto"><path d="M0,0L8,4L0,8Z" fill="#282420"/></marker>
+      <marker id="i-arwC" viewBox="0 0 8 8" refX="4" refY="4" markerWidth="6" markerHeight="6" orient="auto"><path d="M0,0L8,4L0,8Z" fill="${corStatus}"/></marker>
+    </defs>` + svgP;
+  $('i-svg-puncao-planta').innerHTML = svgP;
+
+  // ── CORTE: espessura H do radier, altura útil d, cone de punção a 45° a partir da face da estaca ──
+  const margX=40, margTop=24, margBot=34;
+  const availW = W-2*margX, availH = Hs-margTop-margBot;
+  const scaleC = Math.min(availH/H, availW/(D+4*d+0.4), 60);
+  const slabTopY = margTop, slabBotY = margTop + H*scaleC;
+  const slabL = cx - Math.max(D*scaleC*1.6, availW/2*0.9), slabR = cx + Math.max(D*scaleC*1.6, availW/2*0.9);
+  const pileHalf = (D/2)*scaleC;
+  const dY = slabTopY + d*scaleC; // profundidade da armadura (a partir do topo) — linha de referência de d
+  const projX = 2*d*scaleC; // avanço horizontal do cone (2d) a 45°, a partir da face da estaca
+  let svgC = `
+    <rect x="${slabL.toFixed(1)}" y="${slabTopY.toFixed(1)}" width="${(slabR-slabL).toFixed(1)}" height="${(slabBotY-slabTopY).toFixed(1)}" fill="#e8e2d6" stroke="#282420" stroke-width="1.4"/>
+    <rect x="${(cx-pileHalf).toFixed(1)}" y="${slabBotY.toFixed(1)}" width="${(2*pileHalf).toFixed(1)}" height="26" fill="#bdb8ae" stroke="#282420" stroke-width="1.2"/>
+    <text x="${cx}" y="${(slabBotY+18).toFixed(1)}" font-size="8" text-anchor="middle" fill="#282420">estaca</text>
+    <path d="M${(cx-pileHalf).toFixed(1)},${slabBotY.toFixed(1)} L${(cx-pileHalf-projX).toFixed(1)},${dY.toFixed(1)} M${(cx+pileHalf).toFixed(1)},${slabBotY.toFixed(1)} L${(cx+pileHalf+projX).toFixed(1)},${dY.toFixed(1)}" stroke="${corStatus}" stroke-width="1.4" stroke-dasharray="4,2" fill="none"/>
+    <line x1="${(cx-pileHalf-projX).toFixed(1)}" y1="${dY.toFixed(1)}" x2="${(cx+pileHalf+projX).toFixed(1)}" y2="${dY.toFixed(1)}" stroke="${corStatus}" stroke-width="1.2"/>
+    <text x="${(cx+pileHalf+projX+3).toFixed(1)}" y="${(dY+3).toFixed(1)}" font-size="8" fill="${corStatus}">u (a 2d)</text>
+    <line x1="${(slabL-14).toFixed(1)}" y1="${slabTopY.toFixed(1)}" x2="${(slabL-14).toFixed(1)}" y2="${slabBotY.toFixed(1)}" stroke="#282420" stroke-width="0.8" marker-start="url(#i-arw)" marker-end="url(#i-arw)"/>
+    <text x="${(slabL-18).toFixed(1)}" y="${((slabTopY+slabBotY)/2).toFixed(1)}" font-size="9" text-anchor="end" fill="#282420">H=${fmt(H,2)}m</text>
+    <line x1="${(slabL-14).toFixed(1)}" y1="${slabTopY.toFixed(1)}" x2="${(slabL-14).toFixed(1)}" y2="${dY.toFixed(1)}" stroke="${corStatus}" stroke-width="0.8" marker-start="url(#i-arwC)" marker-end="url(#i-arwC)"/>
+    <text x="${(slabL-18).toFixed(1)}" y="${(dY-4).toFixed(1)}" font-size="8.5" text-anchor="end" fill="${corStatus}">d=${fmt(d_cm,1)}cm</text>
+    <line x1="${slabL.toFixed(1)}" y1="${(slabBotY-cob/100*scaleC).toFixed(1)}" x2="${slabR.toFixed(1)}" y2="${(slabBotY-cob/100*scaleC).toFixed(1)}" stroke="#8a8680" stroke-width="0.6" stroke-dasharray="2,2"/>
+    <text x="8" y="18" font-size="9" fill="#8a8680">CORTE (esquemático)</text>`;
+  $('i-svg-puncao-corte').innerHTML = svgC;
 }
 function fstepI(titulo,eq,sub,lbl,res,nota){
   return `<div class="fstepR"><div style="font-weight:700;font-size:11.5px;margin-bottom:4px">${titulo}</div>
@@ -6990,4 +7292,383 @@ document.querySelectorAll('.mod-btn').forEach(btn=>{
     document.getElementById('mod-panel-'+btn.dataset.mod).classList.add('active');
   });
 });
-</script></body></html>
+</script>
+
+<!-- ═══════════════ MODAL DE AJUDA (ícones "?" das seções) ═══════════════ -->
+<div class="help-modal-overlay" id="help-modal-overlay">
+  <div class="help-modal" role="dialog" aria-modal="true">
+    <div class="help-modal-head">
+      <h3 id="help-modal-title">Ajuda</h3>
+      <button type="button" class="help-modal-close" id="help-modal-close" aria-label="Fechar">✕</button>
+    </div>
+    <div class="help-modal-body" id="help-modal-body"></div>
+  </div>
+</div>
+<script>
+(function(){
+  // ═══ pequenos ícones SVG reutilizáveis, no mesmo estilo esquemático dos desenhos do app ═══
+  const ICO = {
+    perfilSPT: `<svg viewBox="0 0 200 140" xmlns="http://www.w3.org/2000/svg">
+      <rect x="20" y="10" width="60" height="120" fill="#e8e2d6" stroke="#282420" stroke-width="1"/>
+      <rect x="20" y="10" width="60" height="30" fill="#d9c9a8"/><text x="50" y="28" font-size="8" text-anchor="middle">areia</text>
+      <rect x="20" y="40" width="60" height="45" fill="#c9a86b"/><text x="50" y="65" font-size="8" text-anchor="middle">argila</text>
+      <rect x="20" y="85" width="60" height="45" fill="#b08850"/><text x="50" y="110" font-size="8" text-anchor="middle">argila</text>
+      <line x1="90" y1="10" x2="90" y2="130" stroke="#282420" stroke-width="3"/>
+      <circle cx="90" cy="130" r="4" fill="#282420"/>
+      <text x="95" y="35" font-size="9">N=5</text><text x="95" y="65" font-size="9">N=12</text><text x="95" y="110" font-size="9">N=22</text>
+      <path d="M140,10 L140,122" stroke="#1f6b52" stroke-width="1.2" stroke-dasharray="2,2" marker-end="url(#nAr)"/>
+      <defs><marker id="nAr" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="6" markerHeight="6" orient="auto"><path d="M0,0L8,4L0,8Z" fill="#1f6b52"/></marker></defs>
+      <text x="145" y="70" font-size="8" fill="#1f6b52">N crescente</text>
+    </svg>`,
+    grupoEstacas: `<svg viewBox="0 0 200 140" xmlns="http://www.w3.org/2000/svg">
+      <rect x="15" y="15" width="170" height="110" fill="none" stroke="#282420" stroke-width="1.4" stroke-dasharray="4,3"/>
+      ${[[45,45],[145,45],[45,95],[145,95]].map(([x,y])=>`<circle cx="${x}" cy="${y}" r="12" fill="#bdb8ae" stroke="#282420" stroke-width="1.4"/>`).join('')}
+      <line x1="45" y1="45" x2="145" y2="45" stroke="#8a8680" stroke-width="0.8"/>
+      <line x1="45" y1="45" x2="45" y2="95" stroke="#8a8680" stroke-width="0.8"/>
+      <text x="95" y="38" font-size="8" text-anchor="middle">s</text>
+      <circle cx="95" cy="70" r="2.4" fill="#1f6b52"/><text x="100" y="73" font-size="8" fill="#1f6b52">centroide</text>
+    </svg>`,
+    radierCorte: `<svg viewBox="0 0 200 130" xmlns="http://www.w3.org/2000/svg">
+      <rect x="20" y="20" width="160" height="26" fill="#e8e2d6" stroke="#282420" stroke-width="1.4"/>
+      <text x="100" y="37" font-size="9" text-anchor="middle">radier (H)</text>
+      <rect x="0" y="46" width="200" height="70" fill="#f1ede2"/>
+      <path d="M0,46 L200,46" stroke="#282420" stroke-width="0.8"/>
+      <text x="100" y="90" font-size="8" text-anchor="middle" fill="#8a8680">solo (σ)</text>
+      ${[35,65,95,125,155].map(x=>`<line x1="${x}" y1="60" x2="${x}" y2="47" stroke="#b43025" stroke-width="1.2" marker-end="url(#hAr)"/>`).join('')}
+      <defs><marker id="hAr" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="6" markerHeight="6" orient="auto"><path d="M0,0L8,4L0,8Z" fill="#b43025"/></marker></defs>
+      <text x="100" y="66" font-size="7" text-anchor="middle" fill="#b43025">reação do solo</text>
+    </svg>`,
+    winkler: `<svg viewBox="0 0 200 120" xmlns="http://www.w3.org/2000/svg">
+      <path d="M15,40 Q60,15 100,45 T185,35" fill="none" stroke="#282420" stroke-width="2"/>
+      ${[20,45,70,95,120,145,170].map(x=>`<line x1="${x}" y1="${40+Math.sin(x/25)*18}" x2="${x}" y2="100" stroke="#8a8680" stroke-width="1"/><path d="M${x-5},100 L${x+5},100 M${x-5},100 L${x},108 M${x},108 L${x+5},100" stroke="#8a8680" stroke-width="1" fill="none"/>`).join('')}
+      <text x="100" y="115" font-size="8" text-anchor="middle" fill="#8a8680">molas (K_v) — base elástica de Winkler</text>
+    </svg>`,
+    puncaoPilar: `<svg viewBox="0 0 180 140" xmlns="http://www.w3.org/2000/svg">
+      <rect x="60" y="55" width="60" height="30" fill="#bdb8ae" stroke="#282420" stroke-width="1.4"/>
+      <rect x="20" y="15" width="140" height="110" fill="none" stroke="#1f6b52" stroke-width="1.6" stroke-dasharray="5,3" rx="18"/>
+      <text x="90" y="70" font-size="8" text-anchor="middle">pilar</text>
+      <text x="90" y="20" font-size="8" text-anchor="middle" fill="#1f6b52">perímetro crítico C′ (2d)</text>
+      <path d="M90,55 L90,15 M110,55 L150,15" stroke="#8a8680" stroke-width="0.6" stroke-dasharray="2,2"/>
+    </svg>`,
+    armaduraCorte: `<svg viewBox="0 0 200 120" xmlns="http://www.w3.org/2000/svg">
+      <rect x="15" y="20" width="170" height="60" fill="#e8e2d6" stroke="#282420" stroke-width="1.2"/>
+      <line x1="25" y1="70" x2="175" y2="70" stroke="#b43025" stroke-width="2.4"/>
+      <line x1="25" y1="30" x2="175" y2="30" stroke="#2a5a8c" stroke-width="2.4" stroke-dasharray="10,4"/>
+      <text x="180" y="73" font-size="7" fill="#b43025" text-anchor="end">malha inf.</text>
+      <text x="180" y="27" font-size="7" fill="#2a5a8c" text-anchor="end">malha sup.</text>
+    </svg>`,
+    estacaComprimida: `<svg viewBox="0 0 140 160" xmlns="http://www.w3.org/2000/svg">
+      <rect x="55" y="18" width="30" height="130" fill="#bdb8ae" stroke="#282420" stroke-width="1.4"/>
+      <line x1="70" y1="0" x2="70" y2="16" stroke="#282420" stroke-width="2" marker-end="url(#dAr)"/>
+      <defs><marker id="dAr" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="6" markerHeight="6" orient="auto"><path d="M0,0L8,4L0,8Z" fill="#282420"/></marker></defs>
+      <text x="80" y="10" font-size="9" font-weight="700">N</text>
+      <path d="M55,68 Q70,88 55,108" fill="none" stroke="#b43025" stroke-width="1.4" stroke-dasharray="3,2"/>
+      <text x="35" y="88" font-size="7" fill="#b43025">flambagem</text>
+    </svg>`,
+    atritoNegativo: `<svg viewBox="0 0 160 160" xmlns="http://www.w3.org/2000/svg">
+      <rect x="65" y="10" width="20" height="140" fill="#bdb8ae" stroke="#282420" stroke-width="1.2"/>
+      <line x1="45" y1="28" x2="45" y2="60" stroke="#9a6a10" stroke-width="1.8" marker-end="url(#dnAr)"/>
+      <line x1="105" y1="28" x2="105" y2="60" stroke="#9a6a10" stroke-width="1.8" marker-end="url(#dnAr)"/>
+      <line x1="45" y1="140" x2="45" y2="108" stroke="#2d6b4a" stroke-width="1.8" marker-end="url(#upAr)"/>
+      <line x1="105" y1="140" x2="105" y2="108" stroke="#2d6b4a" stroke-width="1.8" marker-end="url(#upAr)"/>
+      <line x1="60" y1="150" x2="60" y2="135" stroke="#2d6b4a" stroke-width="1.8" marker-end="url(#upAr)"/>
+      <line x1="90" y1="150" x2="90" y2="135" stroke="#2d6b4a" stroke-width="1.8" marker-end="url(#upAr)"/>
+      <defs>
+        <marker id="dnAr" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="6" markerHeight="6" orient="auto"><path d="M0,0L8,4L0,8Z" fill="#9a6a10"/></marker>
+        <marker id="upAr" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="6" markerHeight="6" orient="auto"><path d="M0,0L8,4L0,8Z" fill="#2d6b4a"/></marker>
+      </defs>
+      <text x="10" y="22" font-size="7" fill="#9a6a10">atrito negativo</text>
+      <text x="8" y="70" font-size="7" fill="#9a6a10">(arrasta p/ baixo)</text>
+      <text x="10" y="102" font-size="7" fill="#2d6b4a">atrito positivo</text>
+      <text x="15" y="118" font-size="7" fill="#2d6b4a">(resiste)</text>
+      <text x="65" y="158" font-size="7" fill="#2d6b4a">ponta resiste</text>
+      <line x1="0" y1="95" x2="160" y2="95" stroke="#282420" stroke-width="0.6" stroke-dasharray="2,2"/>
+      <text x="105" y="93" font-size="7" fill="#8a8680">plano neutro</text>
+    </svg>`,
+    detalheEstaca: `<svg viewBox="0 0 140 140" xmlns="http://www.w3.org/2000/svg">
+      <circle cx="70" cy="70" r="55" fill="#e8e2d6" stroke="#282420" stroke-width="1.4"/>
+      ${[0,60,120,180,240,300].map(a=>{const r=42,rad=a*Math.PI/180;return `<circle cx="${(70+r*Math.cos(rad)).toFixed(1)}" cy="${(70+r*Math.sin(rad)).toFixed(1)}" r="4.5" fill="#282420"/>`;}).join('')}
+      <circle cx="70" cy="70" r="42" fill="none" stroke="#1f6b52" stroke-width="1.4" stroke-dasharray="3,3"/>
+      <text x="70" y="20" font-size="8" text-anchor="middle" fill="#1f6b52">estribo</text>
+    </svg>`,
+    interacaoPDR: `<svg viewBox="0 0 200 140" xmlns="http://www.w3.org/2000/svg">
+      <line x1="100" y1="0" x2="100" y2="18" stroke="#b43025" stroke-width="2" marker-end="url(#dAr2)"/>
+      <defs><marker id="dAr2" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="6" markerHeight="6" orient="auto"><path d="M0,0L8,4L0,8Z" fill="#b43025"/></marker></defs>
+      <text x="108" y="12" font-size="8" fill="#b43025">N total</text>
+      <rect x="30" y="20" width="140" height="20" fill="#e8e2d6" stroke="#282420" stroke-width="1.2"/>
+      <path d="M40,40 L40,90 M100,40 L100,90 M160,40 L160,90" stroke="#bdb8ae" stroke-width="8" stroke-linecap="round"/>
+      <text x="15" y="130" font-size="7" fill="#8a8680">P_r (radier) + P_p (estacas) = N</text>
+    </svg>`
+  };
+
+  // ── Tabelas de dados tabelados, geradas a partir dos MESMOS arrays que o app usa nos
+  // cálculos (SOLOS_AV, DQ_C, TIPOS_ESTACA_S1, SOLOS_BETA, IF_TABLE_I) — ficam sempre
+  // sincronizadas com os coeficientes realmente aplicados, sem duplicar valores à mão.
+  function tblSolosAV(){
+    return `<div class="help-tbl-wrap"><table class="help-tbl">
+      <caption>Coeficientes por tipo de solo — Aoki-Velloso</caption>
+      <tr><th>Solo</th><th>K (kPa)</th><th>α (%)</th></tr>
+      ${SOLOS_AV.map(s=>`<tr><td>${s.nome}</td><td>${s.K}</td><td>${fmt(s.alfa,1)}</td></tr>`).join('')}
+    </table></div>`;
+  }
+  function tblTiposEstacaAV(){
+    return `<div class="help-tbl-wrap"><table class="help-tbl">
+      <caption>Fatores de correção por tipo de estaca — Aoki-Velloso</caption>
+      <tr><th>Tipo de estaca</th><th>F₁</th><th>F₂</th></tr>
+      ${TIPOS_ESTACA_S1.map(t=>`<tr><td>${t.nome}</td><td>${t.F1==null?'1+D/0,80 *':fmt(t.F1,2)}</td><td>${t.F2==null?'2·F₁ *':fmt(t.F2,2)}</td></tr>`).join('')}
+      <tr><td colspan="3" style="text-align:left;font-size:9.5px;color:#8a8680">* pré-moldada de concreto: F₁ depende do diâmetro D da estaca (m)</td></tr>
+    </table></div>`;
+  }
+  function tblDQ_C(){
+    return `<div class="help-tbl-wrap"><table class="help-tbl">
+      <caption>Coeficiente característico do solo (ponta) — Décourt-Quaresma</caption>
+      <tr><th>Grupo de solo</th><th>C (kPa)</th></tr>
+      ${Object.keys(DQ_C).map(k=>`<tr><td>${DQ_LABEL[k]||k}</td><td>${DQ_C[k]}</td></tr>`).join('')}
+    </table></div>`;
+  }
+  function tblTiposEstacaDQ(){
+    return `<div class="help-tbl-wrap"><table class="help-tbl">
+      <caption>Coeficientes α (ponta) e β (fuste) por tipo de estaca — Décourt (1996)</caption>
+      <tr><th>Tipo de estaca</th><th>α</th><th>β</th></tr>
+      ${TIPOS_ESTACA_S1.map(t=>`<tr><td>${t.nome}</td><td>${fmt(t.a,2)}</td><td>${fmt(t.b,2)}</td></tr>`).join('')}
+    </table></div>`;
+  }
+  function tblSolosBeta(){
+    return `<div class="help-tbl-wrap"><table class="help-tbl">
+      <caption>Coeficiente β de atrito negativo — método β</caption>
+      <tr><th>Solo</th><th>β</th></tr>
+      ${SOLOS_BETA.map(s=>`<tr><td>${s.nome}</td><td>${fmt(s.beta,2)}</td></tr>`).join('')}
+    </table></div>`;
+  }
+  function tblIf(){
+    return `<div class="help-tbl-wrap"><table class="help-tbl">
+      <caption>Fator de influência de recalque I_f × relação L/B — Poulos &amp; Davis (1980)</caption>
+      <tr><th>L/B</th><th>I_f</th></tr>
+      ${IF_TABLE_I.map(([lb,ifv])=>`<tr><td>${fmt(lb,1)}</td><td>${fmt(ifv,2)}</td></tr>`).join('')}
+      <tr><td colspan="2" style="text-align:left;font-size:9.5px;color:#8a8680">Fora da faixa, o app usa o valor da extremidade (L/B=1 ou L/B=20) — interpolação linear entre pontos.</td></tr>
+    </table></div>`;
+  }
+  function tblKvMorrison(){
+    // mesmos pontos usados internamente por kvMorrison() (calcularRadier) — reescritos aqui
+    // porque aquela função é local ao módulo Radier, não global
+    const pts = [[98.07,21575],[147.10,30401],[196.13,39227],[245.17,49033],[294.20,58840]];
+    return `<div class="help-tbl-wrap"><table class="help-tbl">
+      <caption>Correlação σ_adm × K_v — Morrison (1993), tabela usada no software SAFE</caption>
+      <tr><th>σ<sub>adm</sub> (kPa)</th><th>K<sub>v</sub> (kN/m³)</th></tr>
+      ${pts.map(([s,k])=>`<tr><td>${fmt(s,1)}</td><td>${fmt(k,0)}</td></tr>`).join('')}
+      <tr><td colspan="2" style="text-align:left;font-size:9.5px;color:#8a8680">Interpolação linear entre pontos; abaixo do primeiro ponto, extrapola proporcionalmente a partir da origem.</td></tr>
+    </table></div>`;
+  }
+
+  const HELP = {
+    's1-aoki': {t:'Método Aoki-Velloso (1975)', ico:ICO.perfilSPT, html:`
+      <p>Estima a capacidade de carga de uma estaca isolada <b>diretamente do N<sub>SPT</sub></b> do boletim de sondagem, sem precisar de ensaios de laboratório — por isso é tão usado no Brasil em pré-dimensionamento.</p>
+      <p>A resistência total R é a soma de duas parcelas:</p>
+      <div class="help-formula">R = R<sub>p</sub> (ponta) + R<sub>l</sub> (lateral, ao longo do fuste)<br>r<sub>p</sub> = K·N<sub>SPT,ponta</sub> / F<sub>1</sub><br>r<sub>l</sub> = (α/100)·K·N<sub>SPT</sub> / F<sub>2</sub></div>
+      <ul>
+        <li><b>K</b> — coeficiente empírico que depende do tipo de solo (areia, argila...), em kPa por golpe.</li>
+        <li><b>α</b> — razão de atrito (%), também tabelada por tipo de solo.</li>
+        <li><b>F<sub>1</sub>, F<sub>2</sub></b> — fatores de correção que dependem do tipo de estaca (cravada, hélice contínua, escavada...) — compensam o efeito de execução na mobilização de resistência de ponta e lateral.</li>
+      </ul>
+      <p>A carga admissível final normalmente aplica um Fator de Segurança (FS≈2) sobre R, conforme a NBR 6122.</p>
+      <div class="help-svg-box">${ICO.perfilSPT}</div>
+      ${tblSolosAV()}
+      ${tblTiposEstacaAV()}
+      <div class="help-refs">Aoki, N. &amp; Velloso, D. (1975) · ABNT NBR 6122:2019/2022</div>`},
+
+    's1-dq': {t:'Método Décourt-Quaresma (1978)', ico:ICO.perfilSPT, html:`
+      <p>Segundo método semiempírico independente, também baseado só no N<sub>SPT</sub>, calculado <b>lado a lado</b> com Aoki-Velloso no app — a divergência entre os dois é normal (são correlações empíricas de bases de dados diferentes) e ajuda a enxergar a faixa de incerteza do pré-dimensionamento.</p>
+      <div class="help-formula">R = (α·C·N<sub>p</sub>·A<sub>p</sub>) + (β·10·(N<sub>l</sub>/3+1)·A<sub>l</sub>)</div>
+      <ul>
+        <li><b>N<sub>p</sub></b> — N<sub>SPT</sub> médio próximo à ponta; <b>N<sub>l</sub></b> — N<sub>SPT</sub> médio ao longo do fuste.</li>
+        <li><b>C</b> — coeficiente característico do solo na ponta (tabelado por tipo de solo).</li>
+        <li><b>α, β</b> — coeficientes de correção por tipo de estaca (Décourt, 1996) — cravada tem α=β=1; tipos executados no local (hélice, escavada) reduzem a mobilização de ponta.</li>
+      </ul>
+      <p>No app, o menor valor entre os dois métodos (mais conservador) é levado adiante como referência para os passos seguintes.</p>
+      ${tblDQ_C()}
+      ${tblTiposEstacaDQ()}
+      <div class="help-refs">Décourt, L. &amp; Quaresma, A. (1978) · Décourt, L. (1996)</div>`},
+
+    's1-comp': {t:'Comparação e Carga Admissível', ico:null, html:`
+      <p>Compara os dois métodos e adota o <b>mais conservador</b> (menor resistência última) como referência de projeto — critério a favor da segurança quando não há prova de carga para calibrar qual método é mais aderente ao solo local.</p>
+      <div class="help-formula">R<sub>adm</sub> = R<sub>u</sub> / FS &nbsp;&nbsp;(FS ≈ 2,0, NBR 6122 — método semiempírico)</div>
+      <p>Esse R<sub>adm</sub> é a base de tudo que vem depois: distribuição de carga no grupo (Passo 2), verificação de FS na Interação PDR e no atrito negativo (Passo 4).</p>`},
+
+    's2-distrib': {t:'Distribuição de Carga entre as Estacas', ico:ICO.grupoEstacas, html:`
+      <p>Com N estacas suportando uma carga excêntrica (N<sub>k</sub> + momentos M<sub>x</sub>, M<sub>y</sub>), a reação em cada estaca <b>não é igual</b> — as mais afastadas do centro do grupo, na direção do momento, recebem mais carga. O app assume o <b>bloco/radier rígido</b> (hipótese clássica): a placa não se deforma, então a distribuição de carga varia linearmente com a posição.</p>
+      <div class="help-formula">N<sub>i</sub> = N/n<sub>est</sub> + (M<sub>y</sub>·x<sub>i</sub>)/Σx² + (M<sub>x</sub>·y<sub>i</sub>)/Σy²</div>
+      <ul>
+        <li><b>N/n<sub>est</sub></b> — parcela igual para todas (carga centrada dividida pelo nº de estacas).</li>
+        <li><b>x<sub>i</sub>, y<sub>i</sub></b> — coordenadas de cada estaca em relação ao <b>centroide do arranjo</b>.</li>
+        <li>Σx², Σy² — momento de inércia do arranjo (quanto mais espalhadas as estacas, menor a variação de carga entre elas).</li>
+      </ul>
+      <div class="help-svg-box">${ICO.grupoEstacas}</div>
+      <div class="help-refs">Flexão composta — analogia com seção de concreto armado; Velloso &amp; Lopes — Fundações vol. 2</div>`},
+
+    's2-eficiencia': {t:'Eficiência de Grupo — Converse-Labarre', ico:ICO.grupoEstacas, html:`
+      <p>Estacas próximas <b>interferem entre si</b>: o bulbo de tensões de uma se sobrepõe ao da vizinha, reduzindo a capacidade do grupo em relação à simples soma das capacidades individuais. A eficiência η corrige isso.</p>
+      <div class="help-formula">η = 1 − θ·[(n−1)m + (m−1)n] / (90·m·n)<br>θ = arctan(D/s) &nbsp;(graus)</div>
+      <ul>
+        <li><b>m, n</b> — número de linhas e colunas do arranjo.</li>
+        <li><b>D</b> — diâmetro/lado da estaca; <b>s</b> — espaçamento entre eixos.</li>
+      </ul>
+      <p>η mais representativo em <b>solos granulares</b> (areia) — em argila a prática recomenda também verificar o <b>bloco fictício equivalente</b> (Seção 4), que costuma governar.</p>
+      <div class="help-refs">Converse-Labarre · Terzaghi &amp; Peck</div>`},
+
+    's2-espacamento': {t:'Espaçamento Mínimo', ico:null, html:`
+      <p>Verifica se o espaçamento adotado entre eixos das estacas atende ao mínimo recomendado — abaixo disso, o efeito de grupo (Seção 2) fica muito penalizante e a execução de uma estaca pode danificar a vizinha recém-executada (especialmente em cravadas, por deslocamento de solo).</p>
+      <div class="help-formula">s<sub>mín</sub> = (espaçamento mínimo, × D) · D</div>
+      <p>O valor usual de referência é <b>2,5D a 3D</b> entre eixos (editável no card "Arranjo de Estacas") — e um afastamento mínimo da face da estaca até a borda do radier (usual 15cm), para garantir cobrimento e ancoragem da armadura.</p>`},
+
+    's2-blocoficticio': {t:'Geometria do Bloco Fictício', ico:ICO.grupoEstacas, html:`
+      <p>Em solos coesivos (argila), quando as estacas estão próximas, o grupo pode se comportar como um <b>bloco único equivalente</b> (envolvendo todas as estacas + o solo entre elas) em vez de estacas isoladas somando capacidades — é o critério do "bloco fictício" de Terzaghi &amp; Peck.</p>
+      <div class="help-formula">Envelope = menor retângulo que contém todas as estacas, com a espessura L (comprimento da estaca)</div>
+      <p>A capacidade desse bloco (atrito lateral no perímetro do envelope + resistência de ponta na área do envelope) é comparada com a soma das capacidades individuais — o <b>menor</b> dos dois valores governa o dimensionamento em argila.</p>
+      <div class="help-refs">Terzaghi, K. &amp; Peck, R. — Mecânica dos solos</div>`},
+
+    'i-krad': {t:'Rigidez do Radier Isolado (K_rad)', ico:ICO.radierCorte, html:`
+      <p>Quanto o radier recalcaria <b>sozinho</b> (sem as estacas) sob a carga total — usa a solução elástica clássica de uma placa sobre um semi-espaço homogêneo (Boussinesq/Poulos&amp;Davis), calibrada pelo módulo de elasticidade do solo E<sub>s</sub>.</p>
+      <div class="help-formula">K<sub>rad</sub> = E<sub>s</sub>·L / [(1−ν²)·I<sub>f</sub>]</div>
+      <ul>
+        <li><b>E<sub>s</sub></b> — módulo de elasticidade (deformabilidade) do solo, MPa — parâmetro adicional que só esse módulo usa (o Radier usa outros parâmetros para capacidade de carga).</li>
+        <li><b>ν</b> — coeficiente de Poisson do solo (tipicamente 0,3–0,5).</li>
+        <li><b>I<sub>f</sub></b> — fator de influência de recalque, tabelado em função de L/B (relação de aspecto da placa).</li>
+      </ul>
+      ${tblIf()}
+      <div class="help-refs">Poulos, H.G. &amp; Davis, E.H. (1980)</div>`},
+
+    'i-kpg': {t:'Rigidez do Grupo de Estacas (K_pg)', ico:ICO.grupoEstacas, html:`
+      <p>Quanto o grupo de estacas recalcaria sob carga, se elas <b>sozinhas</b> suportassem tudo — parte da rigidez de 1 estaca (carga/recalque na carga admissível), multiplicada pelo número de estacas e pela eficiência de grupo η (Passo 2).</p>
+      <div class="help-formula">K<sub>pg</sub> = (R<sub>adm</sub>/ρ<sub>ref</sub>)·n·η</div>
+      <ul>
+        <li><b>ρ<sub>ref</sub></b> — recalque de referência na carga admissível (~1%D em estacas convencionais).</li>
+        <li><b>n</b> — nº de estacas; <b>η</b> — eficiência de grupo (Passo 2 do módulo Estacas).</li>
+      </ul>`},
+
+    'i-kpr': {t:'Combinação e Repartição de Carga', ico:ICO.interacaoPDR, html:`
+      <p>O radier e as estacas trabalham <b>juntos</b>, dividindo a carga entre si (não é "ou um ou outro"). A combinação das duas rigidezes (K<sub>rad</sub> e K<sub>pg</sub>) não é uma simples soma em paralelo — há um fator de interação α<sub>rp</sub> que representa como o recalque de uma parte afeta a outra.</p>
+      <div class="help-formula">K<sub>pr</sub> = [K<sub>pg</sub>+(1−2α<sub>rp</sub>)K<sub>rad</sub>] / [1−α<sub>rp</sub>²(K<sub>rad</sub>/K<sub>pg</sub>)]<br>X = P<sub>r</sub>/N = (1−α<sub>rp</sub>)K<sub>rad</sub> / [K<sub>pg</sub>+(1−2α<sub>rp</sub>)K<sub>rad</sub>]</div>
+      <p>Com α<sub>rp</sub>=0 a fórmula recai na combinação simples K<sub>pr</sub>=K<sub>rad</sub>+K<sub>pg</sub> (sem interação). O valor típico α<sub>rp</sub>≈0,80 vem de casos reais calibrados (Randolph, 1994; Clancy &amp; Randolph, 1993).</p>
+      <div class="help-svg-box">${ICO.interacaoPDR}</div>
+      <div class="help-refs">Randolph, M.F. (1994) · Clancy, P. &amp; Randolph, M.F. (1993) · Cunha, R. — UnB/GPFees</div>`},
+
+    'i-recalculo': {t:'Recálculo do Radier e das Estacas', ico:null, html:`
+      <p>Depois de repartir a carga total N em P<sub>r</sub> (fração no radier) e P<sub>p</sub> (fração nas estacas), esses dois valores <b>substituem automaticamente</b> a carga usada nas verificações de cada módulo — o radier passa a ser verificado para P<sub>r</sub> (não mais N inteiro) e as estacas para P<sub>p</sub> (ver Dados Globais, N<sub>k</sub>).</p>
+      <p>Isso evita ter que copiar valores manualmente entre abas — é a mesma ideia de sincronização automática usada em outros campos compartilhados do app.</p>`},
+
+    'i-puncao': {t:'Punção das Estacas no Radier', ico:ICO.puncaoPilar, html:`
+      <p>A estaca empurra a laje do radier <b>por baixo</b> — a mesma lógica de punção de um pilar (NBR 6118 §19.5), só que com perímetro <b>circular</b> em vez de retangular, e a reação da estaca como carga.</p>
+      <div class="help-formula">u₀ = π·D &nbsp;(perímetro na face) &nbsp;·&nbsp; u = π·(D+4d) &nbsp;(perímetro crítico, offset 2d)<br>τ<sub>sd</sub> = N<sub>d</sub> / (u·d) &nbsp;≤&nbsp; τ<sub>Rd1</sub> (senão, requer armadura de punção)</div>
+      <p>A carga N<sub>d</sub> usa a reação da estaca mais carregada (do Passo 2), reescalada para a fração P<sub>p</sub> que a Interação atribuiu às estacas — não a reação cheia.</p>
+      <div class="help-refs">ABNT NBR 6118:2023 §19.5</div>`},
+
+    'r-geo': {t:'Verificação Geotécnica', ico:ICO.radierCorte, html:`
+      <p>Verifica se a pressão de contato entre o radier e o solo fica dentro da capacidade admissível σ<sub>adm</sub> — inclusive nos <b>cantos</b>, onde a excentricidade da carga (e<sub>x</sub>, e<sub>y</sub>) concentra mais pressão.</p>
+      <div class="help-formula">p = N<sub>total</sub>/A · [1 ± 6e<sub>x</sub>/L ± 6e<sub>y</sub>/B]</div>
+      <p>Essa fórmula (flexão composta oblíqua) vem da mesma lógica usada para uma sapata retangular — assume distribuição <b>linear</b> de pressões, válida quando a excentricidade não é grande demais (núcleo central).</p>
+      <div class="help-svg-box">${ICO.radierCorte}</div>
+      <div class="help-refs">ABNT NBR 6122:2019/2022 §4/§8</div>`},
+
+    'r-rigidez': {t:'Classificação de Rigidez', ico:null, html:`
+      <p>Um radier <b>rígido</b> se deforma pouco sob carga (a distribuição de pressão no solo permanece ~linear, como em uma sapata); um radier <b>flexível</b> se deforma como uma placa, concentrando pressão sob os pilares — nesse caso, o método rígido da Seção 1 fica <b>a favor da segurança apenas parcialmente</b> e a modelagem em grelha (Winkler, Seção 3) passa a ser recomendada.</p>
+      <div class="help-formula">Critério ACI 336.2R-88 / Meyerhof — compara o espaçamento entre pilares com o "comprimento característico" da placa (função de E, H, K<sub>v</sub>)</div>`},
+
+    'r-winkler': {t:'Modelagem em Grelha sobre Base Elástica (Winkler)', ico:ICO.winkler, html:`
+      <p>Quando o radier é flexível, ele não pode mais ser tratado como corpo rígido — a solução aqui é modelar a placa apoiada em <b>molas</b> (uma por ponto da malha), cada uma com rigidez K<sub>v</sub> (coeficiente de reação vertical do solo), resolvendo por diferenças finitas.</p>
+      <div class="help-formula">D·∇⁴w + K<sub>v</sub>·w = q(x,y)</div>
+      <ul>
+        <li><b>D</b> — rigidez à flexão da placa de concreto (função de E<sub>concreto</sub>, H³).</li>
+        <li><b>K<sub>v</sub></b> — coeficiente de reação vertical do solo (kN/m³) — estimado por correlação com σ<sub>adm</sub> se não informado.</li>
+        <li><b>w</b> — deslocamento (recalque) em cada ponto da malha; <b>q</b> — carregamento aplicado.</li>
+      </ul>
+      <div class="help-svg-box">${ICO.winkler}</div>
+      ${tblKvMorrison()}
+      <div class="help-refs">Hetényi, M. — Beams on Elastic Foundation · ACI 336.2R-88</div>`},
+
+    'r-puncao': {t:'Verificação à Punção nos Pilares', ico:ICO.puncaoPilar, html:`
+      <p>Verifica se a laje do radier resiste ao <b>cisalhamento concentrado</b> sob cada pilar — o mecanismo de ruptura é um "cone" que se forma ao redor do pilar, a uma distância 2d da face (perímetro crítico C′), com cantos arredondados (raio 2d).</p>
+      <div class="help-formula">τ<sub>sd</sub> = N<sub>d</sub>/(C′·d) ≤ τ<sub>Rd1</sub> &nbsp;(sem armadura) &nbsp;·&nbsp; τ<sub>sd,face</sub> ≤ τ<sub>Rd2</sub> (esmagamento da biela, na face do pilar)</div>
+      <p>Se τ<sub>sd</sub> excede τ<sub>Rd1</sub> mas está abaixo de τ<sub>Rd2</sub>, a solução é armadura de punção (studs/estribos radiais); se excede τ<sub>Rd2</sub>, só aumentar H resolve.</p>
+      <div class="help-svg-box">${ICO.puncaoPilar}</div>
+      <div class="help-refs">ABNT NBR 6118:2023 §19.5.2/§19.5.3</div>`},
+
+    'r-armadura': {t:'Detalhamento de Armadura (esquemático)', ico:ICO.armaduraCorte, html:`
+      <p>Estima a malha de armadura a partir da taxa ρ informada e do momento fletor (Winkler, se flexível, ou estimativa simplificada, se rígido):</p>
+      <ul>
+        <li><b>Malha inferior (N1/N2)</b> — cobre toda a área, resiste ao momento positivo (tração embaixo).</li>
+        <li><b>Malha superior (N3/N4)</b> — reforço sobre os pilares, resiste ao momento negativo (tração em cima) — pode ser cobertura total ou só em faixas sobre os pilares.</li>
+        <li><b>Armadura de punção (studs)</b> — se necessária, no pilar mais crítico.</li>
+      </ul>
+      <div class="help-svg-box">${ICO.armaduraCorte}</div>
+      <p style="font-size:11px;color:#8a8680">Desenhos esquemáticos e fora de escala — orientam o raciocínio, não substituem detalhamento executivo assinado pelo projetista.</p>`},
+
+    'r-quant': {t:'Quantitativos de Aço e Concreto', ico:null, html:`
+      <p>Converte as armaduras dimensionadas em <b>peso de aço</b> (kg) e o volume em <b>volume de concreto</b> (m³), como apoio a um orçamento preliminar — não uma planilha de suprimentos final.</p>
+      <div class="help-formula">peso da barra (kg/m) = φ²/162 &nbsp;(φ em mm)<br>taxa de armadura = peso total / volume de concreto</div>
+      <p>Faixa usual de referência para radiers correntes: <b>50–180 kg/m³</b> — fora dessa faixa, vale conferir os dados de entrada antes de orçar.</p>`},
+
+    's3-compressao': {t:'Compressão Simples do Fuste', ico:ICO.estacaComprimida, html:`
+      <p>Verifica se a seção de concreto da estaca resiste à carga axial (N) que chega até ela, como uma peça de concreto armado comprimida — resistência de cálculo do concreto e do aço, com os coeficientes de segurança usuais.</p>
+      <div class="help-formula">N<sub>Rd</sub> = 0,85·f<sub>cd</sub>·A<sub>c</sub> + f<sub>yd</sub>·A<sub>s</sub> &nbsp;≥&nbsp; N<sub>d</sub> = γ<sub>f</sub>·N<sub>k</sub></div>
+      <div class="help-svg-box">${ICO.estacaComprimida}</div>`},
+
+    's3-flambagem': {t:'Flambagem — Trecho sem Apoio Lateral', ico:ICO.estacaComprimida, html:`
+      <p>Se a estaca tem um trecho sem contenção lateral do solo (ex.: acima do nível do terreno, ou solo muito mole que não confina), ela pode flambar como um pilar esbelto — verificação clássica de instabilidade (Euler), com o comprimento de flambagem ajustado pela condição de vinculação nas extremidades.</p>
+      <div class="help-formula">N<sub>cr</sub> = π²·E·I / L<sub>0</sub>² &nbsp;&nbsp;(L<sub>0</sub> = comprimento de flambagem, função da vinculação)</div>
+      <p>Se não houver trecho livre (estaca sempre confinada pelo solo), essa verificação não governa — o solo ao redor impede o modo de flambagem lateral.</p>`},
+
+    's3-flexocompressao': {t:'Flexo-compressão (N_d + M_d)', ico:ICO.estacaComprimida, html:`
+      <p>Quando a estaca recebe momento fletor além da carga axial (ex.: ação horizontal, desaprumo de cravação), a seção precisa resistir aos dois efeitos <b>combinados</b>. O app monta o diagrama de interação N-M da seção (por integração de fibras — divide a seção em faixas, soma a contribuição de cada uma) e verifica se o par (N<sub>d</sub>, M<sub>d</sub>) fica dentro do envelope resistente.</p>
+      <div class="help-formula">Envoltória N-M: para cada N, existe um M<sub>Rd</sub> máximo resistido pela seção (armadura + concreto)</div>
+      <p style="font-size:11px;color:#8a8680">O M<sub>x</sub>/M<sub>y</sub> global do grupo já foi convertido em cargas axiais desiguais por estaca no Passo 2 — o momento usado aqui é o que atua <b>nesta estaca individualmente</b>, um efeito local diferente.</p>`},
+
+    's4-atrito': {t:'Tensão Efetiva e Atrito Negativo por Camada', ico:ICO.atritoNegativo, html:`
+      <p>Quando o solo ao redor da estaca <b>recalca mais</b> do que ela (ex.: aterro recente, rebaixamento de N.A., sobrecarga próxima), o atrito lateral <b>inverte de sentido</b>: em vez de ajudar a suportar a carga, o solo "puxa a estaca para baixo" — é o atrito negativo (fricção negativa), um <b>acréscimo</b> de carga na estaca, não um alívio.</p>
+      <div class="help-formula">P<sub>n</sub> = Σ β·σ′<sub>v</sub>·U·Δz &nbsp;(até o plano neutro)</div>
+      <ul>
+        <li><b>σ′<sub>v</sub></b> — tensão vertical efetiva em cada camada (considera o N.A., ver Dados Globais).</li>
+        <li><b>β</b> — coeficiente empírico de atrito (método β), por tipo de solo.</li>
+        <li><b>Plano neutro</b> — profundidade onde recalque do solo = recalque da estaca; abaixo dele, o atrito volta a ser positivo (resistente).</li>
+      </ul>
+      <div class="help-svg-box">${ICO.atritoNegativo}</div>
+      ${tblSolosBeta()}
+      <div class="help-refs">Método β — atrito negativo em estacas</div>`},
+
+    's4-estrutural': {t:'Efeito Estrutural', ico:null, html:`
+      <p>A carga de arrasto (P<sub>n</sub>) se <b>soma</b> à carga estrutural que já chega à estaca (N<sub>k</sub> do Passo 3) — a estaca precisa ser verificada à compressão para essa carga total aumentada, já que o atrito negativo empurra a estaca para baixo como se fosse mais peso em cima dela.</p>
+      <div class="help-formula">N<sub>d,total</sub> = γ<sub>f</sub>·(N<sub>k,estrutural</sub> + P<sub>n</sub>)</div>`},
+
+    's4-geotecnico': {t:'Efeito Geotécnico', ico:null, html:`
+      <p>A capacidade geotécnica disponível também é afetada: o atrito lateral <b>acima</b> do plano neutro não ajuda mais (está atuando contra a estaca), então só a resistência de ponta + atrito lateral <b>abaixo</b> do plano neutro contam como resistência disponível — reduzindo o FS geotécnico efetivo.</p>
+      <div class="help-formula">FS<sub>efetivo</sub> = (R<sub>ponta</sub> + R<sub>lateral,abaixo</sub>) / (N<sub>k</sub> + P<sub>n</sub>)</div>`},
+
+    's6-detalhamento': {t:'Detalhamento da Estaca', ico:ICO.detalheEstaca, html:`
+      <p>Converte a armadura verificada no Passo 3 (compressão/flambagem/flexo-compressão) em um detalhamento esquemático: nº de barras longitudinais, bitola, espaçamento de estribos e comprimento — a base para o quantitativo de aço e concreto desta seção.</p>
+      <div class="help-svg-box">${ICO.detalheEstaca}</div>
+      <p style="font-size:11px;color:#8a8680">Esquemático e fora de escala — não substitui o detalhamento executivo (ganchos, traspasses, cobrimentos exatos) do projetista responsável.</p>`},
+
+    's6-aco': {t:'Quantitativo de Aço', ico:null, html:`
+      <p>Peso de aço por estaca e do total das estacas do grupo, a partir da bitola/nº de barras/estribos definidos no detalhamento — mesma fórmula prática de peso linear (φ²/162) usada nos outros quantitativos do app.</p>`},
+
+    's6-concreto': {t:'Quantitativo de Concreto', ico:null, html:`
+      <p>Volume total de concreto das estacas (seção × comprimento × nº de estacas), acrescido de uma <b>perda</b> percentual configurável (concreto que se perde na concretagem, sobre-escavação, etc.) — apoio a orçamento preliminar.</p>`}
+  };
+
+  const overlay = document.getElementById('help-modal-overlay');
+  const titleEl = document.getElementById('help-modal-title');
+  const bodyEl = document.getElementById('help-modal-body');
+
+  window.abrirAjuda = function(key){
+    const item = HELP[key];
+    if(!item){ return; }
+    titleEl.textContent = item.t;
+    bodyEl.innerHTML = item.html;
+    overlay.classList.add('open');
+  };
+  function fechar(){ overlay.classList.remove('open'); }
+  document.getElementById('help-modal-close').addEventListener('click', fechar);
+  overlay.addEventListener('click', e=>{ if(e.target===overlay) fechar(); });
+  document.addEventListener('keydown', e=>{ if(e.key==='Escape') fechar(); });
+})();
+</script>
+</body></html>

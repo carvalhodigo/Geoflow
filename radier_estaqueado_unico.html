@@ -274,10 +274,16 @@ body{font-family:system-ui,sans-serif;font-size:13px;background:var(--bg);color:
 .cam-hdr{display:flex;gap:6px;font-size:8.5px;text-transform:uppercase;letter-spacing:.4px;color:var(--mu);
   padding:0 4px 3px;font-weight:700}
 .cam-row{display:flex;gap:6px;align-items:center;padding:3px 4px;border-bottom:1px dotted #ddd}
-.cam-row .idx{flex:0 0 20px;font-family:var(--mono);font-size:10px;color:var(--mu)}
-.cam-row input[type=number]{flex:0 0 50px;padding:4px 5px;border:1px solid var(--bdr);border-radius:var(--r);font-size:10.5px}
-.cam-row select{flex:1;padding:4px 5px;border:1px solid var(--bdr);border-radius:var(--r);font-size:10px}
-.cam-row .rm{flex:0 0 18px;background:none;border:none;color:var(--red);cursor:pointer;font-size:13px;font-weight:700}
+.cam-row .idx{flex:0 0 20px;min-width:0;font-family:var(--mono);font-size:10px;color:var(--mu)}
+/* min-width:0 é necessário nos três campos abaixo porque todo item flex tem, por padrão,
+   min-width:auto — que para <input>/<select> vira a largura intrínseca do controle (~150-190px
+   no Chrome), maior que o flex-basis pedido aqui. Sem isso, o min-width vence o flex-basis, os
+   campos ficam bem mais largos do que os 50px pedidos, e o <select> de tipo de solo é empurrado
+   pra fora da área visível do card (obrigando rolagem horizontal) — foi exatamente esse bug
+   relatado pelo usuário, visível sobretudo em telas estreitas de celular. */
+.cam-row input[type=number]{flex:0 0 44px;min-width:0;padding:4px 3px;border:1px solid var(--bdr);border-radius:var(--r);font-size:10.5px;text-align:center}
+.cam-row select{flex:1;min-width:0;padding:4px 3px;border:1px solid var(--bdr);border-radius:var(--r);font-size:10px;text-overflow:ellipsis;overflow:hidden;white-space:nowrap}
+.cam-row .rm{flex:0 0 18px;min-width:0;background:none;border:none;color:var(--red);cursor:pointer;font-size:13px;font-weight:700}
 .btn-add-cam{width:100%;padding:6px;margin-top:4px;font-size:10.5px;font-weight:700;background:var(--surf);
   border:1px dashed var(--bdr-s);border-radius:var(--r);cursor:pointer;color:var(--accent)}
 .badge-tip{display:inline-block;font-size:8px;font-weight:700;background:#fdf3e0;color:#9a6a10;
@@ -340,8 +346,9 @@ body{font-family:system-ui,sans-serif;font-size:13px;background:var(--bg);color:
 .help-tbl td:first-child{text-align:left}
 .help-tbl tr:nth-child(even) td{background:#faf8f3}
 @media print{ .help-ic,.help-modal-overlay{display:none !important} }
-
 </style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
 </head>
 <body>
 
@@ -732,7 +739,7 @@ body{font-family:system-ui,sans-serif;font-size:13px;background:var(--bg);color:
   </div>
   <div class="card">
     <div class="card-title">🧱 Perfil de Sondagem — Camadas (SPT)</div>
-    <div class="cam-hdr"><span style="flex:0 0 20px">#</span><span style="flex:0 0 50px">Δz (m)</span><span style="flex:0 0 50px">N<sub>SPT</sub></span><span style="flex:1">Tipo de solo</span></div>
+    <div class="cam-hdr"><span style="flex:0 0 20px;min-width:0">#</span><span style="flex:0 0 44px;min-width:0">Δz (m)</span><span style="flex:0 0 44px;min-width:0">N<sub>SPT</sub></span><span style="flex:1;min-width:0">Tipo de solo</span></div>
     <div id="s1-camadas-body"></div>
     <button id="s1-btn-add-camada" class="btn-add-cam" type="button">+ adicionar camada</button>
     <div class="hint">Camadas do topo para a ponta (última linha = camada de assentamento da ponta). Δz = espessura dentro do comprimento cravado/perfurado.</div>
@@ -1063,7 +1070,22 @@ body{font-family:system-ui,sans-serif;font-size:13px;background:var(--bg);color:
   </div><div class="diagram-box">
     <svg id="svg-planta-armadura" viewBox="0 0 520 260" xmlns="http://www.w3.org/2000/svg"></svg>
     <div class="diagram-cap">Planta de detalhamento junto ao pilar mais crítico — malha de flexão e, se aplicável, armadura de punção (studs radiais)</div>
-  </div><div class="result-grid" id="grid-armadura"></div><ul class="checklist" id="checklist-armadura"></ul><div class="formula-box" id="form-armadura"></div><div class="section-title"><span class="n">6</span>Quantitativos de Aço e Concreto<button class="help-ic" type="button" onclick="abrirAjuda('r-quant')" title="Ajuda">?</button></div><div class="section-sub">Estimativa de volumes e pesos a partir das armaduras dimensionadas — apoio a orçamento preliminar, não uma planilha de suprimentos final</div><table class="pun-table" id="tbl-concreto"></table><p style="font-weight:700;font-size:11.5px;margin:14px 0 4px;color:var(--tx)">Resumo de armaduras por posição</p><table class="pun-table" id="tbl-posicoes"></table><div class="result-grid" id="grid-quantitativos"></div><div class="formula-box" id="form-quantitativos"></div><div class="warn-box">
+  </div><div class="result-grid" id="grid-armadura"></div><ul class="checklist" id="checklist-armadura"></ul><div class="formula-box" id="form-armadura"></div>
+  <div class="section-title"><span class="n">6</span>Vista 3D do Radier Estaqueado<button class="help-ic" type="button" onclick="abrirAjuda('r-3d')" title="Ajuda">?</button> <span style="font-weight:400;font-size:11px;color:var(--mu)">(arraste para girar · scroll para zoom)</span></div>
+  <div id="r3d-status" class="hint"></div>
+  <div class="card" style="padding:0;overflow:hidden">
+    <div id="r3d-canvas-wrap" style="width:100%;height:420px"></div>
+  </div>
+  <div class="hint" style="margin:6px 0 10px;display:flex;flex-wrap:wrap;gap:2px 14px;align-items:center">
+    <b style="color:var(--ink)">Mostrar:</b>
+    <label style="display:inline-flex;align-items:center;gap:4px;cursor:pointer"><input type="checkbox" id="r3d-tog-radier" checked> concreto (radier)</label>
+    <label style="display:inline-flex;align-items:center;gap:4px;cursor:pointer"><input type="checkbox" id="r3d-tog-estacas" checked> <span style="color:#7a5030;font-weight:700">●</span> estacas</label>
+    <label style="display:inline-flex;align-items:center;gap:4px;cursor:pointer"><input type="checkbox" id="r3d-tog-armestaca" checked> <span style="color:#7a1f14;font-weight:700">●</span> armadura das estacas</label>
+    <label style="display:inline-flex;align-items:center;gap:4px;cursor:pointer"><input type="checkbox" id="r3d-tog-pilares" checked> <span style="color:#3a2a10;font-weight:700">●</span> pilares</label>
+    <label style="display:inline-flex;align-items:center;gap:4px;cursor:pointer"><input type="checkbox" id="r3d-tog-n1" checked> <span style="color:#b43025;font-weight:700">●</span> N1/N2 malha inferior</label>
+    <label style="display:inline-flex;align-items:center;gap:4px;cursor:pointer"><input type="checkbox" id="r3d-tog-n34" checked> <span style="color:#2a5a8c;font-weight:700">●</span> N3/N4 malha superior</label>
+  </div>
+  <div class="section-title"><span class="n">7</span>Quantitativos de Aço e Concreto<button class="help-ic" type="button" onclick="abrirAjuda('r-quant')" title="Ajuda">?</button></div><div class="section-sub">Estimativa de volumes e pesos a partir das armaduras dimensionadas — apoio a orçamento preliminar, não uma planilha de suprimentos final</div><table class="pun-table" id="tbl-concreto"></table><p style="font-weight:700;font-size:11.5px;margin:14px 0 4px;color:var(--tx)">Resumo de armaduras por posição</p><table class="pun-table" id="tbl-posicoes"></table><div class="result-grid" id="grid-quantitativos"></div><div class="formula-box" id="form-quantitativos"></div><div class="warn-box">
     <b>⚠ Apoio técnico ao pré-dimensionamento.</b>
     Simplificações adotadas: método rígido (não captura momentos locais entre pilares — válido apenas quando a faixa é classificada como rígida na Seção 2); estimativa de Kv por correlação quando não informado; flexo-punção considerada apenas no pilar mais crítico e apenas quando o momento desbalanceado é informado manualmente; dimensionamento à flexão baseado em apenas dois pontos representativos da grelha Winkler (momento sobre pilares e no centro do radier), não um envelope completo de projeto; armadura de punção calculada com f<sub>ywd</sub> conservador fixo em 250 MPa (a norma permite valores maiores para lajes mais espessas, não implementado por falta de confirmação segura dos coeficientes).
     <b>Ainda fora do escopo desta ferramenta:</b> verificação ao cisalhamento simples fora do perímetro de punção (a NBR 6118 não exige essa verificação separadamente para lajes lisas/radiers — a punção já cobre o cisalhamento nessas peças); detalhamento executivo completo de armaduras (ganchos, traspasses, dobras) — apenas o comprimento de ancoragem básico reto é estimado.
@@ -1168,7 +1190,7 @@ body{font-family:system-ui,sans-serif;font-size:13px;background:var(--bg);color:
   </div>
   <div class="card">
     <div class="card-title">🧱 Zona de Atrito Negativo (do topo até o ponto neutro)</div>
-    <div class="cam-hdr"><span style="flex:0 0 20px">#</span><span style="flex:0 0 50px">Δz (m)</span><span style="flex:0 0 50px">γ (kN/m³)</span><span style="flex:1">Solo</span></div>
+    <div class="cam-hdr"><span style="flex:0 0 20px;min-width:0">#</span><span style="flex:0 0 44px;min-width:0">Δz (m)</span><span style="flex:0 0 44px;min-width:0">γ (kN/m³)</span><span style="flex:1;min-width:0">Solo</span></div>
     <div id="s4-camadas-body"></div>
     <button id="s4-btn-add-camada" class="btn-add-cam" type="button">+ adicionar camada</button>
     <div class="hint">γ natural acima do NA (Dados Globais), saturado abaixo — desconto de γ<sub>w</sub> automático.</div>
@@ -2637,7 +2659,14 @@ function calcularRadier(){
   const Yr = Ntotal>1e-6 ? (pilares.reduce((a,p)=>a+p.N*p.y,0) + cargasEspeciais.reduce((a,c)=>a+c.F*c.y,0) + Wtotal_uniforme*(B/2)) / Ntotal : B/2;
   const ex = Xr - L/2, ey = Yr - B/2;
 
-  drawPlanta(L,B,pilares,Xr,Yr,cargasLin,cargasArea);
+  // O desenho da planta mostra as cargas TOTAIS lançadas pelo usuário (pilaresReal/
+  // cargasLinReal/cargasAreaReal), não a fração pilares/cargasLin/cargasArea (que já vem
+  // reduzida por fatorProjeto quando a Interação PDR está ativa) — o desenho documenta o que
+  // foi de fato lançado como entrada, é um dado físico fixo; a redução por P_r é uma decisão
+  // de dimensionamento do radier, não muda a carga real que a estrutura recebe. Xr/Yr (posição
+  // da resultante) não precisam de ajuste: como fatorProjeto escala todas as parcelas pela
+  // mesma proporção, o centroide (excentricidade) é idêntico com carga total ou reduzida.
+  drawPlanta(L,B,pilaresReal,Xr,Yr,cargasLinReal,cargasAreaReal);
 
   const pAvg = Ntotal/A;
   const fx = 6*ex/L, fy = 6*ey/B;
@@ -3113,7 +3142,9 @@ function calcRadierPuncao(ctx){
 function calcRadierArmadura(ctx){
   const {L, B, H, gc, fck, cob, sadm, kvManual, vao, bfaixa, rho, phi, pilaresReal, cargasLinReal, cargasAreaReal, AparaNtotalReal, qDistReal, WswReal, WqDistReal, cargasEspeciaisReal, NtotalReal, fatorProjeto, pilares, cargasLin, cargasArea, A, qDist, Wsw, WqDist, Wtotal_uniforme, cargasEspeciais, Nsum, Ntotal, Xr, Yr, ex, ey, pAvg, fx, fy, corners, pMax, pMin, ok_pmax, ok_contact, contactRatio, isoStep, caa, cobMinCAA, ok_cobrimento, ok_espessura, Df, naDepthTerreno, gagua, temNA, empuxoNA, pesoProprioKpa, FS_flutuacao, ok_flutuacao, phiSoloDeg, coesao, gammaSolo, terzaghiAtivo, qult, FS_capacidade, ok_capacidade, Nc, Nq, Ngamma, fatorArea_pressao, sugL_pressao, sugB_pressao, sugL_contato, sugB_contato, sugH_flutuacao, sugDf_terzaghi, somaNx, somaNy, Kv, Ecs_MPa, Ecs, I, lambda, limCrit, rigido, hMalha, wk, wkDesign, pilarPico, pilarPicoVal, corteX_y, corteY_x, okWinklerP, difPct, recalqueAdm, distorcaoLim, ok_recalqueTotal, piorDistorcaoInv, parDistorcao, ok_distorcao, sugH_recalque, eluModo, gammaf, pAvg_d, mdesb, fyk, fywd_cons, d_cm, d, alfaV2, fcd, tauRd2, rows, piorRatio, piorLabel, piorPilar, piorTauSd, piorTauRd1, piorU, tauRd1_fixo, tauSdTotal, flexoPuncaoAtiva, kFactor, Wp, precisaArmaduraPuncao, aC2, extensaoC2, AswPerimetro, srPunc, nPerimetros} = ctx;
   // ═══ 5. ARMADURA (desenho de corte + dimensionamento à flexão) ═══
-  const geoCorte = drawCorte(L,H,cob,d,pilares);
+  // mesmo raciocínio do svg-planta: o desenho de corte mostra a carga TOTAL por pilar
+  // (pilaresReal), não a fração reduzida por fatorProjeto — ver comentário na Seção 1
+  const geoCorte = drawCorte(L,H,cob,d,pilaresReal);
 
   // ─── dimensionamento à flexão real (Msd → As), a partir dos momentos da grelha Winkler ───
   const fyd = fyk/1.15; // MPa
@@ -3160,6 +3191,14 @@ function calcRadierArmadura(ctx){
   drawCorteArmado(geoCorte,H,cob,phi,espInf,espSup,temPuncao,pilares,piorLabel,coberturaSup,espAmarracaoM);
   drawPlantaArmaduraGeral(L,B,pilares,espInf,espSup,phi,piorLabel,temPuncao,coberturaSup,espAmarracaoM);
   drawAmarracaoDetalhe(H,cob,phiAmarracao,espAmarracaoM,L,B);
+  // Vista 3D (Seção 6) — não recria a cena inteira (custoso), só some sem fazer nada até o
+  // usuário abrir a aba "Dimensionamento do Radier" pela primeira vez (garantirInit3DRadier).
+  // pilares (não pilaresReal) porque só posição/tamanho do pilar interessam aqui — N não é
+  // mostrado no 3D, então os dois são geometricamente idênticos (fatorProjeto só escala N).
+  if(typeof atualizar3DRadier==='function'){
+    const pl3d = (typeof getEstacasLayoutParaRadier==='function') ? getEstacasLayoutParaRadier(L,B) : null;
+    atualizar3DRadier(L,B,H,cob,pilares,pl3d,espInf,espSup,phi,coberturaSup);
+  }
   if(piorPilar){ drawPlantaArmadura(piorPilar,d,piorTauSd,piorTauRd1,tauRd2); }
 
   // ─── fissuração (wk), NBR 6118 §17.3.3 — fórmula 1 (não depende de Acri/ρr) ───
@@ -3832,7 +3871,7 @@ $('btn-criar-estacas-auto').addEventListener('click', ()=>{
 });
 
 // resultados-ponte entre passos (preenchidos pelos calcularSN, lidos pelos botoes de sincronia)
-const BRIDGE = { s1Radm:null, s1Ru:null, s1L:null, s2N:null, s2Nimax:null, s2malha:null, s2n:null, s2eta:null, s4NkTotal:null, s5Armaduras:null };
+const BRIDGE = { s1Radm:null, s1Ru:null, s1L:null, s2N:null, s2Nimax:null, s2malha:null, s2n:null, s2eta:null, s4NkTotal:null, s5Armaduras:null, s6PileRebar:null };
 
 // ═══ navegacao entre passos ═══
 document.querySelectorAll('.step-btn').forEach(btn=>{
@@ -5643,7 +5682,16 @@ function drawDetalheCorteBlocoS6(targetSvgId, span, apCol, h, cob, posTirante, n
 }
 
 // ═══════════════ VISTA 3D DO BLOCO (Three.js) ═══════════════
-let THREE3D_S6 = { pronto:false, tentouCarregar:false, scene:null, camera:null, renderer:null, controls:null, group:null };
+// ═══════════════════════════════════════════════════════════════════════
+// Vista 3D do Radier Estaqueado — motor reaproveitado do antigo módulo de
+// Bloco de Coroamento (herdado do app original de Estacas, criarBarraCilindro3D
+// + THREE3D_S6/garantirInit3DS6/atualizar3DS6 — ficaram mortos quando o Bloco
+// foi desativado nesta variante, ver revisão de código Fase 1). Mesmo motor
+// (Three.js r128 + OrbitControls, cilindros para barras, grupos com toggle de
+// visibilidade), geometria nova: laje do radier + pilares + estacas + malha
+// de armadura inferior/superior, em vez de bloco+arranque+tirante+pele.
+// ═══════════════════════════════════════════════════════════════════════
+let THREE3D_RADIER = { pronto:false, tentouCarregar:false, scene:null, camera:null, renderer:null, controls:null, group:null };
 
 function criarBarraCilindro3D(p1, p2, raioM, material){
   const dir = new THREE.Vector3(p2[0]-p1[0], p2[1]-p1[1], p2[2]-p1[2]);
@@ -5657,294 +5705,198 @@ function criarBarraCilindro3D(p1, p2, raioM, material){
   return mesh;
 }
 
-function garantirInit3DS6(){
-  if(THREE3D_S6.pronto || THREE3D_S6.tentouCarregar) { if(THREE3D_S6.pronto) calcularS6(); return; }
-  THREE3D_S6.tentouCarregar = true;
+function garantirInit3DRadier(){
+  if(THREE3D_RADIER.pronto || THREE3D_RADIER.tentouCarregar) { if(THREE3D_RADIER.pronto && typeof calcularRadier==='function') calcularRadier(); return; }
+  THREE3D_RADIER.tentouCarregar = true;
   if(typeof THREE==='undefined' || typeof THREE.OrbitControls==='undefined'){
-    $('s6-3d-status').innerHTML = `<b style="color:var(--red)">⚠ Não foi possível carregar a biblioteca 3D (Three.js) — verifique sua conexão com a internet e recarregue a página. A vista 3D depende de um recurso externo (CDN); o resto do app funciona normalmente offline.</b>`;
+    $('r3d-status').innerHTML = `<b style="color:var(--red)">⚠ Não foi possível carregar a biblioteca 3D (Three.js) — verifique sua conexão com a internet e recarregue a página. A vista 3D depende de um recurso externo (CDN); o resto do app funciona normalmente offline.</b>`;
     return;
   }
   try{
-    const wrap = $('s6-canvas3d-wrap');
-    const W = wrap.clientWidth||600, H = 380;
+    const wrap = $('r3d-canvas-wrap');
+    const W = wrap.clientWidth||600, H = 420;
     const scene = new THREE.Scene();
     scene.background = new THREE.Color(0xf3efe4);
-    const camera = new THREE.PerspectiveCamera(42, W/H, 0.01, 100);
-    camera.position.set(1.6,1.4,1.9);
+    const camera = new THREE.PerspectiveCamera(42, W/H, 0.01, 200);
+    camera.position.set(6,6,8);
     const renderer = new THREE.WebGLRenderer({antialias:true});
     renderer.setSize(W,H);
     wrap.innerHTML=''; wrap.appendChild(renderer.domElement);
     const controls = new THREE.OrbitControls(camera, renderer.domElement);
-    controls.target.set(0,0.3,0);
+    controls.target.set(0,-0.3,0);
     controls.enableDamping = true; controls.dampingFactor=0.08;
     controls.update();
     scene.add(new THREE.AmbientLight(0xffffff,0.65));
-    const dl = new THREE.DirectionalLight(0xffffff,0.75); dl.position.set(3,5,2); scene.add(dl);
-    const dl2 = new THREE.DirectionalLight(0xffffff,0.35); dl2.position.set(-2,3,-3); scene.add(dl2);
+    const dl = new THREE.DirectionalLight(0xffffff,0.75); dl.position.set(10,15,6); scene.add(dl);
+    const dl2 = new THREE.DirectionalLight(0xffffff,0.35); dl2.position.set(-6,9,-9); scene.add(dl2);
     const group = new THREE.Group(); scene.add(group);
-    THREE3D_S6 = {pronto:true, tentouCarregar:true, scene, camera, renderer, controls, group};
+    THREE3D_RADIER = {pronto:true, tentouCarregar:true, scene, camera, renderer, controls, group};
     (function animate(){ requestAnimationFrame(animate); controls.update(); renderer.render(scene,camera); })();
     window.addEventListener('resize', ()=>{
-      if(!THREE3D_S6.pronto) return;
+      if(!THREE3D_RADIER.pronto) return;
       const w = wrap.clientWidth||600;
-      THREE3D_S6.camera.aspect = w/H; THREE3D_S6.camera.updateProjectionMatrix();
-      THREE3D_S6.renderer.setSize(w,H);
+      THREE3D_RADIER.camera.aspect = w/H; THREE3D_RADIER.camera.updateProjectionMatrix();
+      THREE3D_RADIER.renderer.setSize(w,H);
     });
-    $('s6-3d-status').innerHTML='';
-    calcularS6();
+    $('r3d-status').innerHTML='';
+    calcularRadier();
   } catch(e){
-    $('s6-3d-status').innerHTML = `<b style="color:var(--red)">⚠ Erro ao iniciar a vista 3D: ${e.message}</b>`;
+    $('r3d-status').innerHTML = `<b style="color:var(--red)">⚠ Erro ao iniciar a vista 3D: ${e.message}</b>`;
   }
 }
 
-function atualizar3DS6(arrTipo, D, apx, apy, h, cob, afmin, Lx, Ly, posTirante, nBarrasPorItem, phiTirante, temContorno, nCamadasContorno, phiContorno, nX, nY, phiMalha, coordsPilhas, arranque, armaduraEstaca, pele){
-  if(!THREE3D_S6.pronto) return;
-  const group = THREE3D_S6.group;
+// pilares: array {x,y,c1,c2,label} em coordenadas do radier (canto inferior esquerdo = 0,0)
+// pilesLayout: {piles:[{x,y}], D, Lp} — de getEstacasLayoutParaRadier(L,B)
+// espInf/espSup em cm (espaçamento das malhas), phiMm = diâmetro da barra (mm)
+function atualizar3DRadier(L, B, H, cob, pilares, pilesLayout, espInf, espSup, phiMm, coberturaSup){
+  if(!THREE3D_RADIER.pronto) return;
+  const group = THREE3D_RADIER.group;
   while(group.children.length) group.remove(group.children[0]);
 
-  const retangular = (arrTipo==='grade' || arrTipo==='quad_central');
-  const suportado = retangular || arrTipo==='triangular';
-  if(!suportado){
-    $('s6-3d-status').innerHTML = `<div class="hint">ℹ Vista 3D disponível por enquanto para arranjo retangular (grade/quadrado+central) e triangular — os demais chegam nas próximas etapas.</div>`;
-    return;
-  }
-  $('s6-3d-status').innerHTML = '';
-
-  // subgrupos independentes por tipo de elemento — permite ligar/desligar cada um sem refazer a geometria
-  const grpBloco = new THREE.Group(), grpEstacas = new THREE.Group();
-  const grpN1 = new THREE.Group(), grpN3 = new THREE.Group(), grpN4 = new THREE.Group(), grpArranque = new THREE.Group(), grpPele = new THREE.Group();
-  grpBloco.visible = $('s6-3d-tog-bloco') ? $('s6-3d-tog-bloco').checked : true;
-  grpEstacas.visible = $('s6-3d-tog-estacas') ? $('s6-3d-tog-estacas').checked : true;
-  grpN1.visible = $('s6-3d-tog-n1') ? $('s6-3d-tog-n1').checked : true;
-  grpN3.visible = $('s6-3d-tog-n3') ? $('s6-3d-tog-n3').checked : true;
-  grpN4.visible = $('s6-3d-tog-n4') ? $('s6-3d-tog-n4').checked : true;
-  grpArranque.visible = $('s6-3d-tog-arr') ? $('s6-3d-tog-arr').checked : true;
-  grpPele.visible = $('s6-3d-tog-pele') ? $('s6-3d-tog-pele').checked : true;
-  group.add(grpBloco, grpEstacas, grpN1, grpN3, grpN4, grpArranque, grpPele);
-  THREE3D_S6.subgrupos = {bloco:grpBloco, estacas:grpEstacas, n1:grpN1, n3:grpN3, n4:grpN4, arranque:grpArranque, pele:grpPele};
+  const grpRadier = new THREE.Group(), grpEstacas = new THREE.Group(), grpPilares = new THREE.Group();
+  const grpN1 = new THREE.Group(), grpN34 = new THREE.Group(), grpArmEstaca = new THREE.Group();
+  grpRadier.visible = $('r3d-tog-radier') ? $('r3d-tog-radier').checked : true;
+  grpEstacas.visible = $('r3d-tog-estacas') ? $('r3d-tog-estacas').checked : true;
+  grpPilares.visible = $('r3d-tog-pilares') ? $('r3d-tog-pilares').checked : true;
+  grpN1.visible = $('r3d-tog-n1') ? $('r3d-tog-n1').checked : true;
+  grpN34.visible = $('r3d-tog-n34') ? $('r3d-tog-n34').checked : true;
+  grpArmEstaca.visible = $('r3d-tog-armestaca') ? $('r3d-tog-armestaca').checked : true;
+  group.add(grpRadier, grpEstacas, grpPilares, grpN1, grpN34, grpArmEstaca);
+  THREE3D_RADIER.subgrupos = {radier:grpRadier, estacas:grpEstacas, pilares:grpPilares, n1:grpN1, n34:grpN34, armestaca:grpArmEstaca};
 
   const matConcreto = new THREE.MeshStandardMaterial({color:0xf3efe4, transparent:true, opacity:0.35, roughness:0.9});
+  const matEstaca = new THREE.MeshStandardMaterial({color:0xc9a875, roughness:0.9, transparent:true, opacity:0.45});
   const matPilar = new THREE.MeshStandardMaterial({color:0xd8d2c0, roughness:0.85});
-  const matEstaca = new THREE.MeshStandardMaterial({color:0xdde6d8, roughness:0.9, transparent:true, opacity:0.55});
-  const matN1 = new THREE.MeshStandardMaterial({color:0x2a5a8c, metalness:0.3, roughness:0.5});
-  const matN23 = new THREE.MeshStandardMaterial({color:0xb8791a, metalness:0.3, roughness:0.5});
-  const matN4 = new THREE.MeshStandardMaterial({color:0x7a5030, metalness:0.3, roughness:0.5});
+  const matN1 = new THREE.MeshStandardMaterial({color:0xb43025, metalness:0.3, roughness:0.5});
+  const matN34 = new THREE.MeshStandardMaterial({color:0x2a5a8c, metalness:0.3, roughness:0.5});
+  const matArmLongEstaca = new THREE.MeshStandardMaterial({color:0x7a1f14, metalness:0.3, roughness:0.5});
+  const matArmEstriboEstaca = new THREE.MeshStandardMaterial({color:0xc0392b, metalness:0.2, roughness:0.6});
 
-  const raioTirante = (phiTirante/2)/1000;
-  const cobM = cob;
-  const pilhasXZ = coordsPilhas.map(p=>[p.x,p.y]); // (x,y) do plano 2D vira (x,z) no 3D
+  // origem do 3D centralizada no meio do radier (a planilha usa o canto inferior esquerdo como
+  // 0,0 — aqui só reprojeta para (x-L/2, z-B/2), pra a câmera partir de um enquadramento melhor)
+  const cx = L/2, cz = B/2;
+  const cobM = Math.max(0.01, cob/100);
+  const raioMalha = Math.max(0.002, (phiMm/2)/1000);
 
-  if(retangular){
-    // bloco (semi-transparente, para ver as armaduras por dentro)
-    const blocoGeo = new THREE.BoxGeometry(Lx, h, Ly);
-    const blocoMesh = new THREE.Mesh(blocoGeo, matConcreto);
-    blocoMesh.position.set(0, h/2, 0);
-    grpBloco.add(blocoMesh);
-    const blocoEdges = new THREE.LineSegments(new THREE.EdgesGeometry(blocoGeo), new THREE.LineBasicMaterial({color:0x282420}));
-    blocoEdges.position.copy(blocoMesh.position);
-    grpBloco.add(blocoEdges);
-  } else if(arrTipo==='triangular'){
-    // bloco: prisma extrudado a partir do MESMO contorno chanfrado usado na planta 2D (offset real a partir das estacas)
-    // NOTA: rotateX(-90°) inverte o sinal do eixo que vira Z no mundo — por isso o shape usa -y aqui, pra sair correto (sem espelhar em relacao as estacas/armaduras)
-    const dAf = D/2+afmin;
-    const contornoConcreto = contornoComAfastamento(pilhasXZ, dAf, true);
-    const shape = new THREE.Shape();
-    shape.moveTo(contornoConcreto[0][0], -contornoConcreto[0][1]);
-    for(let i=1;i<contornoConcreto.length;i++) shape.lineTo(contornoConcreto[i][0], -contornoConcreto[i][1]);
-    shape.closePath();
-    const blocoGeo = new THREE.ExtrudeGeometry(shape, {depth:h, bevelEnabled:false});
-    blocoGeo.rotateX(-Math.PI/2); // deita o prisma (extrusao nativa em Z vira altura em Y; o -y acima compensa a inversao desta rotacao)
-    const blocoMesh = new THREE.Mesh(blocoGeo, matConcreto);
-    grpBloco.add(blocoMesh);
-    const blocoEdges = new THREE.LineSegments(new THREE.EdgesGeometry(blocoGeo), new THREE.LineBasicMaterial({color:0x282420}));
-    grpBloco.add(blocoEdges);
-  }
+  // ── radier: laje semi-transparente com arestas marcadas ──
+  const radierGeo = new THREE.BoxGeometry(L, H, B);
+  const radierMesh = new THREE.Mesh(radierGeo, matConcreto);
+  radierMesh.position.set(0, -H/2, 0);
+  grpRadier.add(radierMesh);
+  const radierEdges = new THREE.LineSegments(new THREE.EdgesGeometry(radierGeo), new THREE.LineBasicMaterial({color:0x282420}));
+  radierEdges.position.copy(radierMesh.position);
+  grpRadier.add(radierEdges);
 
-  // pilar (referencia, acima do bloco)
-  const hPilar = 0.4;
-  const pilarGeo = new THREE.BoxGeometry(apx, hPilar, apy);
-  const pilarMesh = new THREE.Mesh(pilarGeo, matPilar);
-  pilarMesh.position.set(0, h+hPilar/2, 0);
-  grpEstacas.add(pilarMesh);
-
-  // arranque do pilar: barras verticais embutidas no bloco (ancoragem) + trecho de emenda acima do topo, dentro do pilar
-  if(arranque){
-    const matArranque = new THREE.MeshStandardMaterial({color:0x6b3fa0, metalness:0.3, roughness:0.5});
-    const raioArr = (arranque.phiBarraArr/2)/1000;
-    const cobArr3d = arranque.cobArr;
-    const rx0=-arranque.apColCorte/2+cobArr3d, rx1=arranque.apColCorte/2-cobArr3d;
-    const rz0=-arranque.apyColCorte/2+cobArr3d, rz1=arranque.apyColCorte/2-cobArr3d;
-    const wTop=rx1-rx0, hSide=rz1-rz0;
-    const yBase = h-arranque.lbNecArr/1000, yTopo = h+arranque.lb0Arr/1000;
-    const compGancho3d = (arranque.compGanchoArr||0)/1000;
-    const pontosArr = distribuirBarrasRetanguloS6(rx0,rz0,rx1,rz1,arranque.nBarrasArr);
-    pontosArr.forEach(([bx,bz])=>{
-      const b = criarBarraCilindro3D([bx,yBase,bz],[bx,yTopo,bz], raioArr, matArranque);
-      if(b) grpArranque.add(b);
-      if(arranque.temGanchoArr && compGancho3d>0){
-        // gancho a 90°, dobrado horizontalmente para fora do pilar (afastando do centro)
-        const dLen = Math.hypot(bx,bz)||1;
-        const gx = bx + (bx/dLen)*compGancho3d, gz = bz + (bz/dLen)*compGancho3d;
-        const g = criarBarraCilindro3D([bx,yBase,bz],[gx,yBase,gz], raioArr, matArranque);
-        if(g) grpArranque.add(g);
-      }
-    });
-  }
-
-  // estacas (cilindros abaixo do bloco, nas posicoes reais) — com armadura (longitudinal + estribo/espiral) no mesmo trecho representativo
-  const Lestaca = 0.6;
-  const matArmEstaca = new THREE.MeshStandardMaterial({color:0xc0392b, metalness:0.3, roughness:0.5});
-  const matEstriboEstaca = new THREE.MeshStandardMaterial({color:0x1d4066, metalness:0.2, roughness:0.6});
-  coordsPilhas.forEach(p=>{
-    const geo = new THREE.CylinderGeometry(D/2, D/2, Lestaca, 20);
-    const mesh = new THREE.Mesh(geo, matEstaca);
-    mesh.position.set(p.x, -Lestaca/2, p.y);
-    grpEstacas.add(mesh);
-
-    if(armaduraEstaca && armaduraEstaca.isConcreto){
-      const rs = D/2 - armaduraEstaca.dlinha;
-      const raioLong = (armaduraEstaca.phiLong/2)/1000;
-      const yTopo = h/3, yBase = -Lestaca+0.03;
-      for(let i=0;i<armaduraEstaca.nBarras;i++){
-        const ang = (i/armaduraEstaca.nBarras)*Math.PI*2;
-        const bx = p.x+rs*Math.cos(ang), bz = p.y+rs*Math.sin(ang);
-        const b = criarBarraCilindro3D([bx,yTopo,bz],[bx,yBase,bz], raioLong, matArmEstaca);
-        if(b) grpEstacas.add(b);
-      }
-      // estribo/espiral: aneis no espacamento real, apenas no trecho visivel da estaca (o trecho engastado no bloco fica so com a barra reta)
-      const raioEstribo = (armaduraEstaca.phiEstribo/2)/1000;
-      const yTopoEstribo = 0;
-      const nAneis = Math.max(1, Math.floor(Lestaca/armaduraEstaca.passoEstribo));
-      for(let k=0;k<=nAneis;k++){
-        const y = yTopoEstribo - k*armaduraEstaca.passoEstribo;
-        if(y<yBase) break;
-        const segsAnel = 16;
-        for(let s=0;s<segsAnel;s++){
-          const a1=(s/segsAnel)*Math.PI*2, a2=((s+1)/segsAnel)*Math.PI*2;
-          const p1=[p.x+rs*Math.cos(a1),y,p.y+rs*Math.sin(a1)];
-          const p2=[p.x+rs*Math.cos(a2),y,p.y+rs*Math.sin(a2)];
-          const seg = criarBarraCilindro3D(p1,p2,raioEstribo,matEstriboEstaca);
-          if(seg) grpEstacas.add(seg);
-        }
-      }
-    }
+  // ── pilares (referência, acima do radier) ──
+  const hPilar = Math.max(0.3, Math.min(1.2, Math.max(L,B)*0.10));
+  (pilares||[]).forEach(p=>{
+    const geo = new THREE.BoxGeometry(Math.max(0.15,p.c1), hPilar, Math.max(0.15,p.c2));
+    const mesh = new THREE.Mesh(geo, matPilar);
+    mesh.position.set(p.x-cx, hPilar/2, p.y-cz);
+    grpPilares.add(mesh);
+    const edges = new THREE.LineSegments(new THREE.EdgesGeometry(geo), new THREE.LineBasicMaterial({color:0x282420}));
+    edges.position.copy(mesh.position);
+    grpPilares.add(edges);
   });
 
-  // helper: desenha um feixe de n barras "U invertido" entre dois pontos (x,z), com pontas subindo ate o cobrimento no topo
-  function desenharFeixeUS6(p1, p2, n, grp, raio, mat, yTopCustom, yBotCustom){
-    raio = raio!=null ? raio : raioTirante;
-    mat = mat || matN1;
-    const dx=p2[0]-p1[0], dy=p2[1]-p1[1], len=Math.hypot(dx,dy)||1;
-    const ux=dx/len, uy=dy/len, nx=-uy, ny=ux;
-    const espMinM = Math.max(0.02, phiTirante/1000) + phiTirante/1000; // NBR 6118 §18.3.2.2: livre + diametro = entre centros
-    const esp = Math.min(espMinM, len/Math.max(1,n-1)*0.9 || espMinM);
-    for(let i=0;i<n;i++){
-      const off = (i-(n-1)/2)*esp;
-      const x1=p1[0]+nx*off, z1=p1[1]+ny*off, x2=p2[0]+nx*off, z2=p2[1]+ny*off;
-      const yBot = yBotCustom!=null ? yBotCustom : cobM;
-      const yTop = yTopCustom!=null ? yTopCustom : h-cobM;
-      const pA=[x1,yBot,z1], pB=[x2,yBot,z2];
-      const bLeft=[x1,yTop,z1], bRight=[x2,yTop,z2];
-      const bar1=criarBarraCilindro3D(bLeft,pA,raio,mat); if(bar1) grp.add(bar1);
-      const bar2=criarBarraCilindro3D(pA,pB,raio,mat); if(bar2) grp.add(bar2);
-      const bar3=criarBarraCilindro3D(pB,bRight,raio,mat); if(bar3) grp.add(bar3);
-    }
-  }
+  // ── estacas (cilindros abaixo do radier, nas posições reais do arranjo do Passo 2) ──
+  if(pilesLayout && pilesLayout.piles && pilesLayout.piles.length){
+    const D = pilesLayout.D, Lp = Math.max(1, pilesLayout.Lp||8);
+    pilesLayout.piles.forEach(pp=>{
+      const geo = new THREE.CylinderGeometry(D/2, D/2, Lp, 16);
+      const mesh = new THREE.Mesh(geo, matEstaca);
+      mesh.position.set(pp.x-cx, -H-Lp/2, pp.y-cz);
+      grpEstacas.add(mesh);
+    });
 
-  if(retangular){
-    // N1/N2 (tirante): um feixe "U invertido" por segmento (topo/base em X, esquerda/direita em Y), estendido ate o cobrimento
-    posTirante.forEach((a,idx)=>{
-      const n = Math.max(1, nBarrasPorItem[idx]||1);
-      (a.segmentos||[]).forEach(s=>{
-        let sx1=s.x1, sy1=s.y1, sx2=s.x2, sy2=s.y2;
-        if(Math.abs(sx2-sx1) >= Math.abs(sy2-sy1)){
-          if(sx1<sx2){ sx1=-Lx/2+cobM; sx2=Lx/2-cobM; } else { sx1=Lx/2-cobM; sx2=-Lx/2+cobM; }
-        } else {
-          if(sy1<sy2){ sy1=-Ly/2+cobM; sy2=Ly/2-cobM; } else { sy1=Ly/2-cobM; sy2=-Ly/2+cobM; }
+    // ── armadura das estacas (barras longitudinais + estribos/espiral), a partir dos mesmos
+    // dados calculados e desenhados em 2D no Passo 6 (Detalhamento) — não é esquemática: usa
+    // exatamente o nº de barras, bitola e passo de estribo dimensionados ali. Só aparece se a
+    // estaca for de concreto (Passo 3) — estaca metálica/madeira não tem armadura para desenhar.
+    const rebar = BRIDGE.s6PileRebar;
+    if(rebar && rebar.nBarras>0){
+      const yTopoEstaca = -H, yPontaEstaca = -H-Lp;
+      const raioBarras = Math.max(0.01, D/2 - rebar.dlinha);
+      const raioLong = Math.max(0.003, (rebar.phiLong/2)/1000);
+      const raioEstribo = Math.max(0.0015, (rebar.phiEstribo/2)/1000);
+      pilesLayout.piles.forEach(pp=>{
+        const px = pp.x-cx, pz = pp.y-cz;
+        // barras longitudinais, distribuídas em círculo (mesma simplificação do desenho 2D —
+        // drawSecaoEstacaS6 — vale tanto para seção circular quanto quadrada)
+        for(let i=0;i<rebar.nBarras;i++){
+          const ang = 2*Math.PI*i/rebar.nBarras;
+          const bx = px + raioBarras*Math.cos(ang), bz = pz + raioBarras*Math.sin(ang);
+          const b = criarBarraCilindro3D([bx,yTopoEstaca-0.05,bz],[bx,yPontaEstaca+0.05,bz], raioLong, matArmLongEstaca);
+          if(b) grpArmEstaca.add(b);
         }
-        desenharFeixeUS6([sx1,sy1],[sx2,sy2], n, grpN1);
+        // estribo/espiral: anéis horizontais a cada passoEstribo, aproximados por um octógono
+        // (8 segmentos — curvatura suave o bastante na escala do desenho). Mesmo padrão já usado
+        // acima na malha N1/N34 desta função: teto de anéis por estaca só para não travar o
+        // navegador com estacas longas e passo de estribo apertado — não distorce o passo real
+        // mostrado nas tabelas/desenhos 2D do Passo 6, só limita a densidade da vista 3D.
+        const MAX_ANEIS_3D = 30;
+        const passo3dEstribo = Math.max(rebar.passoEstribo, Lp/MAX_ANEIS_3D);
+        const nLados = 8;
+        for(let y=yTopoEstaca-0.05; y>=yPontaEstaca+0.05; y-=passo3dEstribo){
+          for(let i=0;i<nLados;i++){
+            const a0 = 2*Math.PI*i/nLados, a1 = 2*Math.PI*(i+1)/nLados;
+            const p0 = [px+raioBarras*Math.cos(a0), y, pz+raioBarras*Math.sin(a0)];
+            const p1 = [px+raioBarras*Math.cos(a1), y, pz+raioBarras*Math.sin(a1)];
+            const seg = criarBarraCilindro3D(p0, p1, raioEstribo, matArmEstriboEstaca);
+            if(seg) grpArmEstaca.add(seg);
+          }
+        }
       });
-    });
-  } else if(arrTipo==='triangular'){
-    // N1 (tirante em lacos, 3 lados): passa sobre as estacas e se estende ate cruzar com N4 (ancoragem)
-    const dAf3dN1 = D/2+afmin;
-    const contornoN4_3d = contornoComAfastamento(pilhasXZ, dAf3dN1-cobM, true);
-    const n = Math.max(1, nBarrasPorItem[0]||1);
-    posTirante[0].segmentos.forEach(s=>{
-      const ddx=s.x2-s.x1, ddy=s.y2-s.y1;
-      const extA=[s.x1-ddx*5, s.y1-ddy*5], extB=[s.x2+ddx*5, s.y2+ddy*5];
-      const cruz = clipSegmentoPoligono(extA, extB, contornoN4_3d);
-      const p1 = cruz ? cruz[0] : [s.x1,s.y1], p2 = cruz ? cruz[1] : [s.x2,s.y2];
-      desenharFeixeUS6(p1, p2, n, grpN1);
-    });
-  }
-
-  // N4 (contorno): laco fechado, uma camada por altura — segue a geometria real do bloco
-  if(temContorno && nCamadasContorno>0){
-    const raioContorno = (phiContorno/2)/1000;
-    let cantosBase;
-    if(arrTipo==='triangular'){
-      const dAf3d = D/2+afmin;
-      cantosBase = contornoComAfastamento(pilhasXZ, dAf3d-cobM, true);
-    } else {
-      cantosBase = [[-Lx/2+cobM,-Ly/2+cobM],[Lx/2-cobM,-Ly/2+cobM],[Lx/2-cobM,Ly/2-cobM],[-Lx/2+cobM,Ly/2-cobM]];
-    }
-    for(let c=0;c<nCamadasContorno;c++){
-      const y = nCamadasContorno===1 ? cobM+0.04 : cobM + c*((h-2*cobM-0.08)/(nCamadasContorno-1)) + 0.04;
-      for(let i=0;i<cantosBase.length;i++){
-        const p1=cantosBase[i], p2=cantosBase[(i+1)%cantosBase.length];
-        const b = criarBarraCilindro3D([p1[0],y,p1[1]],[p2[0],y,p2[1]], raioContorno, matN23);
-        if(b) grpN4.add(b);
-      }
     }
   }
 
-  // N5 (armadura de pele): total de lacos (camadas × lacos/camada) espalhados uniformemente pela altura disponivel — distinto do N4 (que fica so perto do cobrimento)
-  if(pele && pele.phiPele && pele.nCamadasPele>0){
-    const matPele = new THREE.MeshStandardMaterial({color:0x6b8f3f, metalness:0.2, roughness:0.6});
-    const raioPele = (pele.phiPele/2)/1000;
-    let cantosPele;
-    if(arrTipo==='triangular'){
-      const dAf3d = D/2+afmin;
-      cantosPele = contornoComAfastamento(pilhasXZ, dAf3d-cobM, true);
-    } else {
-      cantosPele = [[-Lx/2+cobM,-Ly/2+cobM],[Lx/2-cobM,-Ly/2+cobM],[Lx/2-cobM,Ly/2-cobM],[-Lx/2+cobM,Ly/2-cobM]];
-    }
-    const nTotalLacos = pele.nCamadasPele*Math.max(1,pele.nBarrasPelePorCamada);
-    const alturaUtilPele3d = Math.max(0.02, h-2*cobM);
-    for(let k=0;k<nTotalLacos;k++){
-      const y = nTotalLacos>1 ? cobM + k*(alturaUtilPele3d/(nTotalLacos-1)) : cobM+alturaUtilPele3d/2;
-      for(let i=0;i<cantosPele.length;i++){
-        const p1=cantosPele[i], p2=cantosPele[(i+1)%cantosPele.length];
-        const b = criarBarraCilindro3D([p1[0],y,p1[1]],[p2[0],y,p2[1]], raioPele, matPele);
-        if(b) grpPele.add(b);
-      }
-    }
+  // ── malhas de armadura (N1/N2 inferior toda a área; N3/N4 superior — total ou faixas sobre
+  // pilares, mesma regra do desenho 2D em drawPlantaArmaduraGeral). O espaçamento real (espInf/
+  // espSup) é respeitado até um teto de barras por direção — acima disso, usa um passo mais
+  // grosso só para a vista 3D (não estrutural: a malha real está nas tabelas/desenhos 2D) para
+  // não travar o navegador em radiers grandes com malha apertada. ──
+  const MAX_BARRAS_3D = 44;
+  const passo3d = (espCm, comprimento) => {
+    const espM = Math.max(0.06, espCm/100);
+    return Math.max(espM, comprimento/MAX_BARRAS_3D);
+  };
+  const x0geral = -cx+cobM, x1geral = cx-cobM, z0geral = -cz+cobM, z1geral = cz-cobM;
+
+  const espInfM3d = passo3d(espInf, L);
+  const yInf = -H + cobM + raioMalha;
+  for(let x=x0geral; x<=x1geral+1e-6; x+=espInfM3d){
+    const b = criarBarraCilindro3D([x, yInf, z0geral],[x, yInf, z1geral], raioMalha, matN1);
+    if(b) grpN1.add(b);
+  }
+  for(let z=z0geral; z<=z1geral+1e-6; z+=espInfM3d){
+    const b = criarBarraCilindro3D([x0geral, yInf, z],[x1geral, yInf, z], raioMalha, matN1);
+    if(b) grpN1.add(b);
   }
 
-  // N3 (malha): grade ortogonal, recortada pela geometria real do bloco, em formato U (base + duas pernas subindo ate o cobrimento do topo — armadura de suspensao)
-  const raioMalha = (phiMalha/2)/1000;
-  let contornoMalhaXZ;
-  if(arrTipo==='triangular'){
-    contornoMalhaXZ = contornoComAfastamento(pilhasXZ, D/2+afmin-cobM, true);
+  const espSupM3d = passo3d(espSup, Math.max(L,B));
+  const yTop = -cobM - raioMalha;
+  if(coberturaSup==='total'){
+    for(let x=x0geral; x<=x1geral+1e-6; x+=espSupM3d){
+      const b = criarBarraCilindro3D([x, yTop, z0geral],[x, yTop, z1geral], raioMalha, matN34);
+      if(b) grpN34.add(b);
+    }
+    for(let z=z0geral; z<=z1geral+1e-6; z+=espSupM3d){
+      const b = criarBarraCilindro3D([x0geral, yTop, z],[x1geral, yTop, z], raioMalha, matN34);
+      if(b) grpN34.add(b);
+    }
   } else {
-    contornoMalhaXZ = [[-Lx/2+cobM,-Ly/2+cobM],[Lx/2-cobM,-Ly/2+cobM],[Lx/2-cobM,Ly/2-cobM],[-Lx/2+cobM,Ly/2-cobM]];
-  }
-  {
-    const xs3 = contornoMalhaXZ.map(p=>p[0]), zs3 = contornoMalhaXZ.map(p=>p[1]);
-    const bx0_3=Math.min(...xs3), bx1_3=Math.max(...xs3), bz0_3=Math.min(...zs3), bz1_3=Math.max(...zs3);
-    const passo3d = (bx1_3-bx0_3)/Math.max(2,nX);
-    const linhasClip = [];
-    for(let x=bx0_3+passo3d; x<bx1_3; x+=passo3d){
-      const seg = clipSegmentoPoligono([x,bz0_3-1],[x,bz1_3+1], contornoMalhaXZ);
-      if(seg) linhasClip.push(seg);
-    }
-    for(let z=bz0_3+passo3d; z<bz1_3; z+=passo3d){
-      const seg = clipSegmentoPoligono([bx0_3-1,z],[bx1_3+1,z], contornoMalhaXZ);
-      if(seg) linhasClip.push(seg);
-    }
-    linhasClip.forEach(seg=>{
-      desenharFeixeUS6(seg[0], seg[1], 1, grpN3, raioMalha, matN4);
+    const faixaX = Math.min(L*0.30, 2.0), faixaY = Math.min(B*0.30, 2.0);
+    (pilares||[]).forEach(p=>{
+      const x0=Math.max(x0geral,p.x-cx-faixaX/2), x1=Math.min(x1geral,p.x-cx+faixaX/2);
+      const z0=Math.max(z0geral,p.y-cz-faixaY/2), z1=Math.min(z1geral,p.y-cz+faixaY/2);
+      for(let x=x0; x<=x1+1e-6; x+=espSupM3d){
+        const b = criarBarraCilindro3D([x, yTop, z0],[x, yTop, z1], raioMalha, matN34);
+        if(b) grpN34.add(b);
+      }
+      for(let z=z0; z<=z1+1e-6; z+=espSupM3d){
+        const b = criarBarraCilindro3D([x0, yTop, z],[x1, yTop, z], raioMalha, matN34);
+        if(b) grpN34.add(b);
+      }
     });
   }
 }
@@ -6155,6 +6107,7 @@ function calcularS6(){
     $('s6-svg-perfil-estaca').innerHTML = '<text x="150" y="230" font-size="11" text-anchor="middle" fill="#8a8680">Não se aplica (estaca não é de concreto)</text>';
     $('s6-tbl-estaca').innerHTML = '';
     $('s6-form-estaca').innerHTML = '';
+    BRIDGE.s6PileRebar = null; // estaca não é de concreto — vista 3D do Radier não desenha armadura nela
   } else {
     $('s6-banner-pre').innerHTML = '';
     const AsTotalCm2 = (rho/100)*Agross*10000;
@@ -6177,6 +6130,10 @@ function calcularS6(){
 
     drawSecaoEstacaS6(D, forma, nBarras, phiLongFinal, dlinha, phiEstribo);
     drawPerfilLongEstacaS6(D, L, forma, nBarras, phiLongFinal, dlinha, phiEstribo, passoEstribo);
+
+    // exposto para a Vista 3D do Radier (atualizar3DRadier) desenhar a armadura real das
+    // estacas — mesmos dados calculados aqui, sem duplicar lógica de dimensionamento.
+    BRIDGE.s6PileRebar = {D, forma, nBarras, phiLong:phiLongFinal, dlinha, phiEstribo, passoEstribo};
 
     $('s6-tbl-estaca').innerHTML = `<thead><tr><th>Elemento</th><th>Qtd.</th><th>φ (mm)</th><th>Comprimento unit. (m)</th><th>Comprimento total (m)</th><th>Peso (kg)</th></tr></thead>
       <tbody>
@@ -6681,6 +6638,28 @@ $('btn-i-messeturm').addEventListener('click', ()=>{
 
 // recalcula a Interação sempre que essa aba for aberta (dados podem ter mudado nas outras abas)
 document.querySelector('.mod-btn[data-mod="interacao"]').addEventListener('click', calcularInteracao);
+
+// inicia a vista 3D do radier (Seção 6) só na primeira vez que a aba "Dimensionamento do
+// Radier" é aberta — carregar Three.js/WebGL de cara no load da página seria desperdício se o
+// usuário nunca chegar a essa aba (mesmo padrão do antigo módulo de bloco de coroamento).
+document.querySelector('.mod-btn[data-mod="radier-dim"]').addEventListener('click', ()=>{
+  // setTimeout(...,0): adia pro próximo tick, depois do listener genérico de troca de aba
+  // (registrado em outro bloco <script>, mais abaixo no arquivo) já ter tornado o painel
+  // visível — sem isso, wrap.clientWidth mede 0 (painel ainda com display:none no momento
+  // deste clique) e o canvas nasce com a largura de reserva (600px) em vez da largura real do
+  // card, ficando visualmente menor que o card até a próxima janela ser redimensionada.
+  setTimeout(()=>{ if(typeof garantirInit3DRadier==='function') garantirInit3DRadier(); }, 0);
+});
+['r3d-tog-radier','r3d-tog-estacas','r3d-tog-pilares','r3d-tog-n1','r3d-tog-n34','r3d-tog-armestaca'].forEach(id=>{
+  const el = document.getElementById(id);
+  if(!el) return;
+  el.addEventListener('change', ()=>{
+    if(!THREE3D_RADIER.pronto || !THREE3D_RADIER.subgrupos) return;
+    const map = {'r3d-tog-radier':'radier','r3d-tog-estacas':'estacas','r3d-tog-pilares':'pilares','r3d-tog-n1':'n1','r3d-tog-n34':'n34','r3d-tog-armestaca':'armestaca'};
+    const grp = THREE3D_RADIER.subgrupos[map[id]];
+    if(grp) grp.visible = el.checked;
+  });
+});
 </script><script>
 
 document.querySelectorAll('.mod-btn').forEach(btn=>{
@@ -7001,6 +6980,17 @@ document.querySelectorAll('.mod-btn').forEach(btn=>{
       </ul>
       <div class="help-svg-box">${ICO.armaduraCorte}</div>
       <p style="font-size:11px;color:#8a8680">Desenhos esquemáticos e fora de escala — orientam o raciocínio, não substituem detalhamento executivo assinado pelo projetista.</p>`},
+
+    'r-3d': {t:'Vista 3D do Radier Estaqueado', ico:null, html:`
+      <p>Monta em três dimensões, a partir dos mesmos dados já calculados nas seções anteriores, a geometria completa: a laje do radier, os pilares que chegam nela, as estacas no arranjo real do Passo 2 (Estacas) — com sua armadura real (nº de barras, bitola e espaçamento de estribo, os mesmos do detalhamento no Passo 6) quando a estaca é de concreto — e uma representação esquemática das malhas de armadura inferior (N1/N2) e superior (N3/N4) do radier.</p>
+      <ul>
+        <li><b>Arraste</b> com o botão do mouse para girar a câmera em torno do modelo; <b>role a roda do mouse</b> para aproximar/afastar.</li>
+        <li>As caixas <b>"Mostrar"</b> abaixo do modelo ligam/desligam cada grupo de elementos independentemente — útil para ver só as estacas, só a armadura delas, ou só o radier, sem o resto atrapalhando a visão.</li>
+        <li>A malha de armadura do radier respeita o espaçamento real calculado (Seção 5), mas em radiers grandes com malha apertada, a vista 3D usa um passo um pouco mais grosso só para não sobrecarregar o navegador — o espaçamento exato continua nas tabelas e no desenho 2D, que são a referência estrutural. O mesmo vale para os estribos da estaca (passo real respeitado até um teto de anéis por estaca).</li>
+        <li>Estaca metálica ou de madeira (Passo 3) não tem armadura desenhada — só concreto armado é detalhado no Passo 6.</li>
+      </ul>
+      <p style="font-size:11px;color:#8a8680">Assim como os demais desenhos do app, é uma representação esquemática de apoio ao raciocínio — não substitui um modelo BIM/estrutural executivo.</p>
+      <div class="help-refs">Motor de renderização: Three.js (WebGL) — mesmo usado no módulo de detalhamento de blocos sobre estacas</div>`},
 
     'r-quant': {t:'Quantitativos de Aço e Concreto', ico:null, html:`
       <p>Converte as armaduras dimensionadas em <b>peso de aço</b> (kg) e o volume em <b>volume de concreto</b> (m³), como apoio a um orçamento preliminar — não uma planilha de suprimentos final.</p>

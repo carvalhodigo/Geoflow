@@ -155,4 +155,26 @@ module.exports = [
     // exercita o ramo sadmKpa >= último ponto da tabela (extrapolação por reta entre os 2 últimos pontos)
     setup: async (page, {setVal}) => { await setVal(page,'in-sadm','400'); },
   },
+  {
+    name: 'radier_meyerhof_area_efetiva_colapsada',
+    capture: CAPTURE,
+    // exercita areaEfSuficienteMey=false — excentricidade grande o bastante para que L_efMey ou
+    // B_efMey (=L/B menos 2×|e|) fique ≤0,05m, mesmo com Terzaghi/Meyerhof ativos (φ'/c' informados).
+    // Nenhum outro cenário testa esse ramo específico do Meyerhof (colapso da área efetiva).
+    // H reduzido ao mínimo e carga do pilar muito maior que o peso próprio, para que o peso
+    // próprio (que sempre "puxa" a resultante de volta ao centro) não descentralize o suficiente
+    // pra sair da faixa de colapso.
+    setup: async (page, {setVal, clickAll, clickOne}) => {
+      await setVal(page,'in-phi-solo','25'); await setVal(page,'in-coesao','5');
+      await setVal(page,'in-H','0.16');
+      await clickAll(page, '.pil-del');
+      await clickOne(page, '#btn-add-pilar');
+      const row = (await page.$$('.pil-row'))[0];
+      const vals = ['P1','7.999','3','100000','0.3','0.3']; // bem excêntrico em X (radier 8x6m padrão)
+      const inputs = await row.$$('input');
+      for(let j=0;j<inputs.length && j<vals.length;j++){
+        await inputs[j].evaluate((el,v)=>{ el.value=v; el.dispatchEvent(new Event('input',{bubbles:true})); }, vals[j]);
+      }
+    },
+  },
 ];

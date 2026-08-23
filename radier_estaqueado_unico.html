@@ -2732,6 +2732,43 @@ function calcularRadier(){
     ok_capacidade = FS_capacidade>=3;
   }
 
+  // ─── capacidade de carga última (Meyerhof) — segunda verificação, mesma lógica da
+  // Sapata/Fundação de Máquinas, com área efetiva de Meyerhof pela excentricidade ex/ey
+  // já calculada acima. Fica lado a lado com Terzaghi (métodos diferentes, mesmo objetivo:
+  // conferir a ruptura por cisalhamento do solo, cruzando dois formulários independentes).
+  // Portada do módulo "Radier" comum do geo_flow_editor.html, que já a tinha — não existia
+  // aqui no radier estaqueado até esta revisão. ───
+  const meyerhofAtivo = terzaghiAtivo;
+  let qultMey=0, qAdmMey=0, FS_capacidadeMey=Infinity, ok_capacidadeMey=true, areaEfSuficienteMey=true;
+  let NqMey=0, NcMey=0, NgamaMey=0, L_efMey=L, B_efMey=B, qAplicadaEfMey=pAvg;
+  if(meyerhofAtivo){
+    const phiRadMey = phiSoloDeg*Math.PI/180;
+    NqMey = phiSoloDeg<=0.01 ? 1 : Math.exp(Math.PI*Math.tan(phiRadMey)) * Math.pow(Math.tan(Math.PI/4+phiRadMey/2),2);
+    NcMey = phiSoloDeg<=0.01 ? 5.14 : (NqMey-1)/Math.tan(phiRadMey);
+    NgamaMey = (NqMey-1)*Math.tan(1.4*phiRadMey);
+
+    const exAbsMey = Math.abs(ex), eyAbsMey = Math.abs(ey);
+    L_efMey = Math.max(0, L - 2*exAbsMey);
+    B_efMey = Math.max(0, B - 2*eyAbsMey);
+    areaEfSuficienteMey = L_efMey>0.05 && B_efMey>0.05;
+    const BefMey = Math.min(L_efMey,B_efMey), LefMey = Math.max(L_efMey,B_efMey);
+
+    const KpMey = Math.pow(Math.tan(Math.PI/4+phiRadMey/2),2);
+    const FcsMey = areaEfSuficienteMey ? 1+0.2*KpMey*(BefMey/LefMey) : 1;
+    const FqsMey = areaEfSuficienteMey ? (phiSoloDeg>0.5 ? 1+0.1*KpMey*(BefMey/LefMey) : 1) : 1;
+    const FgsMey = FqsMey;
+    const FcdMey = areaEfSuficienteMey ? 1+0.2*Math.sqrt(KpMey)*(Df/BefMey) : 1;
+    const FqdMey = areaEfSuficienteMey ? (phiSoloDeg>0.5 ? 1+0.1*Math.sqrt(KpMey)*(Df/BefMey) : 1) : 1;
+    const FgdMey = FqdMey;
+
+    const qSurchargeMey = gammaSolo*Df;
+    qultMey = coesao*NcMey*FcsMey*FcdMey + qSurchargeMey*NqMey*FqsMey*FqdMey + 0.5*gammaSolo*BefMey*NgamaMey*FgsMey*FgdMey;
+    qAdmMey = qultMey/3; // FS≥3, mesmo critério usado no Terzaghi acima (sem campo de FS dedicado)
+    qAplicadaEfMey = areaEfSuficienteMey ? Ntotal/(L_efMey*B_efMey) : Infinity;
+    FS_capacidadeMey = areaEfSuficienteMey ? qultMey/qAplicadaEfMey : 0;
+    ok_capacidadeMey = areaEfSuficienteMey && FS_capacidadeMey>=3;
+  }
+
   // ─── sugestões de correção acionáveis ───
   const fatorArea_pressao = Math.sqrt(pMax/sadm)*1.05;
   const sugL_pressao = Math.round(L*fatorArea_pressao*10)/10, sugB_pressao = Math.round(B*fatorArea_pressao*10)/10;
@@ -2743,6 +2780,17 @@ function calcularRadier(){
     const ScT=1+0.3*(BminT/LmaxT), SgT=1-0.2*(BminT/LmaxT);
     const necessario = 3*pMax - coesao*Nc*ScT - 0.5*gammaSolo*BminT*Ngamma*SgT;
     if(necessario>0){ const dfCalc = necessario/(gammaSolo*Nq); if(dfCalc>Df) sugDf_terzaghi = Math.round(dfCalc*100)/100; }
+  }
+  // Sugestão de Df para a verificação de Meyerhof — aumenta Df em passos de 0,25m
+  // até que o FS estimado (aproximação linear pela sobrecarga) atinja 3,0.
+  let sugDf_meyerhof = null;
+  if(meyerhofAtivo && !ok_capacidadeMey && areaEfSuficienteMey && NqMey>0){
+    let dfTry = Df;
+    for(let i=0;i<40 && dfTry<20;i++){
+      dfTry += 0.25;
+      const qTry = coesao*NcMey + gammaSolo*dfTry*NqMey + 0.5*gammaSolo*Math.min(L_efMey,B_efMey)*NgamaMey;
+      if(qTry/qAplicadaEfMey>=3){ sugDf_meyerhof = Math.round(dfTry*100)/100; break; }
+    }
   }
 
   $('checklist-geo').innerHTML =
@@ -2774,7 +2822,15 @@ function calcularRadier(){
       'Terzaghi (1943), ruptura geral',
       terzaghiAtivo && !ok_capacidade ? `Aumentar a área da fundação, aumentar Df (profundidade de assentamento) ou melhorar o solo (compactação/tratamento).${sugDf_terzaghi?' Sugestão: Df='+fmt(sugDf_terzaghi,2)+'m.':''}` : null,
       (terzaghiAtivo && !ok_capacidade && sugDf_terzaghi) ? [{field:'in-df',value:sugDf_terzaghi}] : null,
-      sugDf_terzaghi?`Df=${fmt(sugDf_terzaghi,2)}m`:'');
+      sugDf_terzaghi?`Df=${fmt(sugDf_terzaghi,2)}m`:'') +
+    checkItemR('Capacidade de carga última do solo (Meyerhof)', meyerhofAtivo?(!areaEfSuficienteMey?'bad':(ok_capacidadeMey?'ok':'bad')):'info',
+      !meyerhofAtivo ? 'φ\' e c\' não informados — verificação desativada.' :
+      (!areaEfSuficienteMey ? `Excentricidade excessiva (e_x=${fmt(Math.abs(ex),3)}m, e_y=${fmt(Math.abs(ey),3)}m) — área efetiva de Meyerhof colapsou.` :
+      `q_ult = ${fmt(qultMey,0)} kPa vs q aplicada (área efetiva) = ${fmt(qAplicadaEfMey,1)} kPa → FS = ${fmt(FS_capacidadeMey,2)} (mín. usual 3,0)`),
+      'Meyerhof (1963), método da área efetiva — 2ª verificação, cruza com Terzaghi acima',
+      meyerhofAtivo && !ok_capacidadeMey ? `Aumentar a área da fundação, aumentar Df (profundidade de assentamento), reduzir a excentricidade ou melhorar o solo.${sugDf_meyerhof?' Sugestão: Df='+fmt(sugDf_meyerhof,2)+'m.':''}` : null,
+      (meyerhofAtivo && !ok_capacidadeMey && sugDf_meyerhof) ? [{field:'in-df',value:sugDf_meyerhof}] : null,
+      sugDf_meyerhof?`Df=${fmt(sugDf_meyerhof,2)}m`:'');
 
   const somaNx = pilares.map(p=>`${fmt(p.N,0)}·${fmt(p.x,2)}`).join('+');
   const somaNy = pilares.map(p=>`${fmt(p.N,0)}·${fmt(p.y,2)}`).join('+');
@@ -2794,10 +2850,18 @@ function calcularRadier(){
       `qult = ${fmt(coesao,0)}·${fmt(Nc,2)}·${fmt(1+0.3*(Math.min(L,B)/Math.max(L,B)),2)} + ${fmt(gammaSolo*Df,1)}·${fmt(Nq,2)} + 0,5·${fmt(gammaSolo,1)}·${fmt(Math.min(L,B),2)}·${fmt(Ngamma,2)}·${fmt(1-0.2*(Math.min(L,B)/Math.max(L,B)),2)}`,
       'qult', fmt(qult,0)+' kPa',
       `FS = qult/p_máx = ${fmt(qult,0)}/${fmt(pMax,1)} = ${fmt(FS_capacidade,2)} — usar FS≥3 para cargas estáticas (Terzaghi, 1943). Nc, Nq calculados por Terzaghi; Nγ pela aproximação de Vesic (combinação usual quando não se dispõe do gráfico original de Terzaghi).`,
-      'Terzaghi (1943)') : '');
+      'Terzaghi (1943)') : '') +
+    (meyerhofAtivo ? fstepR('Capacidade de carga última — 2ª verificação (Meyerhof)',
+      "L' = L−2eₓ ; B' = B−2e_y &nbsp;·&nbsp; qult = c·Nc·Fcs·Fcd + q·Nq·Fqs·Fqd + 0,5·γ·B'·Nγ·Fγs·Fγd",
+      `L' = ${fmt(L,2)}−2·${fmt(Math.abs(ex),3)} = ${fmt(L_efMey,2)}m &nbsp;·&nbsp; B' = ${fmt(B,2)}−2·${fmt(Math.abs(ey),3)} = ${fmt(B_efMey,2)}m<br>N_q,N_c,N_γ = ${fmt(NqMey,2)}, ${fmt(NcMey,2)}, ${fmt(NgamaMey,2)} (mesmas fórmulas de Meyerhof usadas na Sapata/Fundação de Máquinas)`,
+      'qult (Meyerhof)', fmt(qultMey,0)+' kPa',
+      areaEfSuficienteMey
+        ? `q aplicada (área efetiva) = N_total/(L'·B') = ${fmt(Ntotal,0)}/(${fmt(L_efMey,2)}·${fmt(B_efMey,2)}) = ${fmt(qAplicadaEfMey,1)} kPa &nbsp;·&nbsp; FS = qult/q_aplicada = ${fmt(FS_capacidadeMey,2)} — usar FS≥3. Método independente de Terzaghi (fatores de forma/profundidade em vez de correção retangular simples, e área efetiva em vez de p_máx no canto) — útil para cruzar os dois resultados.`
+        : `Excentricidade excessiva — área efetiva de Meyerhof colapsou (L' ou B' ≤ 0). Reveja e_x/e_y ou aumente L/B.`,
+      'Meyerhof (1963)') : '');
 
 
-  const ctx = {L, B, H, gc, fck, cob, sadm, kvManual, vao, bfaixa, rho, phi, pilaresReal, cargasLinReal, cargasAreaReal, AparaNtotalReal, qDistReal, WswReal, WqDistReal, cargasEspeciaisReal, NtotalReal, fatorProjeto, pilares, cargasLin, cargasArea, A, qDist, Wsw, WqDist, Wtotal_uniforme, cargasEspeciais, Nsum, Ntotal, Xr, Yr, ex, ey, pAvg, fx, fy, corners, pMax, pMin, ok_pmax, ok_contact, contactRatio, isoStep, caa, cobMinCAA, ok_cobrimento, ok_espessura, Df, naDepthTerreno, gagua, temNA, empuxoNA, pesoProprioKpa, FS_flutuacao, ok_flutuacao, phiSoloDeg, coesao, gammaSolo, terzaghiAtivo, qult, FS_capacidade, ok_capacidade, Nc, Nq, Ngamma, fatorArea_pressao, sugL_pressao, sugB_pressao, sugL_contato, sugB_contato, sugH_flutuacao, sugDf_terzaghi, somaNx, somaNy};
+  const ctx = {L, B, H, gc, fck, cob, sadm, kvManual, vao, bfaixa, rho, phi, pilaresReal, cargasLinReal, cargasAreaReal, AparaNtotalReal, qDistReal, WswReal, WqDistReal, cargasEspeciaisReal, NtotalReal, fatorProjeto, pilares, cargasLin, cargasArea, A, qDist, Wsw, WqDist, Wtotal_uniforme, cargasEspeciais, Nsum, Ntotal, Xr, Yr, ex, ey, pAvg, fx, fy, corners, pMax, pMin, ok_pmax, ok_contact, contactRatio, isoStep, caa, cobMinCAA, ok_cobrimento, ok_espessura, Df, naDepthTerreno, gagua, temNA, empuxoNA, pesoProprioKpa, FS_flutuacao, ok_flutuacao, phiSoloDeg, coesao, gammaSolo, terzaghiAtivo, qult, FS_capacidade, ok_capacidade, Nc, Nq, Ngamma, meyerhofAtivo, qultMey, qAdmMey, FS_capacidadeMey, ok_capacidadeMey, areaEfSuficienteMey, NqMey, NcMey, NgamaMey, L_efMey, B_efMey, qAplicadaEfMey, sugDf_meyerhof, fatorArea_pressao, sugL_pressao, sugB_pressao, sugL_contato, sugB_contato, sugH_flutuacao, sugDf_terzaghi, somaNx, somaNy};
   calcRadierRigidez(ctx);
   calcRadierWinkler(ctx);
   calcRadierPuncao(ctx);
@@ -6946,7 +7010,12 @@ document.querySelectorAll('.mod-btn').forEach(btn=>{
       <div class="help-formula">p = N<sub>total</sub>/A · [1 ± 6e<sub>x</sub>/L ± 6e<sub>y</sub>/B]</div>
       <p>Essa fórmula (flexão composta oblíqua) vem da mesma lógica usada para uma sapata retangular — assume distribuição <b>linear</b> de pressões, válida quando a excentricidade não é grande demais (núcleo central).</p>
       <div class="help-svg-box">${ICO.radierCorte}</div>
-      <div class="help-refs">ABNT NBR 6122:2019/2022 §4/§8</div>`},
+      <p>Se φ' e/ou c' do solo forem informados (card "Solo"), a seção também roda duas verificações independentes de <b>capacidade de carga última</b> (ruptura por cisalhamento do solo, FS≥3), lado a lado — a divergência entre elas é esperada e ajuda a enxergar a incerteza do método:</p>
+      <ul>
+        <li><b>Terzaghi (1943)</b> — q<sub>ult</sub>=c·N<sub>c</sub>·S<sub>c</sub>+q·N<sub>q</sub>+0,5·γ·B·N<sub>γ</sub>·S<sub>γ</sub>, comparado com p<sub>máx</sub> (pressão no canto mais carregado).</li>
+        <li><b>Meyerhof (1963)</b> — mesma família de fatores de capacidade (N<sub>c</sub>,N<sub>q</sub>,N<sub>γ</sub>), mas com fatores de forma/profundidade próprios e <b>área efetiva</b> (L'=L−2e<sub>x</sub>, B'=B−2e<sub>y</sub>) em vez de olhar só o canto — se a excentricidade for grande o bastante para "zerar" L' ou B', a verificação acusa área efetiva colapsada em vez de calcular um FS.</li>
+      </ul>
+      <div class="help-refs">ABNT NBR 6122:2019/2022 §4/§8 · Terzaghi (1943) · Meyerhof (1963)</div>`},
 
     'r-rigidez': {t:'Classificação de Rigidez', ico:null, html:`
       <p>Um radier <b>rígido</b> se deforma pouco sob carga (a distribuição de pressão no solo permanece ~linear, como em uma sapata); um radier <b>flexível</b> se deforma como uma placa, concentrando pressão sob os pilares — nesse caso, o método rígido da Seção 1 fica <b>a favor da segurança apenas parcialmente</b> e a modelagem em grelha (Winkler, Seção 3) passa a ser recomendada.</p>

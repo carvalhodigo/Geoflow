@@ -5313,7 +5313,39 @@ function gerarMemoriaGeral(retornarHtmlApenas){
       ${conteudoHtml}
     </section>`;
   }
-  function conteudoDe(id){ const el=$(id); return el ? el.innerHTML : ''; }
+  function conteudoDe(id){
+    const el=$(id); if(!el) return '';
+    const tmp = document.createElement('div');
+    tmp.innerHTML = el.innerHTML;
+    // Substitui qualquer <canvas> (hoje só a Vista 3D do Radier) por um PNG estático do que
+    // está renderizado no momento — innerHTML não carrega o conteúdo de um <canvas> WebGL (só
+    // a tag em si, sem os pixels desenhados), então sem isso a Vista 3D aparecia em branco na
+    // Memória de Cálculo exportada.
+    const canvasReais = el.querySelectorAll('canvas');
+    const canvasClones = tmp.querySelectorAll('canvas');
+    canvasClones.forEach((cv, i) => {
+      const real = canvasReais[i];
+      if(!real) return;
+      try{
+        // força um render síncrono imediatamente antes de capturar — junto com
+        // preserveDrawingBuffer:true na criação do renderer (ver garantirInit3DRadier),
+        // garante que o buffer tem o frame atual, não um já limpo pelo navegador.
+        if(typeof THREE3D_RADIER!=='undefined' && THREE3D_RADIER.renderer && THREE3D_RADIER.scene && THREE3D_RADIER.camera){
+          THREE3D_RADIER.renderer.render(THREE3D_RADIER.scene, THREE3D_RADIER.camera);
+        }
+        const dataUrl = real.toDataURL('image/png');
+        const img = document.createElement('img');
+        img.src = dataUrl;
+        img.style.cssText = 'max-width:100%;height:auto;display:block;margin:0 auto;border:1px solid #d8d2c0;border-radius:6px';
+        cv.replaceWith(img);
+      }catch(err){
+        // ex.: canvas nunca chegou a renderizar (Three.js não carregou) — deixa a tag <canvas>
+        // vazia mesmo, mais seguro que quebrar a geração inteira da memória por causa disso.
+        console.warn('Não foi possível capturar a Vista 3D para a memória de cálculo:', err);
+      }
+    });
+    return tmp.innerHTML;
+  }
 
   // ── I. Dados Gerais do Projeto (capa/resumo) ──
   const tipoEstacaTxt = $('g-tipoestaca').selectedOptions[0].text;
@@ -5783,7 +5815,7 @@ function garantirInit3DRadier(){
     scene.background = new THREE.Color(0xf3efe4);
     const camera = new THREE.PerspectiveCamera(42, W/H, 0.01, 200);
     camera.position.set(6,6,8);
-    const renderer = new THREE.WebGLRenderer({antialias:true});
+    const renderer = new THREE.WebGLRenderer({antialias:true, preserveDrawingBuffer:true}); // preserveDrawingBuffer: sem isso, canvas.toDataURL() (usado para "printar" a Vista 3D como imagem na Memória de Cálculo) pode capturar o buffer já limpo pelo navegador e sair em branco
     renderer.setSize(W,H);
     wrap.innerHTML=''; wrap.appendChild(renderer.domElement);
     const controls = new THREE.OrbitControls(camera, renderer.domElement);

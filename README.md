@@ -43,7 +43,7 @@ Recursos adicionais do app:
 - **Memória de cálculo única e didática**, cobrindo as 5 abas em ordem lógica, com sumário navegável, pronta para impressão/PDF
 - Preparado para futura integração como node(s) do `geo_flow_editor.html`: já expõe pontes `postMessage` (`radier-*` / `estacas-*`) capazes de receber dados de nodes como Nível d'Água, Boletim de Sondagem, Solo Multicamadas e Sobrecarga
 
-Ver `relatorio_validacao_radier_estaqueado.docx` para o histórico de validação do motor de cálculo contra casos reais/publicados (Westend, Messeturm, Burj Khalifa) e exercícios resolvidos de referência.
+Ver `relatorio_validacao_radier_estaqueado.docx` para o histórico de validação do motor de cálculo contra casos reais/publicados (Westend, Messeturm, Burj Khalifa) e exercícios resolvidos de referência, e `docs/manual_usuario_radier_estaqueado.pdf` para o manual do usuário (passo a passo das 5 abas, com capturas de tela reais do app).
 
 ## Estrutura do repositório
 
@@ -51,6 +51,8 @@ Ver `relatorio_validacao_radier_estaqueado.docx` para o histórico de validaçã
 geo_flow_editor.html                       → editor de fluxo completo (HTML + CSS + JS em um arquivo só)
 radier_estaqueado_unico.html               → app standalone de Radier Estaqueado (ver seção acima)
 relatorio_validacao_radier_estaqueado.docx → relatório de validação do módulo de Radier Estaqueado
+docs/manual_usuario_radier_estaqueado.pdf  → manual do usuário do Radier Estaqueado
+test-suite/                                → suíte de testes de regressão do Radier Estaqueado (ver test-suite/README.md)
 README.md                                  → este arquivo
 .gitignore                                 → arquivos e pastas ignorados pelo Git
 ```

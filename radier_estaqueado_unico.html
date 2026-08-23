@@ -2,6 +2,44 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Radier Estaqueado — Módulo Único de Cálculo</title>
+<!--
+  ═══════════════════════════════════════════════════════════════════════════
+  CONVENÇÃO DE PREFIXOS DE ID (documentado na revisão de código — Fase 2)
+  ═══════════════════════════════════════════════════════════════════════════
+  Cada aba/passo do app tem seus próprios campos de entrada e saída, com IDs
+  prefixados para deixar claro de qual módulo cada elemento é. Prefixo → módulo:
+
+    in-*      Aba 1 · Geometria e Cargas (também usado pela aba 4, Dimensionamento
+              do Radier — as duas abas compartilham o mesmo motor de cálculo,
+              calcularRadier(), então os inputs ficam num prefixo só)
+    g-*       "Dados Globais" (aba 2 · Estacas) — compartilhados entre TODAS as
+              etapas de estacas (Passo 1 a 6) e também lidos pela aba Radier
+              (ex.: g-na, o N.A. único do app — ver Dados Globais)
+    s1-*      Aba 2 · Estacas, Passo 1 (Estaca Isolada — capacidade de carga)
+    s2-*      Aba 2 · Estacas, Passo 2 (Grupo de Estacas — distribuição de carga)
+    s3-*      Aba 5 · Verificação das Estacas, Passo 3 (Verificação Estrutural)
+    s4-*      Aba 5 · Verificação das Estacas, Passo 4 (Atrito Negativo)
+    s5-*      Bloco de Coroamento — DESATIVADO nesta variante (radier estaqueado
+              não usa bloco; a laje do radier recebe a carga direto). O único
+              campo restante, s5-afmin (afastamento estaca→borda do radier), foi
+              religado à verificação de Espaçamento Mínimo (Passo 2, Seção 3) —
+              nome do prefixo ficou como legado histórico, não reflete mais o
+              módulo desativado.
+    s6-*      Aba 5 · Verificação das Estacas, Passo 6 (Detalhamento e Quantitativos)
+    i-*       Aba 3 · Interação Radier-Estaca (PDR)
+    btn-*     Botões de ação (memória de cálculo, sincronização, criar estacas...)
+    svg-*     Elementos <svg> dos desenhos esquemáticos (um por diagrama)
+    main-*    Contêiner de saída (lado direito) de cada aba
+    side-*    Contêiner de entrada (lado esquerdo/sidebar) de cada aba
+    mod-*     Navegação entre as 5 abas do app (mod-tabs, mod-panel-*, mod-btn)
+    help-*    Sistema de ícones de ajuda "?" e o pop-up explicativo
+
+  Dentro de cada prefixo de passo (s1-, s2-, s3-...) o sufixo geralmente segue:
+  -svg-*, -grid-*, -checklist-*, -form-*, -banner-*, -tbl-* para elementos de
+  SAÍDA (preenchidos via innerHTML pelo respectivo calcularSX()), e nomes sem
+  esses sufixos para campos de ENTRADA editáveis pelo usuário.
+  ═══════════════════════════════════════════════════════════════════════════
+-->
 <style>
 
 :root{
@@ -23,21 +61,21 @@
 .mod-panel.active{display:block}
 #mod-panel-estacas{--accent:#1f6b52}
 
-/* ═══════════ estilos do Radier ═══════════ */
-
+/* ═══════════ estilos base compartilhados (Radier + Estacas + Interação) ═══════════
+   Unificados no Fase-1 da revisão de código: antes existiam duas cópias quase idênticas
+   destas regras (uma no bloco "Radier", outra no bloco "Estacas"), sobrando de quando os
+   dois apps foram fundidos num arquivo só. Onde os valores divergiam, foi mantido o valor
+   que já estava realmente sendo renderizado (a cascata do CSS já resolvia a divergência
+   silenciosamente a favor de uma das duas cópias) — ou seja, esta unificação não muda
+   nada visualmente, só remove a duplicação e a divergência morta. ═══════════ */
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:system-ui,sans-serif;font-size:13px;background:var(--bg);color:var(--tx);min-height:100vh}
-#hdr-r{display:flex;align-items:center;gap:10px;padding:10px 16px;background:var(--accent);color:#fff;flex-shrink:0}
-#hdr-r .ttl{font-family:var(--mono);font-size:12px;font-weight:700;letter-spacing:1px;flex:1}
-#hdr-r .sub{font-size:10.5px;opacity:.85}
-#layout-r{display:flex;gap:0;min-height:calc(100vh - 74px)}
-#side-r,#side-r-dim{width:360px;flex-shrink:0;background:var(--card);border-right:1px solid var(--bdr);
-  padding:12px;overflow-y:auto;max-height:calc(100vh - 74px)}
-#main-r,#main-r-dim{flex:1;padding:14px 18px;overflow-y:auto;max-height:calc(100vh - 74px)}
 
 .card{background:var(--card);border:1px solid var(--bdr);border-radius:var(--r-lg);padding:10px 12px;margin-bottom:10px}
 .card-title{font-family:var(--mono);font-size:9.5px;font-weight:700;letter-spacing:1px;
   text-transform:uppercase;color:var(--accent);margin-bottom:8px;display:flex;align-items:center;gap:6px}
+.card.global{border-color:var(--tx);background:#f1ede2}
+.card.global .card-title{color:var(--tx)}
 .field{margin-bottom:9px}
 .field label{display:block;font-size:10.5px;color:var(--tx);font-weight:600;margin-bottom:2px}
 .field input,.field select{width:100%;padding:5px 7px;border:1px solid var(--bdr);border-radius:var(--r);
@@ -46,26 +84,11 @@ body{font-family:system-ui,sans-serif;font-size:13px;background:var(--bg);color:
 .field-row{display:flex;gap:8px}
 .field-row .field{flex:1}
 .hint{font-size:9.5px;color:var(--mu);line-height:1.45;margin-top:3px}
-.hint b{color:#6a5a40}
+.hint b{color:#3a5a48}
 .norm-ref{display:inline-block;font-family:var(--mono);font-size:8.5px;background:var(--surf);
   border:1px solid var(--bdr);border-radius:2px;padding:1px 5px;color:var(--accent);margin-left:4px}
 
-.help-btn{display:inline-flex;align-items:center;justify-content:center;width:15px;height:15px;
-  border-radius:50%;background:var(--accent);color:#fff;border:none;font-size:10px;font-weight:700;
-  cursor:pointer;line-height:1;vertical-align:middle;margin-left:4px;padding:0}
-.help-btn:hover{opacity:.85}
-.help-popup{background:#fff;border:1px solid var(--accent);border-radius:var(--r-lg);
-  padding:10px 12px;margin:-4px 0 9px;box-shadow:0 2px 10px rgba(0,0,0,.12)}
-.help-popup-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px}
-.help-popup-head b{font-size:11px;color:var(--tx)}
-.help-close{background:none;border:none;color:var(--mu);font-size:13px;cursor:pointer;line-height:1;padding:2px}
-.help-close:hover{color:var(--red)}
-.help-popup-text{font-size:9.5px;color:var(--mu);line-height:1.5;margin:0 0 7px}
-.help-popup-table{width:100%;border-collapse:collapse;font-size:9.5px;margin-bottom:7px}
-.help-popup-table th,.help-popup-table td{border:1px solid var(--bdr);padding:3px 5px;text-align:center}
-.help-popup-table th{background:var(--surf);font-weight:700;font-size:8.5px}
-
-.section-title{display:flex;align-items:center;gap:8px;margin:20px 0 8px;font-weight:700;font-size:13px;color:var(--tx)}
+.section-title{display:flex;align-items:center;gap:8px;margin:20px 0 8px;font-weight:700;font-size:13px;color:var(--tx);position:relative}
 .section-title:first-child{margin-top:0}
 .section-title .n{width:20px;height:20px;border-radius:50%;background:var(--accent);color:#fff;
   display:flex;align-items:center;justify-content:center;font-size:10px;font-family:var(--mono);flex-shrink:0}
@@ -85,20 +108,12 @@ body{font-family:system-ui,sans-serif;font-size:13px;background:var(--bg);color:
 .rb.info b{color:var(--blue)}
 
 .formula-box{background:#fbf9f4;border:1px dashed var(--bdr-s);border-radius:var(--r);
-  padding:10px 12px;font-size:10.5px;color:#555;line-height:1.6;margin-bottom:10px}
-.formula-box .fstepR{margin-bottom:12px;padding-bottom:12px;border-bottom:1px dotted #ddd}
-.formula-box .fstepR:last-child{margin-bottom:0;border:none;padding-bottom:0}
-.formula-box .fhead{display:flex;align-items:center;gap:6px;margin-bottom:6px;flex-wrap:wrap}
-.formula-box .flbl{font-weight:700;color:var(--tx);font-size:11.5px}
-.formula-box .feq-row{display:flex;gap:8px;align-items:baseline;margin:4px 0;padding:5px 9px;border-radius:3px}
-.formula-box .feq-row.geral{background:#f0ece0}
-.formula-box .feq-row.sub{background:#e8f0f7}
-.formula-box .feq-tag{font-size:8px;text-transform:uppercase;letter-spacing:.4px;color:var(--mu);font-weight:700;flex:0 0 74px;padding-top:1px}
-.formula-box .feq{font-family:var(--mono);color:#333;font-size:11px}
+  padding:8px 10px;font-size:10.5px;color:#555;line-height:1.7;margin-bottom:10px}
+.formula-box .flbl{font-weight:700;color:var(--tx);font-size:11.5px;display:block;margin-bottom:2px}
+.formula-box .feq{font-family:var(--mono);color:#777;font-size:11px}
 .formula-box .fres{font-family:var(--mono);font-weight:700;color:var(--accent);margin-top:6px;font-size:12px;
   background:#eaf1f8;padding:5px 9px;border-radius:3px;border-left:3px solid var(--accent)}
-.formula-box .fnote{font-size:9.5px;color:#8a6a30;margin-top:5px;line-height:1.5}
-.formula-box .ficon{display:block;margin:8px auto;max-width:100%}
+.formula-box .fnote{font-size:9.5px;color:#8a6a30;margin-top:3px;line-height:1.5}
 
 .status-banner{padding:8px 12px;border-radius:var(--r);font-weight:700;font-size:11.5px;margin-bottom:8px;
   display:flex;align-items:center;gap:8px;flex-wrap:wrap}
@@ -119,6 +134,48 @@ body{font-family:system-ui,sans-serif;font-size:13px;background:var(--bg);color:
 .checklist .tag.bad{background:#fbeceb;color:var(--red)}
 .checklist .tag.warn{background:#fdf3e0;color:#9a6a10}
 .checklist .tag.info{background:#eaf1f8;color:var(--blue)}
+.checklist label{display:flex;gap:8px;align-items:flex-start;cursor:pointer}
+.checklist input[type=checkbox]{margin-top:2px}
+
+.diagram-box{background:#fff;border:1px solid var(--bdr);border-radius:var(--r-lg);padding:10px;margin:8px 0 14px;text-align:center}
+.diagram-box svg{max-width:100%;height:auto;cursor:crosshair}
+.diagram-cap{font-size:9.5px;color:var(--mu);margin-top:4px;font-style:italic}
+.ref-list{font-size:10px;color:#555;line-height:1.9;margin:4px 0 0 16px}
+
+/* ═══════════ estilos específicos do módulo Radier ═══════════ */
+
+#hdr-r{display:flex;align-items:center;gap:10px;padding:10px 16px;background:var(--accent);color:#fff;flex-shrink:0}
+#hdr-r .ttl{font-family:var(--mono);font-size:12px;font-weight:700;letter-spacing:1px;flex:1}
+#hdr-r .sub{font-size:10.5px;opacity:.85}
+#layout-r{display:flex;gap:0;min-height:calc(100vh - 74px)}
+#side-r,#side-r-dim{width:360px;flex-shrink:0;background:var(--card);border-right:1px solid var(--bdr);
+  padding:12px;overflow-y:auto;max-height:calc(100vh - 74px)}
+#main-r,#main-r-dim{flex:1;padding:14px 18px;overflow-y:auto;max-height:calc(100vh - 74px)}
+
+.help-btn{display:inline-flex;align-items:center;justify-content:center;width:15px;height:15px;
+  border-radius:50%;background:var(--accent);color:#fff;border:none;font-size:10px;font-weight:700;
+  cursor:pointer;line-height:1;vertical-align:middle;margin-left:4px;padding:0}
+.help-btn:hover{opacity:.85}
+.help-popup{background:#fff;border:1px solid var(--accent);border-radius:var(--r-lg);
+  padding:10px 12px;margin:-4px 0 9px;box-shadow:0 2px 10px rgba(0,0,0,.12)}
+.help-popup-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px}
+.help-popup-head b{font-size:11px;color:var(--tx)}
+.help-close{background:none;border:none;color:var(--mu);font-size:13px;cursor:pointer;line-height:1;padding:2px}
+.help-close:hover{color:var(--red)}
+.help-popup-text{font-size:9.5px;color:var(--mu);line-height:1.5;margin:0 0 7px}
+.help-popup-table{width:100%;border-collapse:collapse;font-size:9.5px;margin-bottom:7px}
+.help-popup-table th,.help-popup-table td{border:1px solid var(--bdr);padding:3px 5px;text-align:center}
+.help-popup-table th{background:var(--surf);font-weight:700;font-size:8.5px}
+
+.formula-box .fstepR{margin-bottom:12px;padding-bottom:12px;border-bottom:1px dotted #ddd}
+.formula-box .fstepR:last-child{margin-bottom:0;border:none;padding-bottom:0}
+.formula-box .fhead{display:flex;align-items:center;gap:6px;margin-bottom:6px;flex-wrap:wrap}
+.formula-box .feq-row{display:flex;gap:8px;align-items:baseline;margin:4px 0;padding:5px 9px;border-radius:3px}
+.formula-box .feq-row.geral{background:#f0ece0}
+.formula-box .feq-row.sub{background:#e8f0f7}
+.formula-box .feq-tag{font-size:8px;text-transform:uppercase;letter-spacing:.4px;color:var(--mu);font-weight:700;flex:0 0 74px;padding-top:1px}
+.formula-box .ficon{display:block;margin:8px auto;max-width:100%}
+
 .suggest{margin-top:6px;padding:6px 8px;background:#fff8ea;border:1px dashed #f5a623;border-radius:4px;
   font-size:10.5px;color:#7a5a10;line-height:1.4}
 .fix-btn{display:block;margin-top:6px;padding:5px 10px;font-size:10px;font-weight:700;letter-spacing:.3px;
@@ -126,14 +183,9 @@ body{font-family:system-ui,sans-serif;font-size:13px;background:var(--bg);color:
 .fix-btn:hover{opacity:.88}
 .fix-btn:disabled{opacity:.6;cursor:default}
 
-.diagram-box{background:#fff;border:1px solid var(--bdr);border-radius:var(--r-lg);padding:10px;margin:8px 0 14px;text-align:center}
-.diagram-box svg{max-width:100%;height:auto}
-.diagram-cap{font-size:9.5px;color:var(--mu);margin-top:4px;font-style:italic}
-
 #btn-memoria{width:100%;padding:9px;font-size:11px;font-weight:700;letter-spacing:.8px;
   background:var(--accent);color:#fff;border:none;border-radius:var(--r);cursor:pointer;margin-top:6px}
 #btn-memoria:hover{opacity:.9}
-.ref-list{font-size:10px;color:#555;line-height:1.9;margin:4px 0 0 16px}
 
 .pil-tbl-hdr{display:flex;gap:4px;font-size:8.5px;font-weight:700;color:var(--mu);text-transform:uppercase;
   padding:0 2px 4px;letter-spacing:.3px}
@@ -175,12 +227,9 @@ body{font-family:system-ui,sans-serif;font-size:13px;background:var(--bg);color:
 #map-tooltip{position:fixed;display:none;pointer-events:none;z-index:999;
   background:rgba(30,26,20,0.92);color:#fff;font-family:var(--mono);font-size:10.5px;
   padding:5px 8px;border-radius:4px;line-height:1.5;white-space:nowrap;box-shadow:0 2px 8px rgba(0,0,0,.3)}
-.diagram-box svg{cursor:crosshair}
 
-/* ═══════════ estilos do Estacas ═══════════ */
+/* ═══════════ estilos específicos do módulo Estacas ═══════════ */
 
-*{box-sizing:border-box;margin:0;padding:0}
-body{font-family:system-ui,sans-serif;font-size:13px;background:var(--bg);color:var(--tx);min-height:100vh}
 #hdr-e{display:flex;align-items:center;gap:10px;padding:10px 16px;background:#282420;color:#fff;flex-shrink:0}
 #hdr-e .ttl{font-family:var(--mono);font-size:12px;font-weight:700;letter-spacing:1px;flex:1}
 #hdr-e .sub{font-size:10.5px;opacity:.75}
@@ -199,77 +248,15 @@ body{font-family:system-ui,sans-serif;font-size:13px;background:var(--bg);color:
   padding:12px;overflow-y:auto;max-height:calc(100vh - 84px)}
 #main-e,#main-e-verif-wrap{flex:1;padding:14px 18px;overflow-y:auto;max-height:calc(100vh - 84px)}
 
-.card{background:var(--card);border:1px solid var(--bdr);border-radius:var(--r-lg);padding:10px 12px;margin-bottom:10px}
-.card-title{font-family:var(--mono);font-size:9.5px;font-weight:700;letter-spacing:1px;
-  text-transform:uppercase;color:var(--accent);margin-bottom:8px;display:flex;align-items:center;gap:6px}
-.card.global{border-color:var(--tx);background:#f1ede2}
-.card.global .card-title{color:var(--tx)}
-.field{margin-bottom:9px}
-.field label{display:block;font-size:10.5px;color:var(--tx);font-weight:600;margin-bottom:2px}
-.field input,.field select{width:100%;padding:5px 7px;border:1px solid var(--bdr);border-radius:var(--r);
-  font-size:12px;font-family:system-ui;background:#fff;color:var(--tx)}
-.field input:focus,.field select:focus{outline:none;border-color:var(--accent)}
-.field-row{display:flex;gap:8px}
-.field-row .field{flex:1}
-.hint{font-size:9.5px;color:var(--mu);line-height:1.45;margin-top:3px}
-.hint b{color:#3a5a48}
-.norm-ref{display:inline-block;font-family:var(--mono);font-size:8.5px;background:var(--surf);
-  border:1px solid var(--bdr);border-radius:2px;padding:1px 5px;color:var(--accent);margin-left:4px}
-
-.section-title{display:flex;align-items:center;gap:8px;margin:20px 0 8px;font-weight:700;font-size:13px;color:var(--tx)}
-.section-title:first-child{margin-top:0}
-.section-title .n{width:20px;height:20px;border-radius:50%;background:var(--accent);color:#fff;
-  display:flex;align-items:center;justify-content:center;font-size:10px;font-family:var(--mono);flex-shrink:0}
-.section-sub{font-size:10.5px;color:var(--mu);margin:-4px 0 10px 28px}
-
-.result-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(148px,1fr));gap:6px;margin-bottom:8px}
-.rb{background:var(--surf);border:1px solid var(--bdr);border-radius:var(--r);padding:6px 9px}
-.rb span{display:block;font-size:9px;color:var(--mu);text-transform:uppercase;letter-spacing:.5px;margin-bottom:1px}
-.rb b{font-size:13px;color:var(--tx)}
-.rb.ok{border-color:var(--green);background:#eaf4ee}
-.rb.ok b{color:var(--green)}
-.rb.bad{border-color:var(--red);background:#fbeceb}
-.rb.bad b{color:var(--red)}
-.rb.warn{border-color:var(--amber);background:#fdf3e0}
-.rb.warn b{color:#9a6a10}
-.rb.info{border-color:var(--blue);background:#eaf1f8}
-.rb.info b{color:var(--blue)}
-
-.formula-box{background:#fbf9f4;border:1px dashed var(--bdr-s);border-radius:var(--r);
-  padding:8px 10px;font-size:10.5px;color:#555;line-height:1.7;margin-bottom:10px}
 .formula-box .fstepE{margin-bottom:8px;padding-bottom:8px;border-bottom:1px dotted #ddd}
 .formula-box .fstepE:last-child{margin-bottom:0;border:none;padding-bottom:0}
-.formula-box .flbl{font-weight:700;color:var(--tx);display:block;margin-bottom:2px}
-.formula-box .feq{font-family:var(--mono);color:#777}
 .formula-box .fsub{font-family:var(--mono);color:#333;margin:2px 0}
-.formula-box .fres{font-family:var(--mono);font-weight:700}
-.formula-box .fnote{font-size:9.5px;color:#8a6a30;margin-top:3px}
-
-.status-banner{padding:8px 12px;border-radius:var(--r);font-weight:700;font-size:11.5px;margin-bottom:8px;
-  display:flex;align-items:center;gap:8px}
-.status-banner.ok{background:#eaf4ee;color:var(--green);border:1px solid var(--green)}
-.status-banner.bad{background:#fbeceb;color:var(--red);border:1px solid var(--red)}
-.status-banner.warn{background:#fdf3e0;color:#9a6a10;border:1px solid var(--amber)}
-.status-banner.info{background:#eaf1f8;color:var(--blue);border:1px solid var(--blue)}
-
-.checklist{list-style:none;margin:6px 0}
-.checklist li{display:flex;gap:8px;align-items:flex-start;padding:5px 0;border-bottom:1px dotted #ddd;font-size:11px}
-.checklist li:last-child{border:none}
-.checklist .tag{flex-shrink:0;width:64px;text-align:center;font-size:9px;font-weight:700;padding:2px 4px;border-radius:2px}
-.checklist .tag.ok{background:#eaf4ee;color:var(--green)}
-.checklist .tag.bad{background:#fbeceb;color:var(--red)}
-.checklist label{display:flex;gap:8px;align-items:flex-start;cursor:pointer}
-.checklist input[type=checkbox]{margin-top:2px}
 
 .iso-table{width:100%;border-collapse:collapse;font-size:10px;margin:6px 0}
 .iso-table th,.iso-table td{padding:4px 6px;border:1px solid var(--bdr);text-align:center}
 .iso-table th{background:var(--surf);font-size:9px;text-transform:uppercase;letter-spacing:.5px;color:var(--mu)}
 .iso-table td.hl{font-weight:700;background:#fdf3e0}
 .iso-table td.bad{font-weight:700;background:#fbeceb;color:var(--red)}
-
-.diagram-box{background:#fff;border:1px solid var(--bdr);border-radius:var(--r-lg);padding:10px;margin:8px 0 14px;text-align:center}
-.diagram-box svg{max-width:100%;height:auto}
-.diagram-cap{font-size:9.5px;color:var(--mu);margin-top:4px;font-style:italic}
 
 .btn-sync{display:inline-flex;align-items:center;gap:5px;padding:5px 9px;font-size:10px;font-weight:700;
   background:var(--surf);border:1px solid var(--bdr-s);border-radius:var(--r);cursor:pointer;color:var(--accent);margin:2px 4px 2px 0}
@@ -283,10 +270,6 @@ body{font-family:system-ui,sans-serif;font-size:13px;background:var(--bg);color:
 #btn-memoria-e{width:100%;padding:10px;font-size:11.5px;font-weight:700;letter-spacing:.8px;
   background:#282420;color:#fff;border:none;border-radius:var(--r);cursor:pointer;margin-top:6px}
 #btn-memoria-e:hover{opacity:.9}
-.ref-list{font-size:10px;color:#555;line-height:1.9;margin:4px 0 0 16px}
-.warn-box{background:#fff3ee;border-left:3px solid var(--accent);padding:10px 12px;border-radius:0 4px 4px 0;
-  font-size:11px;color:#5a4530;margin-top:16px;line-height:1.6}
-.warn-box b{color:#3a2a10}
 
 .cam-hdr{display:flex;gap:6px;font-size:8.5px;text-transform:uppercase;letter-spacing:.4px;color:var(--mu);
   padding:0 4px 3px;font-weight:700}
@@ -304,7 +287,6 @@ body{font-family:system-ui,sans-serif;font-size:13px;background:var(--bg);color:
 [data-step-panel].active{display:block}
 
 /* ═══ Ícones de ajuda e pop-up explicativo ═══ */
-.section-title{position:relative}
 .help-ic{
   display:inline-flex;align-items:center;justify-content:center;
   width:17px;height:17px;border-radius:50%;
@@ -1369,7 +1351,13 @@ body{font-family:system-ui,sans-serif;font-size:13px;background:var(--bg);color:
 
 <script>
 const $ = id => document.getElementById(id);
-function fmt(v,d){ if(v===null||v===undefined||!isFinite(v)) return '—'; return v.toLocaleString('pt-BR',{minimumFractionDigits:d,maximumFractionDigits:d}); }
+// fmt()/rb() — únicas definições do arquivo (Fase 1 da revisão de código removeu duas cópias
+// quase idênticas que existiam mais adiante, uma por módulo). Ficam aqui, bem no topo, porque
+// calcularRadier() já as usa na primeira execução síncrona, antes dos demais <script> do
+// arquivo rodarem — qualquer redeclaração posterior aqui seria sombra morta (nunca executa
+// na prática) ou, pior, uma race condition dependendo de qual bloco carrega por último.
+function fmt(v,d=2){ if(v===null||v===undefined||!isFinite(v)) return '—'; return Number(v).toLocaleString('pt-BR',{minimumFractionDigits:d,maximumFractionDigits:d}); }
+function rb(label,value,cls){ return `<div class="rb${cls?(' '+cls):''}"><span>${label}</span><b>${value}</b></div>`; }
 
 // ═══ TOOLTIP FLUTUANTE (hover nos mapas) ═══
 const tooltipEl = document.getElementById('map-tooltip');
@@ -1619,7 +1607,6 @@ function attachDesenhoCargas(svgId,L,B,ox,oyTop,scale){
 }
 
 // ═══ helpers de UI ═══
-function rb(label,value,cls){ return `<div class="rb ${cls||''}"><span>${label}</span><b>${value}</b></div>`; }
 function fstepR(titulo,eq,sub,lbl,res,nota,ref,icon){
   return `<div class="fstepR">
     <div class="fhead"><span class="flbl">${titulo}</span>${ref?`<span class="norm-ref">${ref}</span>`:''}</div>
@@ -2590,6 +2577,7 @@ function drawWinklerField(svgId,L,B,grid,nx,ny,hx,hy,pilares,opts){
 
 // ═══ CÁLCULO PRINCIPAL ═══
 function calcularRadier(){
+  // ═══ 1. GEOTECNIA ═══
   fixBtnCounter = 0;
   for(const k in fixRegistry) delete fixRegistry[k];
   const L=parseFloat($('in-L').value), B=parseFloat($('in-B').value), H=parseFloat($('in-H').value);
@@ -2779,7 +2767,19 @@ function calcularRadier(){
       `FS = qult/p_máx = ${fmt(qult,0)}/${fmt(pMax,1)} = ${fmt(FS_capacidade,2)} — usar FS≥3 para cargas estáticas (Terzaghi, 1943). Nc, Nq calculados por Terzaghi; Nγ pela aproximação de Vesic (combinação usual quando não se dispõe do gráfico original de Terzaghi).`,
       'Terzaghi (1943)') : '');
 
-  // ═══ RIGIDEZ ═══
+
+  const ctx = {L, B, H, gc, fck, cob, sadm, kvManual, vao, bfaixa, rho, phi, pilaresReal, cargasLinReal, cargasAreaReal, AparaNtotalReal, qDistReal, WswReal, WqDistReal, cargasEspeciaisReal, NtotalReal, fatorProjeto, pilares, cargasLin, cargasArea, A, qDist, Wsw, WqDist, Wtotal_uniforme, cargasEspeciais, Nsum, Ntotal, Xr, Yr, ex, ey, pAvg, fx, fy, corners, pMax, pMin, ok_pmax, ok_contact, contactRatio, isoStep, caa, cobMinCAA, ok_cobrimento, ok_espessura, Df, naDepthTerreno, gagua, temNA, empuxoNA, pesoProprioKpa, FS_flutuacao, ok_flutuacao, phiSoloDeg, coesao, gammaSolo, terzaghiAtivo, qult, FS_capacidade, ok_capacidade, Nc, Nq, Ngamma, fatorArea_pressao, sugL_pressao, sugB_pressao, sugL_contato, sugB_contato, sugH_flutuacao, sugDf_terzaghi, somaNx, somaNy};
+  calcRadierRigidez(ctx);
+  calcRadierWinkler(ctx);
+  calcRadierPuncao(ctx);
+  calcRadierArmadura(ctx);
+  calcRadierQuantitativos(ctx);
+  calcRadierResumo(ctx);
+}
+
+function calcRadierRigidez(ctx){
+  const {L, B, H, gc, fck, cob, sadm, kvManual, vao, bfaixa, rho, phi, pilaresReal, cargasLinReal, cargasAreaReal, AparaNtotalReal, qDistReal, WswReal, WqDistReal, cargasEspeciaisReal, NtotalReal, fatorProjeto, pilares, cargasLin, cargasArea, A, qDist, Wsw, WqDist, Wtotal_uniforme, cargasEspeciais, Nsum, Ntotal, Xr, Yr, ex, ey, pAvg, fx, fy, corners, pMax, pMin, ok_pmax, ok_contact, contactRatio, isoStep, caa, cobMinCAA, ok_cobrimento, ok_espessura, Df, naDepthTerreno, gagua, temNA, empuxoNA, pesoProprioKpa, FS_flutuacao, ok_flutuacao, phiSoloDeg, coesao, gammaSolo, terzaghiAtivo, qult, FS_capacidade, ok_capacidade, Nc, Nq, Ngamma, fatorArea_pressao, sugL_pressao, sugB_pressao, sugL_contato, sugB_contato, sugH_flutuacao, sugDf_terzaghi, somaNx, somaNy} = ctx;
+  // ═══ 2. RIGIDEZ ═══
   // Correlação de Morrison (1993), tabela usada no SAFE — validada contra memória de cálculo real
   // (σadm=100kPa → Kv=22.000kN/m³, exatamente o valor usado no projeto de referência). Substituiu a
   // regra Kv≈40·σadm, que subestimava Kv em ~5,5× frente à prática corrente.
@@ -2832,7 +2832,13 @@ function calcularRadier(){
       +' Vão informado = '+fmt(vao,2)+'m, portanto radier '+(rigido?'RÍGIDO':'FLEXÍVEL')+'.',
       'ACI 336.2R / Meyerhof (1953)');
 
-  // ═══ MODELAGEM WINKLER (grelha sobre base elástica) ═══
+
+  Object.assign(ctx, {Kv, Ecs_MPa, Ecs, I, lambda, limCrit, rigido});
+}
+
+function calcRadierWinkler(ctx){
+  const {L, B, H, gc, fck, cob, sadm, kvManual, vao, bfaixa, rho, phi, pilaresReal, cargasLinReal, cargasAreaReal, AparaNtotalReal, qDistReal, WswReal, WqDistReal, cargasEspeciaisReal, NtotalReal, fatorProjeto, pilares, cargasLin, cargasArea, A, qDist, Wsw, WqDist, Wtotal_uniforme, cargasEspeciais, Nsum, Ntotal, Xr, Yr, ex, ey, pAvg, fx, fy, corners, pMax, pMin, ok_pmax, ok_contact, contactRatio, isoStep, caa, cobMinCAA, ok_cobrimento, ok_espessura, Df, naDepthTerreno, gagua, temNA, empuxoNA, pesoProprioKpa, FS_flutuacao, ok_flutuacao, phiSoloDeg, coesao, gammaSolo, terzaghiAtivo, qult, FS_capacidade, ok_capacidade, Nc, Nq, Ngamma, fatorArea_pressao, sugL_pressao, sugB_pressao, sugL_contato, sugB_contato, sugH_flutuacao, sugDf_terzaghi, somaNx, somaNy, Kv, Ecs_MPa, Ecs, I, lambda, limCrit, rigido} = ctx;
+  // ═══ 3. WINKLER (grelha sobre base elástica) ═══
   const hMalha = parseFloat($('in-malha-h').value)||0.8;
   const wk = solveWinkler(L,B,H,Ecs,Kv,gc,pilares,hMalha,qDist,cargasLin,cargasArea);
   // malha separada, fixa e mais estável, só para extrair momentos de dimensionamento (Seção 5) —
@@ -2958,7 +2964,13 @@ function calcularRadier(){
     fstepR('Por que aparece um "anel" de concentração ao redor de cada pilar','','','','',
       'É o comportamento físico esperado de uma placa sobre base elástica: a carga concentrada gera um pico local de pressão/recalque que decai radialmente, podendo inclusive gerar uma leve zona de alívio ao redor antes de se estabilizar na tendência global (efeito de decaimento oscilatório típico da equação D∇⁴w+Kv·w=q). Esse anel só aparece nítido no mapa se a malha tiver nós suficientes cobrindo a dimensão do pilar. Para a verificação numérica local em cada pilar, use sempre a Seção 4 (Punção) — os mapas desta seção orientam o comportamento global, não substituem aquela verificação pontual.');
 
-  // ═══ VERIFICAÇÃO À PUNÇÃO (ELU) ═══
+
+  Object.assign(ctx, {hMalha, wk, wkDesign, pilarPico, pilarPicoVal, corteX_y, corteY_x, okWinklerP, difPct, recalqueAdm, distorcaoLim, ok_recalqueTotal, piorDistorcaoInv, parDistorcao, ok_distorcao, sugH_recalque});
+}
+
+function calcRadierPuncao(ctx){
+  const {L, B, H, gc, fck, cob, sadm, kvManual, vao, bfaixa, rho, phi, pilaresReal, cargasLinReal, cargasAreaReal, AparaNtotalReal, qDistReal, WswReal, WqDistReal, cargasEspeciaisReal, NtotalReal, fatorProjeto, pilares, cargasLin, cargasArea, A, qDist, Wsw, WqDist, Wtotal_uniforme, cargasEspeciais, Nsum, Ntotal, Xr, Yr, ex, ey, pAvg, fx, fy, corners, pMax, pMin, ok_pmax, ok_contact, contactRatio, isoStep, caa, cobMinCAA, ok_cobrimento, ok_espessura, Df, naDepthTerreno, gagua, temNA, empuxoNA, pesoProprioKpa, FS_flutuacao, ok_flutuacao, phiSoloDeg, coesao, gammaSolo, terzaghiAtivo, qult, FS_capacidade, ok_capacidade, Nc, Nq, Ngamma, fatorArea_pressao, sugL_pressao, sugB_pressao, sugL_contato, sugB_contato, sugH_flutuacao, sugDf_terzaghi, somaNx, somaNy, Kv, Ecs_MPa, Ecs, I, lambda, limCrit, rigido, hMalha, wk, wkDesign, pilarPico, pilarPicoVal, corteX_y, corteY_x, okWinklerP, difPct, recalqueAdm, distorcaoLim, ok_recalqueTotal, piorDistorcaoInv, parDistorcao, ok_distorcao, sugH_recalque} = ctx;
+  // ═══ 4. PUNÇÃO (verificação ELU nos pilares) ═══
   // Duas superfícies críticas distintas (NBR 6118 §19.5.1): C = contorno do pilar (sem offset, τRd2,
   // esmagamento da biela) e C' = a 2d da face, cantos arredondados (τRd1, tração diagonal).
   const eluModo = $('in-elu-modo').value;
@@ -3094,7 +3106,13 @@ function calcularRadier(){
         `fywd = ${fmt(fywd_cons,0)} MPa, interpolado pela espessura do radier (H=${fmt(H*100,0)}cm) entre pontos de referência da literatura técnica (250 MPa≤15cm · 333,75 MPa a 17cm · 435 MPa≥35cm, limitado a fyd). A relação exata da norma entre esses pontos não pôde ser confirmada com segurança — interpolação por trechos é uma aproximação de engenharia. Confirme fywd e detalhe final com o projetista estrutural. Distribuir em `+fmt(nPerimetros,0)+` perímetros radiais.`,
         'NBR 6118 §19.5.3.2') : '');
 
-  // ═══ DESENHOS — CORTE E ARMADURA ═══
+
+  Object.assign(ctx, {eluModo, gammaf, pAvg_d, mdesb, fyk, fywd_cons, d_cm, d, alfaV2, fcd, tauRd2, rows, piorRatio, piorLabel, piorPilar, piorTauSd, piorTauRd1, piorU, tauRd1_fixo, tauSdTotal, flexoPuncaoAtiva, kFactor, Wp, precisaArmaduraPuncao, aC2, extensaoC2, AswPerimetro, srPunc, nPerimetros});
+}
+
+function calcRadierArmadura(ctx){
+  const {L, B, H, gc, fck, cob, sadm, kvManual, vao, bfaixa, rho, phi, pilaresReal, cargasLinReal, cargasAreaReal, AparaNtotalReal, qDistReal, WswReal, WqDistReal, cargasEspeciaisReal, NtotalReal, fatorProjeto, pilares, cargasLin, cargasArea, A, qDist, Wsw, WqDist, Wtotal_uniforme, cargasEspeciais, Nsum, Ntotal, Xr, Yr, ex, ey, pAvg, fx, fy, corners, pMax, pMin, ok_pmax, ok_contact, contactRatio, isoStep, caa, cobMinCAA, ok_cobrimento, ok_espessura, Df, naDepthTerreno, gagua, temNA, empuxoNA, pesoProprioKpa, FS_flutuacao, ok_flutuacao, phiSoloDeg, coesao, gammaSolo, terzaghiAtivo, qult, FS_capacidade, ok_capacidade, Nc, Nq, Ngamma, fatorArea_pressao, sugL_pressao, sugB_pressao, sugL_contato, sugB_contato, sugH_flutuacao, sugDf_terzaghi, somaNx, somaNy, Kv, Ecs_MPa, Ecs, I, lambda, limCrit, rigido, hMalha, wk, wkDesign, pilarPico, pilarPicoVal, corteX_y, corteY_x, okWinklerP, difPct, recalqueAdm, distorcaoLim, ok_recalqueTotal, piorDistorcaoInv, parDistorcao, ok_distorcao, sugH_recalque, eluModo, gammaf, pAvg_d, mdesb, fyk, fywd_cons, d_cm, d, alfaV2, fcd, tauRd2, rows, piorRatio, piorLabel, piorPilar, piorTauSd, piorTauRd1, piorU, tauRd1_fixo, tauSdTotal, flexoPuncaoAtiva, kFactor, Wp, precisaArmaduraPuncao, aC2, extensaoC2, AswPerimetro, srPunc, nPerimetros} = ctx;
+  // ═══ 5. ARMADURA (desenho de corte + dimensionamento à flexão) ═══
   const geoCorte = drawCorte(L,H,cob,d,pilares);
 
   // ─── dimensionamento à flexão real (Msd → As), a partir dos momentos da grelha Winkler ───
@@ -3251,7 +3269,13 @@ function calcularRadier(){
       'η2=1,0 (inferior, boa aderência) / 0,7 (superior, má aderência — usual em radiers espessos, mais de 30cm de concreto abaixo da barra). η3=1,0 (φ&lt;32mm). Comprimento reto; ganchos podem reduzir o valor necessário.',
       '§9.4 NBR 6118');
 
-  // ═══ SEÇÃO 6 — QUANTITATIVOS DE AÇO E CONCRETO (por posição: N1, N2, N3, N4, N5) ═══
+
+  Object.assign(ctx, {geoCorte, fyd, fcd_kNm2, fyd_kNm2, rhoMinTab, rhoMin, AsMin_cm2, MnegServ, MposServ, MsdNeg, MsdPos, rNeg, rPos, AsNeg_final, AsPos_final, asPorMetro_input, asBarra, espInf, espSup, temPuncao, coberturaSup, espAmarracaoM, phiAmarracao, fctm, Es_aco, eta1_ader, sigmaS_neg, sigmaS_pos, secaoFalhouNeg, secaoFalhouPos, wkNeg, wkPos, fmtWk, wkLim, wkIndef, ok_fissuracao, fctd_anc, fbd_inf, fbd_sup, lbInf, lbSup, worseXd, secaoImpossivel, sugH_dominio, worseWk, sugPhi_fissuracao});
+}
+
+function calcRadierQuantitativos(ctx){
+  const {L, B, H, gc, fck, cob, sadm, kvManual, vao, bfaixa, rho, phi, pilaresReal, cargasLinReal, cargasAreaReal, AparaNtotalReal, qDistReal, WswReal, WqDistReal, cargasEspeciaisReal, NtotalReal, fatorProjeto, pilares, cargasLin, cargasArea, A, qDist, Wsw, WqDist, Wtotal_uniforme, cargasEspeciais, Nsum, Ntotal, Xr, Yr, ex, ey, pAvg, fx, fy, corners, pMax, pMin, ok_pmax, ok_contact, contactRatio, isoStep, caa, cobMinCAA, ok_cobrimento, ok_espessura, Df, naDepthTerreno, gagua, temNA, empuxoNA, pesoProprioKpa, FS_flutuacao, ok_flutuacao, phiSoloDeg, coesao, gammaSolo, terzaghiAtivo, qult, FS_capacidade, ok_capacidade, Nc, Nq, Ngamma, fatorArea_pressao, sugL_pressao, sugB_pressao, sugL_contato, sugB_contato, sugH_flutuacao, sugDf_terzaghi, somaNx, somaNy, Kv, Ecs_MPa, Ecs, I, lambda, limCrit, rigido, hMalha, wk, wkDesign, pilarPico, pilarPicoVal, corteX_y, corteY_x, okWinklerP, difPct, recalqueAdm, distorcaoLim, ok_recalqueTotal, piorDistorcaoInv, parDistorcao, ok_distorcao, sugH_recalque, eluModo, gammaf, pAvg_d, mdesb, fyk, fywd_cons, d_cm, d, alfaV2, fcd, tauRd2, rows, piorRatio, piorLabel, piorPilar, piorTauSd, piorTauRd1, piorU, tauRd1_fixo, tauSdTotal, flexoPuncaoAtiva, kFactor, Wp, precisaArmaduraPuncao, aC2, extensaoC2, AswPerimetro, srPunc, nPerimetros, geoCorte, fyd, fcd_kNm2, fyd_kNm2, rhoMinTab, rhoMin, AsMin_cm2, MnegServ, MposServ, MsdNeg, MsdPos, rNeg, rPos, AsNeg_final, AsPos_final, asPorMetro_input, asBarra, espInf, espSup, temPuncao, coberturaSup, espAmarracaoM, phiAmarracao, fctm, Es_aco, eta1_ader, sigmaS_neg, sigmaS_pos, secaoFalhouNeg, secaoFalhouPos, wkNeg, wkPos, fmtWk, wkLim, wkIndef, ok_fissuracao, fctd_anc, fbd_inf, fbd_sup, lbInf, lbSup, worseXd, secaoImpossivel, sugH_dominio, worseWk, sugPhi_fissuracao} = ctx;
+  // ═══ 6. QUANTITATIVOS (aço e concreto, por posição N1-N6) ═══
   const pesoLinear = phiMm => (phiMm*phiMm)/162; // kg/m — regra usual (CA-50/60), validada contra tabelas de bitolas comerciais
 
   // concreto
@@ -3350,7 +3374,13 @@ function calcularRadier(){
       `taxa = ${fmt(pesoTotalAco,0)}/${fmt(volConcreto,2)}`,'taxa',fmt(taxaArmadura,1)+' kg/m³',
       'Faixa usual para radiers em edificações correntes: 50–180 kg/m³. Valores fora dessa faixa merecem conferência dos dados de entrada antes de orçar.');
 
-  // ═══ RESUMO ═══
+
+  Object.assign(ctx, {pesoLinear, volConcreto, volLastro, espInfM, qtdN1, compUnitN1, compTotalN1, pesoN1, qtdN2, compUnitN2, compTotalN2, pesoN2, espSupM, faixaX_qtd, faixaY_qtd, qtdN3, qtdN4, compUnitN3, compUnitN4, compTotalN3, compTotalN4, pesoN3, pesoN4, asBarraPunc, qtdN5, compUnitN5, compTotalN5, pesoN5, qtdN6, compUnitN6, compTotalN6, pesoN6, pesoTotalAco, taxaArmadura, descSup, posRows});
+}
+
+function calcRadierResumo(ctx){
+  const {L, B, H, gc, fck, cob, sadm, kvManual, vao, bfaixa, rho, phi, pilaresReal, cargasLinReal, cargasAreaReal, AparaNtotalReal, qDistReal, WswReal, WqDistReal, cargasEspeciaisReal, NtotalReal, fatorProjeto, pilares, cargasLin, cargasArea, A, qDist, Wsw, WqDist, Wtotal_uniforme, cargasEspeciais, Nsum, Ntotal, Xr, Yr, ex, ey, pAvg, fx, fy, corners, pMax, pMin, ok_pmax, ok_contact, contactRatio, isoStep, caa, cobMinCAA, ok_cobrimento, ok_espessura, Df, naDepthTerreno, gagua, temNA, empuxoNA, pesoProprioKpa, FS_flutuacao, ok_flutuacao, phiSoloDeg, coesao, gammaSolo, terzaghiAtivo, qult, FS_capacidade, ok_capacidade, Nc, Nq, Ngamma, fatorArea_pressao, sugL_pressao, sugB_pressao, sugL_contato, sugB_contato, sugH_flutuacao, sugDf_terzaghi, somaNx, somaNy, Kv, Ecs_MPa, Ecs, I, lambda, limCrit, rigido, hMalha, wk, wkDesign, pilarPico, pilarPicoVal, corteX_y, corteY_x, okWinklerP, difPct, recalqueAdm, distorcaoLim, ok_recalqueTotal, piorDistorcaoInv, parDistorcao, ok_distorcao, sugH_recalque, eluModo, gammaf, pAvg_d, mdesb, fyk, fywd_cons, d_cm, d, alfaV2, fcd, tauRd2, rows, piorRatio, piorLabel, piorPilar, piorTauSd, piorTauRd1, piorU, tauRd1_fixo, tauSdTotal, flexoPuncaoAtiva, kFactor, Wp, precisaArmaduraPuncao, aC2, extensaoC2, AswPerimetro, srPunc, nPerimetros, geoCorte, fyd, fcd_kNm2, fyd_kNm2, rhoMinTab, rhoMin, AsMin_cm2, MnegServ, MposServ, MsdNeg, MsdPos, rNeg, rPos, AsNeg_final, AsPos_final, asPorMetro_input, asBarra, espInf, espSup, temPuncao, coberturaSup, espAmarracaoM, phiAmarracao, fctm, Es_aco, eta1_ader, sigmaS_neg, sigmaS_pos, secaoFalhouNeg, secaoFalhouPos, wkNeg, wkPos, fmtWk, wkLim, wkIndef, ok_fissuracao, fctd_anc, fbd_inf, fbd_sup, lbInf, lbSup, worseXd, secaoImpossivel, sugH_dominio, worseWk, sugPhi_fissuracao, pesoLinear, volConcreto, volLastro, espInfM, qtdN1, compUnitN1, compTotalN1, pesoN1, qtdN2, compUnitN2, compTotalN2, pesoN2, espSupM, faixaX_qtd, faixaY_qtd, qtdN3, qtdN4, compUnitN3, compUnitN4, compTotalN3, compTotalN4, pesoN3, pesoN4, asBarraPunc, qtdN5, compUnitN5, compTotalN5, pesoN5, qtdN6, compUnitN6, compTotalN6, pesoN6, pesoTotalAco, taxaArmadura, descSup, posRows} = ctx;
+  // ═══ 7. RESUMO (banner consolidado + window._radierResumo) ═══
   const okGeo = ok_pmax && ok_contact;
   let banner;
   if(!okGeo){
@@ -3370,10 +3400,24 @@ function calcularRadier(){
   // Expose key aggregate results for the Geo·Flow bridge (Δσv, área de contato etc.)
   window._radierResumo = {L,B,H,sadm,Ntotal:NtotalReal,NtotalProjeto:Ntotal,fatorProjeto,pAvg,ex,ey,pMax,pMin,fck,cob,gc};
   if(typeof sincronizarCargaGrupoComRadier==='function') sincronizarCargaGrupoComRadier(false);
+
+  Object.assign(ctx, {okGeo, banner});
 }
 
 document.querySelectorAll('#side-r input, #side-r select, #side-r-dim input, #side-r-dim select').forEach(el=>el.addEventListener('input',calcularRadier));
 $('btn-add-pilar').addEventListener('click',()=>{ addPilar('P'+(pilCounter+1),0,0,500,0.4,0.4); calcularRadier(); });
+
+// L/B do radier também recalculam o Passo 2 (Grupo de Estacas): a verificação "Afastamento
+// estaca → borda do radier" (Seção 3 do Passo 2) depende do tamanho do radier. Feito como
+// listener dedicado nesses dois campos (em vez de dentro de calcularRadier()/calcRadierResumo)
+// de propósito: calcularRadier() já é re-executado várias vezes em cascatas internas do app
+// (autosave → gerarMemoriaGeral() → recalcula tudo, inclusive a Interação PDR, que por sua vez
+// chama calcularRadier() de novo) — prender ali dentro faria calcularS2() rodar múltiplas vezes
+// nessas cascatas e alterar sutilmente a ordem de sincronização com a Interação. Aqui, só dispara
+// quando o próprio L/B muda de verdade.
+['in-L','in-B'].forEach(id=>$(id).addEventListener('input',()=>{
+  if(typeof calcularS2==='function') calcularS2();
+}));
 
 // Ao trocar a Classe de Agressividade Ambiental (CAA), ajusta automaticamente o
 // cobrimento nominal para o mínimo normativo (NBR 6118 Tabela 7.2 — componente "laje").
@@ -3522,6 +3566,13 @@ calcularRadier();
   });
 
   window.addEventListener('message',function(e){
+    // Validação de origem (Fase 1 da revisão de código): antes este listener aceitava
+    // postMessage de QUALQUER origem sem checagem nenhuma. Como este app pode ser aberto
+    // standalone OU embutido como iframe no geo_flow_editor.html (potencialmente hospedado
+    // em domínios variados — arquivo local, GitHub Pages etc.), travar numa origem fixa
+    // seria frágil; em vez disso, exige que a mensagem venha mesmo da janela que embutiu
+    // este iframe (e.source === window.parent), barrando remetentes não relacionados.
+    if(e.source !== window.parent) return;
     if(!e.data)return;
     if(e.data.type==='radier-init'){
       applyInitialState(e.data);
@@ -3555,16 +3606,20 @@ calcularRadier();
   window.aplicarVerifRadier = aplicarVerifRadier;
 })();
 </script><script>
-// ($ já definido pelo módulo Radier, compartilhado)
-function fmt(x,d=2){ if(!isFinite(x)) return '—'; return Number(x).toLocaleString('pt-BR',{minimumFractionDigits:d,maximumFractionDigits:d}); }
-function rb(label,val,cls){ return `<div class="rb${cls?(' '+cls):''}"><span>${label}</span><b>${val}</b></div>`; }
+// (fmt/rb/$ já definidos pelo módulo Radier — ver topo do arquivo, compartilhados globalmente)
 function fstepE(lbl,eq,sub,resLbl,resVal,note){
   return `<div class="fstepE"><span class="flbl">${lbl}</span><span class="feq">${eq}</span>
     ${sub?`<div class="fsub">${sub}</div>`:''}
     <div class="fres">${resLbl?resLbl+' = ':''}${resVal}</div>${note?`<div class="fnote">${note}</div>`:''}</div>`;
 }
 function checkItemE(label,ok,detail,ref){
-  return `<li><span class="tag ${ok?'ok':'bad'}">${ok?'OK':'FALHA'}</span>
+  // aceita tanto um booleano (comportamento original: true→OK, false→FALHA) quanto uma string
+  // de status ('ok'/'bad'/'warn'/'info', igual ao checkItemR do módulo Radier) — extensão feita
+  // para o item "Afastamento estaca → borda do radier", que também tem um estado informativo
+  // (quando a geometria do radier ainda não foi definida, não dá pra verificar).
+  const status = typeof ok === 'string' ? ok : (ok ? 'ok' : 'bad');
+  const tag = status==='ok'?'OK':status==='bad'?'FALHA':status==='warn'?'ATENÇÃO':'INFO';
+  return `<li><span class="tag ${status}">${tag}</span>
     <span><b>${label}</b> ${ref?`<span class="norm-ref">${ref}</span>`:''}<br><span style="color:var(--mu)">${detail}</span></span></li>`;
 }
 function pointAt(x1,y1,x2,y2,t){ return [x1+(x2-x1)*t, y1+(y2-y1)*t]; }
@@ -3701,96 +3756,6 @@ function cotaCAD(x1,y1,x2,y2,offset,text){
 
 // ═══ bloco triangular cotado (estilo CAD) — usado no Passo 2 (sem pilar/biela) e Passo 5 (completo) ═══
 // coordsM: 3 pontos {x,y} em metros, ordem [apex(embaixo), superior-esquerda, superior-direita]
-function desenharBlocoTriangularCAD(coordsM, D, lt, marg, colDims, W, H){
-  const cx=W/2, cy=H/2+H*0.02;
-  const span = Math.max(...coordsM.map(p=>p.x))-Math.min(...coordsM.map(p=>p.x));
-  const spanY = Math.max(...coordsM.map(p=>p.y))-Math.min(...coordsM.map(p=>p.y));
-  // a escala precisa considerar o quanto o CONTORNO CHANFRADO (raio da estaca + afastamento) infla pra fora da posicao das estacas —
-  // senao, com estaca/afastamento grandes num triangulo pequeno, o contorno real extrapola o canvas e só sobra visível um pedaço "reto" no meio (parece retângulo).
-  const dReal = D/2 + marg; // metros, offset geometrico real do contorno em relacao ao centro das estacas
-  const extensaoReal = Math.max(span, spanY, 0.3) + 2*dReal;
-  const scale = Math.min((W-60)/extensaoReal, (H-60)/extensaoReal);
-  const toSx=x=>cx+x*scale, toSy=y=>cy-y*scale;
-  const rP = Math.max(8, D*scale/2);
-
-  let svg='';
-  const hullPts = coordsM.map(p=>[toSx(p.x), toSy(p.y)]);
-  const cenx = hullPts.reduce((s,p)=>s+p[0],0)/3, ceny = hullPts.reduce((s,p)=>s+p[1],0)/3;
-  const d = rP + marg*scale; // raio da estaca + afastamento minimo, em pixels
-  const chamfered = contornoComAfastamento(hullPts, d);
-  svg += `<polygon points="${chamfered.map(p=>p.join(',')).join(' ')}" fill="#fbfaf6" stroke="#282420" stroke-width="1.1" stroke-linejoin="round"/>`;
-
-  // afastamento (estaca -> borda do bloco): perpendicular exata da estaca 2 até o lado reto entre as estacas 1 e 2
-  const afP1 = chamfered[3], afP2 = chamfered[4]; // lado reto entre as duas estacas superiores
-  const eex=afP2[0]-afP1[0], eey=afP2[1]-afP1[1], eelen=Math.hypot(eex,eey)||1;
-  const eux=eex/eelen, euy=eey/eelen;
-  const toPile=[hullPts[2][0]-afP1[0], hullPts[2][1]-afP1[1]];
-  const proj = toPile[0]*eux+toPile[1]*euy;
-  const footPoint = [afP1[0]+eux*proj, afP1[1]+euy*proj]; // pé da perpendicular, sobre a borda do bloco
-  const dirx=footPoint[0]-hullPts[2][0], diry=footPoint[1]-hullPts[2][1], dirlen=Math.hypot(dirx,diry)||1;
-  const uxAf=dirx/dirlen, uyAf=diry/dirlen;
-  const afEdgeStart = [hullPts[2][0]+uxAf*rP, hullPts[2][1]+uyAf*rP]; // face da estaca
-  svg += `<line x1="${afEdgeStart[0]}" y1="${afEdgeStart[1]}" x2="${footPoint[0]}" y2="${footPoint[1]}" stroke="#d99a2b" stroke-width="1.4"/>`;
-  const afLblPos = [footPoint[0]+uxAf*16, footPoint[1]+uyAf*16-6];
-  svg += `<line x1="${footPoint[0]}" y1="${footPoint[1]}" x2="${afLblPos[0]}" y2="${afLblPos[1]+4}" stroke="#d99a2b" stroke-width="0.5"/>`;
-  svg += `<circle cx="${footPoint[0]}" cy="${footPoint[1]}" r="1.3" fill="#d99a2b"/>`;
-  const afTxt = `afast.=${fmt(marg*100,1)}cm`;
-  svg += `<rect x="${afLblPos[0]-2}" y="${afLblPos[1]-6}" width="${afTxt.length*3.6+4}" height="8" fill="#fbfaf6"/>`;
-  svg += `<text x="${afLblPos[0]}" y="${afLblPos[1]}" font-size="5.6" fill="#b8791a" font-family="monospace">${afTxt}</text>`;
-
-  const yTopmost = Math.min(...chamfered.map(p=>p[1]));
-  const yBotmost = Math.max(...chamfered.map(p=>p[1]));
-  const xLeftmost = Math.min(...chamfered.map(p=>p[0]));
-
-  svg += `<line x1="${cx}" y1="${yTopmost-38}" x2="${cx}" y2="${yBotmost+12}" stroke="#2a5a8c" stroke-width="0.6" stroke-dasharray="7,2,1,2"/>`;
-
-  if(colDims){
-    const {apx,apy} = colDims;
-    const colCy = toSy(coordsM[1].y*0.35);
-    svg += `<rect x="${cx-apx*scale/2}" y="${colCy-apy*scale/2}" width="${apx*scale}" height="${apy*scale}" fill="#efece3" stroke="#282420" stroke-width="1.1"/>`;
-  }
-
-  coordsM.forEach((p,i)=>{
-    const sx=toSx(p.x), sy=toSy(p.y);
-    svg += `<circle cx="${sx}" cy="${sy}" r="${rP}" fill="#eef0ea" stroke="#2d6b4a" stroke-width="1.1"/>`;
-    svg += `<line x1="${sx-rP-3}" y1="${sy}" x2="${sx+rP+3}" y2="${sy}" stroke="#8a8680" stroke-width="0.35"/>`;
-    svg += `<line x1="${sx}" y1="${sy-rP-3}" x2="${sx}" y2="${sy+rP+3}" stroke="#8a8680" stroke-width="0.35"/>`;
-    svg += `<text x="${sx}" y="${sy+2.5}" font-size="5.6" text-anchor="middle" fill="#282420" font-weight="700">E${i+1}</text>`;
-    if(p.Ni!==undefined){
-      svg += `<text x="${sx}" y="${sy+rP+10}" font-size="5" text-anchor="middle" fill="#282420">N<tspan baseline-shift="sub" font-size="4">i</tspan>=${fmt(p.Ni,0)}kN</text>`;
-    }
-  });
-  svg += `<text x="${toSx(coordsM[0].x)}" y="${toSy(coordsM[0].y)+rP+ (coordsM[0].Ni!==undefined?20:11)}" font-size="6" text-anchor="middle" fill="#282420" font-family="monospace">⌀${fmt(D*100,0)} TÍP.</text>`;
-
-  const g1 = rP*0.5+10, g2 = g1+15;
-
-  const syUp = toSy(coordsM[1].y);
-  const pxUL = toSx(coordsM[1].x), pxUR = toSx(coordsM[2].x);
-  const xLeftEdge = xLeftmost, xRightEdge = Math.max(...chamfered.map(p=>p[0]));
-  const rowA_y = yTopmost - g1, rowB_y = yTopmost - g2;
-  svg += cotaCAD(xLeftEdge, syUp, pxUL, syUp, syUp-rowA_y, fmt((pxUL-xLeftEdge)/scale*100,1));
-  svg += cotaCAD(pxUL, syUp, cx, syUp, syUp-rowA_y, fmt((cx-pxUL)/scale*100,1));
-  svg += cotaCAD(cx, syUp, pxUR, syUp, syUp-rowA_y, fmt((pxUR-cx)/scale*100,1));
-  svg += cotaCAD(pxUR, syUp, xRightEdge, syUp, syUp-rowA_y, fmt((xRightEdge-pxUR)/scale*100,1));
-  svg += cotaCAD(xLeftEdge, syUp, xRightEdge, syUp, syUp-rowB_y, fmt((xRightEdge-xLeftEdge)/scale*100,1));
-
-  const colA_x = xLeftmost - g1, colB_x = xLeftmost - g2;
-  svg += cotaCAD(xLeftmost, yTopmost, xLeftmost, syUp, xLeftmost-colA_x, fmt((syUp-yTopmost)/scale*100,1));
-  svg += cotaCAD(xLeftmost, syUp, xLeftmost, toSy(coordsM[0].y), xLeftmost-colA_x, fmt((toSy(coordsM[0].y)-syUp)/scale*100,1));
-  svg += cotaCAD(xLeftmost, toSy(coordsM[0].y), xLeftmost, yBotmost, xLeftmost-colA_x, fmt((yBotmost-toSy(coordsM[0].y))/scale*100,1));
-  svg += cotaCAD(xLeftmost, yTopmost, xLeftmost, yBotmost, xLeftmost-colB_x, fmt((yBotmost-yTopmost)/scale*100,1));
-
-  const pA=[toSx(coordsM[1].x),toSy(coordsM[1].y)], pB=[toSx(coordsM[0].x),toSy(coordsM[0].y)];
-  svg += cotaCAD(pA[0],pA[1],pB[0],pB[1], -g1, fmt(lt*100,1));
-
-  const botPts = chamfered.filter(p=>Math.abs(p[1]-yBotmost)<0.01);
-  if(botPts.length>=2){
-    const bx1=Math.min(botPts[0][0],botPts[1][0]), bx2=Math.max(botPts[0][0],botPts[1][0]);
-    svg += cotaCAD(bx1, yBotmost, bx2, yBotmost, -g1*0.7, fmt((bx2-bx1)/scale*100,1));
-  }
-
-  return {svg, toSx, toSy, scale, rP, chamfered, cx, cy};
-}
 
 // ═══ estado global compartilhado (lido/gravado pelos passos via getters) ═══
 function G_forma(){ return $('g-forma').value; }
@@ -4242,13 +4207,12 @@ function calcularS2(){
   const okDistrib = NiMax<=Radm && NiMin>=0;
   BRIDGE.s2n = nEst; // nº de estacas do arranjo — lido pelo módulo de Interação Radier-Estacas
 
-  if(arr.tipo==='triangular'){
-    const afminS2 = +$('s5-afmin').value||0.15; // afastamento mínimo estaca-borda (campo movido para a aba de Estacas — Arranjo)
-    const base = desenharBlocoTriangularCAD(pilhas, D, arr.lt, afminS2, null, 460, 350, true);
-    $('s2-svg-planta').innerHTML = base.svg;
-  } else {
-    drawPlantaS2(pilhas, D, D*1.2);
-  }
+  // arr.tipo só pode ser 'grade' hoje (arranjo restrito a grade retangular — ver card
+  // "Arranjo de Estacas") — o antigo desenho de bloco triangular (desenharBlocoTriangularCAD)
+  // virou código morto e foi removido na revisão de código (Fase 1). O campo s5-afmin
+  // (afastamento estaca→borda), que era usado só por aquele desenho, foi religado à
+  // verificação de Espaçamento Mínimo logo abaixo (Seção 3).
+  drawPlantaS2(pilhas, D, D*1.2);
 
   let rowsDistrib='';
   pilhas.forEach((p,i)=>{
@@ -4308,7 +4272,29 @@ $('s2-form-efic').innerHTML = fstepE('Eficiência','η = 1 − θ·[(n−1)m+(m�
   }
   const espMin = espMinFator*D;
   const okEsp = pilhas.length<=1 || dMin>=espMin;
-  $('s2-checklist-esp').innerHTML = checkItemE('Espaçamento mínimo entre estacas', okEsp, `distância mínima entre eixos = ${fmt(dMin,2)} m ; mínimo exigido = ${fmt(espMin,2)} m`);
+  let checklistEsp = checkItemE('Espaçamento mínimo entre estacas', okEsp, `distância mínima entre eixos = ${fmt(dMin,2)} m ; mínimo exigido = ${fmt(espMin,2)} m`);
+
+  // afastamento estaca -> borda do radier: assume o arranjo CENTRADO na planta do radier
+  // (mesma convenção do botão "Criar estacas automaticamente" — ver ali a mesma fórmula de
+  // margem) já que o app não guarda um deslocamento explícito entre o centro do arranjo e o
+  // centro do radier. Se o usuário posicionar o arranjo manualmente fora do centro, esta
+  // verificação fica apenas aproximada — o aviso abaixo deixa isso explícito.
+  const radierResumo = window._radierResumo;
+  const afminReq = +$('s5-afmin').value||0.15;
+  if(radierResumo && radierResumo.L && radierResumo.B){
+    const maxAbsX = Math.max(...pilhas.map(p=>Math.abs(p.x)));
+    const maxAbsY = Math.max(...pilhas.map(p=>Math.abs(p.y)));
+    const margemX = radierResumo.L/2 - maxAbsX - D/2;
+    const margemY = radierResumo.B/2 - maxAbsY - D/2;
+    const margemBorda = Math.min(margemX, margemY);
+    const okBorda = margemBorda >= afminReq;
+    checklistEsp += checkItemE('Afastamento estaca → borda do radier', okBorda,
+      `margem disponível ≈ ${fmt(margemBorda,2)} m (assumindo arranjo centrado no radier, L×B=${fmt(radierResumo.L,2)}×${fmt(radierResumo.B,2)}m) ; mínimo exigido = ${fmt(afminReq,2)} m`);
+  } else {
+    checklistEsp += checkItemE('Afastamento estaca → borda do radier', 'info',
+      'Defina a geometria do radier (aba Radier) para verificar esta distância.');
+  }
+  $('s2-checklist-esp').innerHTML = checklistEsp;
 
   let zref;
   if(transf==='atrito') zref = (2/3)*L;
@@ -4958,124 +4944,6 @@ function labelInterativoS5(id, baseX, baseY, innerSvg){
   return `<g class="s5-label-drag" data-label-id="${id}" data-base-x="${baseX}" data-base-y="${baseY}" transform="${t}" style="cursor:move">${innerSvg}</g>`;
 }
 
-function drawPlantaS5(coords, D, ap, bp, afmin, ctx){
-  ctx = ctx||{};
-  afmin = afmin!=null ? afmin : 0.15;
-  const W=520,H=420,pad=58;
-  const xs=coords.map(p=>p.x), ys=coords.map(p=>p.y);
-  const dRealS5 = D/2 + afmin; // metros, offset geometrico real do contorno em relacao ao centro das estacas
-  const span=Math.max(Math.max(...xs)-Math.min(...xs), Math.max(...ys)-Math.min(...ys), 0.5)+2*dRealS5;
-  const scale=(Math.min(W,H-56)-2*pad)/span;
-  const cx=W/2, cy=H/2-16;
-  const toSx=x=>cx+x*scale, toSy=y=>cy-y*scale;
-  const rP = Math.max(14,D*scale/2);
-  let svg = defsBielaTiranteS5();
-
-  // ordem de leitura (esquerda->direita, cima->baixo) para numerar as estacas de forma previsivel, independente da ordem interna do array
-  const ordemLeitura = coords.map((p,i)=>i).sort((ia,ib)=>{
-    const pa=coords[ia], pb=coords[ib];
-    if(Math.abs(pa.y-pb.y)>1e-3) return pb.y-pa.y; // de cima pra baixo
-    return pa.x-pb.x; // da esquerda pra direita
-  });
-  const numeroLeitura = new Array(coords.length);
-  ordemLeitura.forEach((idxOriginal,pos)=>{ numeroLeitura[idxOriginal]=pos+1; });
-
-  if(ctx.blocoPoligonal){
-    const hullPts = coords.filter(p=>!p.direct).map(p=>[toSx(p.x), toSy(p.y)]);
-    const dAf = rP + afmin*scale;
-    const chamfered = contornoComAfastamento(hullPts, dAf, !!ctx.chanfrarVertices);
-    svg += `<polygon points="${chamfered.map(p=>p.join(',')).join(' ')}" fill="#fbfaf6" stroke="#282420" stroke-width="1.5" stroke-linejoin="round"/>`;
-  } else {
-    const marg=D/2+afmin;
-    const minX=Math.min(...xs)-marg, maxX=Math.max(...xs)+marg, minY=Math.min(...ys)-marg, maxY=Math.max(...ys)+marg;
-    svg += `<rect x="${toSx(minX)}" y="${toSy(maxY)}" width="${(maxX-minX)*scale}" height="${(maxY-minY)*scale}" fill="#fbfaf6" stroke="#282420" stroke-width="1.5"/>`;
-  }
-
-  // afastamento (estaca -> borda do bloco) em destaque (âmbar) — mostrado numa estaca de referência
-  {
-    const pRef = coords.find(p=>!p.direct) || coords[0];
-    const sx=toSx(pRef.x), sy=toSy(pRef.y);
-    let ex, ey;
-    if(ctx.blocoPoligonal){
-      const dx=sx-cx, dy=sy-cy, dl=Math.hypot(dx,dy)||1;
-      ex = sx+dx/dl*afmin*scale; ey = sy+dy/dl*afmin*scale;
-    } else {
-      ex = sx+rP+afmin*scale; ey = sy;
-    }
-    const dxu=ex-sx, dyu=ey-sy, dul=Math.hypot(dxu,dyu)||1;
-    const ux0=dxu/dul, uy0=dyu/dul;
-    const afStart=[sx+ux0*rP, sy+uy0*rP];
-    svg += `<line x1="${afStart[0]}" y1="${afStart[1]}" x2="${ex}" y2="${ey}" stroke="#d99a2b" stroke-width="1.8"/>`;
-    const afTxt = `afast.=${fmt(afmin*100,1)}cm`;
-    const lx=ex+ux0*4, ly=ey+uy0*4-4;
-    svg += labelInterativoS5('afast', lx, ly, `<rect x="${lx-2}" y="${ly-8}" width="${afTxt.length*4.6+4}" height="10" fill="#fbfaf6"/><text x="${lx}" y="${ly}" font-size="7.2" fill="#b8791a" font-family="monospace">${afTxt}</text>`);
-  }
-
-  coords.forEach((p,i)=>{
-    if(p.direct){
-      const px=toSx(p.x), py=toSy(p.y);
-      svg += `<line x1="${cx}" y1="${cy}" x2="${px}" y2="${py}" stroke="#8a8680" stroke-width="2.4" stroke-dasharray="2,3"/>`;
-      return;
-    }
-    let ox,oy;
-    if(ctx.origemRadial){
-      const distC=Math.hypot(p.x,p.y)||1;
-      const off=ctx.offsetDist||0;
-      ox=toSx(p.x*off/distC); oy=toSy(p.y*off/distC);
-    } else {
-      const signX = p.x>0.001?1:(p.x<-0.001?-1:0);
-      const signY = p.y>0.001?1:(p.y<-0.001?-1:0);
-      ox=toSx(signX*ap/2); oy=toSy(signY*bp/2);
-    }
-    const px=toSx(p.x), py=toSy(p.y);
-    const dxL=px-ox, dyL=py-oy, lenL=Math.hypot(dxL,dyL)||1;
-    const pxEnd = px-dxL/lenL*(rP+2), pyEnd = py-dyL/lenL*(rP+2);
-    svg += `<line x1="${ox}" y1="${oy}" x2="${pxEnd}" y2="${pyEnd}" stroke="#c0392b" stroke-width="3" stroke-linecap="round" marker-end="url(#s5-ahBiela)"/>`;
-    if(ctx.RcdLabel){
-      const m=pointAt(ox,oy,px,py,0.6);
-      svg += labelInterativoS5(`biela${i}`, m[0], m[1]-9, `<rect x="${m[0]-24}" y="${m[1]-17}" width="48" height="10" fill="#fbfaf6" opacity="0.85"/><text x="${m[0]}" y="${m[1]-9}" font-size="7.4" fill="#a8291c" text-anchor="middle" font-weight="700" style="${LBL_HALO}">${ctx.RcdLabel}</text>`);
-    }
-  });
-
-  if(ctx.tirantes){
-    ctx.tirantes.forEach((t,idx)=>{
-      const x1=toSx(t.x1), y1=toSy(t.y1), x2=toSx(t.x2), y2=toSy(t.y2);
-      svg += `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="#2a5a8c" stroke-width="4.5" stroke-linecap="round"/>`;
-      const mx=(x1+x2)/2, my=(y1+y2)/2;
-      const ang=Math.atan2(y2-y1,x2-x1)*180/Math.PI;
-      const labelAng = (ang>90||ang<-90) ? ang+180 : ang;
-      svg += labelInterativoS5(`tir${idx}`, mx, my-9, `<text x="${mx}" y="${my-9}" font-size="7.6" fill="#1d4066" text-anchor="middle" font-weight="700" style="${LBL_HALO}" transform="rotate(${labelAng},${mx},${my-9})">${t.label}</text>`);
-    });
-  }
-
-  svg += `<rect x="${cx-ap*scale/2}" y="${cy-bp*scale/2}" width="${ap*scale}" height="${bp*scale}" fill="#efece3" stroke="#282420" stroke-width="1.8"/>`;
-  svg += `<circle cx="${cx}" cy="${cy}" r="3.4" fill="#282420"/>`;
-  if(ctx.Nd!==undefined){
-    const ndY = cy-bp*scale/2-11;
-    svg += labelInterativoS5('Nd', cx, ndY, `<text x="${cx}" y="${ndY}" font-size="8" text-anchor="middle" fill="#282420" font-weight="700">N<tspan baseline-shift="sub" font-size="7">d</tspan>=${fmt(ctx.Nd,0)}kN</text>`);
-  }
-  coords.forEach((p,i)=>{
-    svg += `<circle cx="${toSx(p.x)}" cy="${toSy(p.y)}" r="${rP}" fill="url(#s5-stipplePile)" stroke="${p.direct?'#8a8680':'#282420'}" stroke-width="2" ${p.direct?'stroke-dasharray="3,2"':''}/>`;
-    svg += `<text x="${toSx(p.x)}" y="${toSy(p.y)+4}" font-size="8.2" text-anchor="middle" fill="#282420" font-weight="700">E${numeroLeitura[i]}</text>`;
-    if(ctx.Ni!==undefined){
-      const lbl = p.direct ? `N<tspan baseline-shift="sub" font-size="7">i</tspan>=${fmt(ctx.Ni,0)}kN (direta)` : `N<tspan baseline-shift="sub" font-size="7">i</tspan>=${fmt(ctx.Ni,0)}kN`;
-      const ly = toSy(p.y)+rP+16;
-      const lx = toSx(p.x);
-      svg += labelInterativoS5(`ni${i}`, lx, ly, `<rect x="${lx-30}" y="${ly-9}" width="60" height="11" fill="#fbfaf6" opacity="0.85"/><text x="${lx}" y="${ly}" font-size="7.4" text-anchor="middle" fill="${p.direct?'#8a8680':'#282420'}">${lbl}</text>`);
-    }
-  });
-  if(ctx.dims){
-    ctx.dims.forEach((dm,idx)=>{
-      const x1=toSx(dm.x1), y1=toSy(dm.y1), x2=toSx(dm.x2), y2=toSy(dm.y2);
-      svg += `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="#282420" stroke-width="1.2" marker-start="url(#s5-ahDim)" marker-end="url(#s5-ahDim)"/>`;
-      const lx=(x1+x2)/2, ly=(y1+y2)/2 - (dm.vert?0:9);
-      svg += labelInterativoS5(`dim${idx}`, lx, ly, `<text x="${lx}" y="${ly}" font-size="7.6" text-anchor="middle" fill="#282420" font-weight="600" ${dm.vert?`transform="rotate(-90,${lx},${ly})"`:''}>${dm.label}</text>`);
-    });
-  }
-  svg += legendaBTS5(10, H-16);
-  $('s5-svg-planta').innerHTML = svg;
-}
-
 function drawCorteS5(e_ou_diag, ap, d, h, thetaDeg, ctx){
   ctx = ctx||{};
   const W=460,H=320, padX=100;
@@ -5141,12 +5009,6 @@ function drawCorteS5(e_ou_diag, ap, d, h, thetaDeg, ctx){
   svg += legendaBTS5(14, 18);
   $('s5-svg-corte').innerHTML = svg;
 }
-
-function rigidezBannerHtmlS5(thetaDeg){
-  if(thetaDeg>=40 && thetaDeg<=55) return `<div class="status-banner ok">✅ Bloco <b style="margin-left:4px">RÍGIDO</b> — θ=${fmt(thetaDeg,1)}° na faixa recomendada (40°–55°).</div>`;
-  if(thetaDeg>=33.69) return `<div class="status-banner warn">⚠ Bloco RÍGIDO (θ=${fmt(thetaDeg,1)}° ≥ 33,69°), fora da faixa ideal (40°–55°).</div>`;
-  return `<div class="status-banner bad">❌ θ=${fmt(thetaDeg,1)}° &lt; 33,69° — bloco FLEXÍVEL: método de Blévot não se aplica.<br><button type="button" class="btn-fix" data-fix="s5-aumentar-h">🔧 Aumentar h em 10cm</button></div>`;
-}
 function bielaBannerHtmlS5(sigma_biela, limite){
   return sigma_biela<=limite ? `<div class="status-banner ok">✅ Tensão na biela dentro do limite.</div>` : `<div class="status-banner bad">❌ Tensão na biela excede o limite.</div>`;
 }
@@ -5155,45 +5017,6 @@ function KR_S5(fckMPa){ return Math.max(0.4, 1 - fckMPa/250); } // NBR 6118 §17
 // verifica as DUAS bielas do modelo de Blévot: no NO do pilar (area comprimida = fatia do pilar) e no NO da estaca (area comprimida = topo da estaca).
 // sao verificacoes DIFERENTES — a do pilar usa a area do PILAR (normalmente bem maior que a da estaca), entao raramente governa;
 // a da estaca usa a area da ESTACA (menor) e costuma ser a mais critica. O app antes so calculava esta ultima, sem rotular a diferenca.
-function verificarBielasS5(thetaDeg, Nd, NiGov, Apilar, Ae, fck, fcd, coefPil, coefEst){
-  const theta = thetaDeg*Math.PI/180;
-  const KR = KR_S5(fck);
-  const sigma_pil = Nd/(Apilar*Math.pow(Math.sin(theta),2)); // kN/m² = kPa (sem conversao extra)
-  const limite_pil = coefPil*KR*fcd*1000;
-  const sigma_est = (NiGov/Ae)/Math.pow(Math.sin(theta),2); // kN/m² = kPa (sem conversao extra)
-  const limite_est = coefEst*KR*fcd*1000;
-  const okPil = sigma_pil<=limite_pil, okEst = sigma_est<=limite_est;
-  const grid = [
-    rb('σ_cd,b,pil (nó do PILAR)', fmt(sigma_pil,0)+' kPa', okPil?'ok':'bad'),
-    rb(`Limite pilar (${fmt(coefPil,2)}·K_R·f_cd)`, fmt(limite_pil,0)+' kPa'),
-    rb('σ_cd,b,est (nó da ESTACA)', fmt(sigma_est,0)+' kPa', okEst?'ok':'bad'),
-    rb(`Limite estaca (${fmt(coefEst,2)}·K_R·f_cd)`, fmt(limite_est,0)+' kPa')
-  ].join('');
-  const form =
-    fstepE('Coeficiente de redução K_R', 'K_R = 1 − f_ck/250 (f_ck em MPa)', `K_R = 1 − ${fmt(fck,1)}/250`, 'K_R', fmt(KR,3)) +
-    fstepE('Biela no nó do PILAR', 'σ_cd,b,pil = N_d/(A_pilar·sen²θ)', `σ_cd,b,pil = ${fmt(Nd,1)}/(${fmt(Apilar,3)}×sen²${fmt(thetaDeg,1)}°)`, 'σ_cd,b,pil', fmt(sigma_pil,0)+' kPa',
-      `A área comprimida da biela junto ao pilar (A_bp) é dividida entre todas as bielas do grupo, mas somada dá a área do pilar inteiro — por isso, mesmo σ parecendo um número grande isoladamente, o limite (${fmt(coefPil,2)}·K_R·f_cd=${fmt(limite_pil,0)}kPa) costuma ser bem mais folgado que na estaca. Ver desenho abaixo.`) +
-    fstepE('Biela no nó da ESTACA', 'σ_cd,b,est = N_i/(A_estaca·sen²θ)', `σ_cd,b,est = ${fmt(NiGov,1)}/(${fmt(Ae,4)}×sen²${fmt(thetaDeg,1)}°)`, 'σ_cd,b,est', fmt(sigma_est,0)+' kPa',
-      `Como a seção da estaca é bem menor que a do pilar, essa verificação costuma ser a mais crítica das duas — é normal σ_cd,b,est ser maior que σ_cd,b,pil. Limite: ${fmt(coefEst,2)}·K_R·f_cd=${fmt(limite_est,0)}kPa.`);
-  const banner = (okPil && okEst)
-    ? `<div class="status-banner ok">✅ Ambas as verificações de biela OK — no nó do pilar e no nó da estaca.</div>`
-    : `<div class="status-banner bad">❌ ${!okPil?'Biela no nó do PILAR excede o limite. ':''}${!okEst?'Biela no nó da ESTACA excede o limite. ':''}Aumente o ângulo (altura do bloco h), a resistência do concreto (f_ck), ou a seção do pilar/estaca.</div>`;
-  return {grid, form, banner, okPil, okEst, sigma_pil, sigma_est};
-}
-
-function pilarCheckS5(NdVal, Apilar, fcdVal){
-  const pressaoPilar = NdVal/Apilar; // kN/m² = kPa (sem conversao extra — NdVal ja esta em kN, Apilar em m²)
-  const limitePilar = 0.85*fcdVal*1000; // fcdVal em MPa -> kPa
-  $('s5-grid-pilar').innerHTML = [
-    rb('Pressão média', fmt(pressaoPilar,0)+' kPa'),
-    rb('Limite (0,85f_cd)', fmt(limitePilar,0)+' kPa', pressaoPilar<=limitePilar?'ok':'bad')
-  ].join('');
-  $('s5-form-pilar').innerHTML = fstepE('Pressão média do pilar sobre o bloco', 'σ = N_d / A_pilar', `σ = ${fmt(NdVal,1)}kN / ${fmt(Apilar,3)}m²`, 'σ', fmt(pressaoPilar,0)+' kPa',
-    `N_d já está em kN e A_pilar em m² — a divisão kN/m² já resulta em kPa diretamente (1kN/m²=1kPa), sem precisar multiplicar por mais nada. Limite: 0,85×f_cd = 0,85×${fmt(fcdVal,2)}MPa = ${fmt(limitePilar,0)}kPa.`);
-  $('s5-banner-pilar').innerHTML = pressaoPilar<=limitePilar
-    ? `<div class="status-banner ok">✅ Checagem simplificada OK.</div>`
-    : `<div class="status-banner warn">⚠ Pressão próxima/acima de 0,85f<sub>cd</sub>.</div>`;
-}
 
 function clearResultadosS5(msgHtml){
   ['s5-grid-geom','s5-form-geom','s5-grid-tirante','s5-form-tirante','s5-grid-biela','s5-form-biela','s5-grid-pilar','s5-form-pilar'].forEach(id=>{ $(id).innerHTML=''; });
@@ -5210,431 +5033,6 @@ function calcularS5(){
   // Ver Fase 3 (punção da estaca no radier) para a verificação equivalente correta.
   BRIDGE.s5Armaduras = null;
   return;
-  const forma = G_forma(), D = G_D();
-  const h = +$('s5-h').value||0.5;
-  const cob = +$('s5-cob').value||0.05;
-  const phi = (+$('s5-phi').value||20)/1000;
-  const d = h - cob - phi/2;
-  const fck = G_fck(), fyk = G_fyk();
-  const fcd = fck/1.4, fyd = fyk/1.15;
-  const Nk = G_Nk(), Mxk = G_Mx(), Myk = G_My();
-  const gammaf = G_gammaf();
-  const Nd = Nk*gammaf, Mxd = Mxk*gammaf, Myd = Myk*gammaf;
-  const Ap_estaca = G_Ap();
-  const afmin = +$('s5-afmin').value||0.15;
-  const apx = +$('s5-apx').value||0.3;
-  const apy = +$('s5-apy').value||0.3;
-
-  if(afmin < 0.15 - 1e-6){
-    $('s5-banner-afmin').innerHTML = `<div class="status-banner bad">❌ Afastamento estaca→borda do bloco = ${fmt(afmin*100,1)}cm — abaixo do mínimo usual de 15cm. Ajuste o campo "Afastamento mínimo" no card do bloco.</div>`;
-  } else {
-    $('s5-banner-afmin').innerHTML = `<div class="status-banner ok">✅ Afastamento estaca→borda do bloco = ${fmt(afmin*100,1)}cm — atende o mínimo de 15cm.</div>`;
-  }
-
-  const arr = ARR_dados();
-  const nomeArranjo = {grade:'Grade N×M',triangular:'Triangular',quad_central:'Quadrado+central',hexagono:'Hexágono',hex_central:'Hexágono+central'}[arr.tipo];
-
-  let caso = null;
-  if(arr.tipo==='triangular') caso='3';
-  else if(arr.tipo==='quad_central') caso='5';
-  else if(arr.tipo==='hexagono') caso='6';
-  else if(arr.tipo==='hex_central') caso='7';
-  else if(arr.tipo==='grade'){
-    if(arr.n===2) caso='2';
-    else if(arr.nx===2 && arr.ny===2) caso='4';
-    else caso=null;
-  }
-
-  if(caso===null && arr.tipo==='grade'){
-    caso='generico';
-    $('s5-arranjo-status').innerHTML = `<b style="color:#b45309">🔧 Arranjo atual (${nomeArranjo}, ${arr.n} estacas, grade ${arr.nx}×${arr.ny}) não tem fórmula fechada de Blévot — usando método generalizado (biela individual por estaca).</b> Menos refinado que as fórmulas fechadas (que já embutem a simetria de cada arranjo específico), mas segue o mesmo princípio físico. Para projetos reais, prefira um arranjo coberto quando possível, ou valide com modelo de bielas-e-tirantes completo / elementos finitos.`;
-  } else if(caso===null){
-    $('s5-arranjo-status').innerHTML = `<b style="color:var(--red)">⚠ Arranjo atual (${nomeArranjo}, ${arr.n} estacas, grade ${arr.nx}×${arr.ny}) não tem fórmula de Blévot verificada.</b> Cobertos: grade 1×2, 2×1, 2×2, triangular (3), quadrado+central (5), hexágono (6) e hexágono+central (7). Ajuste o arranjo em Dados Globais, ou use este bloco apenas para a distribuição de carga do Passo 2.`;
-    $('s5-tbl-cargas').innerHTML = '';
-    $('s5-banner-cargas').innerHTML = '';
-    BRIDGE.s5Armaduras = null;
-    clearResultadosS5(`<div class="status-banner bad">❌ Sem fórmula de Blévot verificada para este arranjo.<br><button type="button" class="btn-fix" data-fix="s5-trocar-arranjo-cobrindo">🔧 Trocar para grade 2×2 (coberto)</button></div>`);
-    atualizarStatus();
-    if(typeof calcularS6==='function') calcularS6();
-    return;
-  } else {
-    $('s5-arranjo-status').innerHTML = `<b style="color:var(--green)">✓ Arranjo atual: ${nomeArranjo}, ${arr.n} estacas — coberto pelo método de Blévot.</b>`;
-  }
-
-  // ═══ distribuicao de carga por estaca (Nd,i) — bloco rigido, mesmo metodo do Passo 2 ═══
-  const n = arr.coords.length;
-  const pilhasD = distribuirCarga(arr.coords, Nd, Mxd, Myd);
-  const NiUniforme = Nd/n;
-  const NiMaxD = Math.max(...pilhasD.map(p=>p.Ni));
-  const NiMinD = Math.min(...pilhasD.map(p=>p.Ni));
-  const fatorExc = NiUniforme>1e-9 ? NiMaxD/NiUniforme : 1;
-  const pileMax = pilhasD.reduce((a,b)=>b.Ni>a.Ni?b:a);
-
-  const sumX2S5 = arr.coords.reduce((s,p)=>s+p.x*p.x,0) || 1;
-  const sumY2S5 = arr.coords.reduce((s,p)=>s+p.y*p.y,0) || 1;
-  const pctComprimidaS5 = drawAreaComprimidaS5(pilhasD, D, afmin, Nd, Mxd, Myd, sumX2S5, sumY2S5, arr.tipo);
-  $('s5-banner-area-comprimida').innerHTML = pctComprimidaS5>=99.9
-    ? `<div class="status-banner ok">✅ Bloco 100% comprimido — carga centrada ou momento pequeno o suficiente para não gerar tração em nenhuma região.</div>`
-    : (NiMinD<0
-        ? `<div class="status-banner warn">⚠ ${fmt(100-pctComprimidaS5,0)}% da área do bloco está do lado tracionado (consistente com estaca(s) tracionada(s) apontada(s) acima). Isso é aceitável se a(s) estaca(s) e a ancoragem resistirem à tração — ver Seção 0b.</div>`
-        : `<div class="status-banner info">ℹ ${fmt(100-pctComprimidaS5,0)}% da área do bloco está do lado de menor tensão (a favor da segurança, todas as estacas seguem comprimidas).</div>`);
-
-  const temMomento = Math.abs(Mxk)>1e-6 || Math.abs(Myk)>1e-6;
-
-  let rowsCargas='';
-  pilhasD.forEach((p,i)=>{
-    rowsCargas += `<tr><td>${i+1}${p.direct?' (central)':''}</td><td>${fmt(p.x,2)}</td><td>${fmt(p.y,2)}</td><td class="${p.Ni===NiMaxD?'hl':''}">${fmt(p.Ni,1)}</td></tr>`;
-  });
-  $('s5-tbl-cargas').innerHTML = `<thead><tr><th>Estaca</th><th>x (m)</th><th>y (m)</th><th>N<sub>d,i</sub> (kN)</th></tr></thead><tbody>${rowsCargas}</tbody>`;
-  if(!temMomento){
-    $('s5-banner-cargas').innerHTML = `<div class="status-banner info">ℹ M<sub>x</sub>=M<sub>y</sub>=0 — carga centrada, todas as estacas com N<sub>d,i</sub>=${fmt(NiUniforme,1)} kN (caso clássico de Blévot).</div>`;
-  } else if(NiMinD<0){
-    $('s5-banner-cargas').innerHTML = `<div class="status-banner bad">❌ Estaca #${pilhasD.indexOf(pilhasD.find(p=>p.Ni===NiMinD))+1} com N<sub>d,i</sub>=${fmt(NiMinD,1)} kN (tração) — ver verificação de armadura à tração abaixo (Seção 0b).</div>`;
-  } else {
-    $('s5-banner-cargas').innerHTML = `<div class="status-banner warn">⚠ Momento aplicado — estaca #${pilhasD.indexOf(pileMax)+1} mais carregada, N<sub>d,i,máx</sub>=${fmt(NiMaxD,1)} kN (${fmt((fatorExc-1)*100,0)}% acima da uniforme=${fmt(NiUniforme,1)} kN). Biela dimensionada para essa estaca; tirante escalado proporcionalmente (ver aviso da Seção 2).</div>`;
-  }
-
-  // ═══ Verificação da estaca tracionada (Seção 0b) — só quando Nd,i,mín < 0 ═══
-  if(NiMinD<0){
-    $('s5-bloco-tracao').style.display='block';
-    const Ndtrac = -NiMinD; // kN, tracao positiva
-    const AsDisp = +$('s5-As-estaca').value||0; // cm²
-    const phiEstaca = +$('s5-phi-estaca').value||16; // mm
-    const AsNec = Ndtrac/(fyd*0.1); // cm² (fyd em MPa -> kN/cm² via *0.1)
-
-    // comprimento de ancoragem basico (NBR 6118 §9.4) — barra nervurada, boa aderencia
-    const fctm = 0.3*Math.pow(fck, 2/3); // MPa
-    const fctd = 0.7*fctm/1.4; // MPa
-    const eta1=2.25, eta2=1.0, eta3=1.0;
-    const fbd = eta1*eta2*eta3*fctd; // MPa
-    const lb = (phiEstaca/4)*(fyd/fbd); // mm
-    const lbMin = Math.max(0.3*lb, 10*phiEstaca, 100); // mm
-    const lbNec = Math.max(lb, lbMin); // mm
-    const embutimentoDisp = (h-cob)*1000; // mm
-
-    const okArmadura = AsDisp>=AsNec;
-    const okAncoragem = embutimentoDisp>=lbNec;
-
-    $('s5-grid-tracao').innerHTML = [
-      rb('N<sub>d</sub> tração (estaca mais tracionada)', fmt(Ndtrac,1)+' kN', 'warn'),
-      rb('A<sub>s</sub> necessária', fmt(AsNec,2)+' cm²'),
-      rb('A<sub>s</sub> disponível', fmt(AsDisp,2)+' cm²', okArmadura?'ok':'bad'),
-      rb('f<sub>bd</sub> (aderência)', fmt(fbd,2)+' MPa'),
-      rb('l<sub>b</sub> necessário', fmt(lbNec,0)+' mm'),
-      rb('Embutimento disponível (h−cob)', fmt(embutimentoDisp,0)+' mm', okAncoragem?'ok':'bad')
-    ].join('');
-    $('s5-form-tracao').innerHTML =
-      fstepE('Armadura necessária','As = Nd,trac / fyd', `A<sub>s</sub> = ${fmt(Ndtrac,1)} / (${fmt(fyd,1)}×0,1)`,'A_s',fmt(AsNec,2)+' cm²') +
-      fstepE('Tensão de aderência de cálculo','fbd = η1·η2·η3·fctd', `f<sub>ctd</sub>=0,7×0,3×f<sub>ck</sub><sup>2/3</sup>/1,4 = ${fmt(fctd,2)} MPa ; η1=2,25 (nervurada) η2=1,0 (boa aderência) η3=1,0`,'f_bd',fmt(fbd,2)+' MPa') +
-      fstepE('Comprimento de ancoragem básico','lb = (φ/4)·(fyd/fbd)', `l<sub>b</sub> = (${fmt(phiEstaca,0)}/4)×(${fmt(fyd,1)}/${fmt(fbd,2)})`,'l_b',fmt(lb,0)+' mm') +
-      fstepE('Comprimento de ancoragem adotado','lb,nec = máx(lb ; 0,3lb ; 10φ ; 100mm)', `l_b,nec = máx(${fmt(lb,0)} ; ${fmt(0.3*lb,0)} ; ${fmt(10*phiEstaca,0)} ; 100) mm`,'l_b,nec',fmt(lbNec,0)+' mm',
-        'Comparado ao embutimento disponível na altura do bloco (h−cobrimento). Se insuficiente, considere gancho, barra de diâmetro menor, ou placa de ancoragem mecânica na cabeça da estaca.');
-    if(okArmadura && okAncoragem){
-      $('s5-banner-tracao').innerHTML = `<div class="status-banner ok">✅ Armadura e ancoragem suficientes para a tração na estaca mais solicitada.</div>`;
-    } else {
-      const motivos=[];
-      if(!okArmadura) motivos.push(`A<sub>s</sub> disponível (${fmt(AsDisp,2)}cm²) &lt; necessária (${fmt(AsNec,2)}cm²)`);
-      if(!okAncoragem) motivos.push(`embutimento disponível (${fmt(embutimentoDisp,0)}mm) &lt; ancoragem necessária (${fmt(lbNec,0)}mm)`);
-      $('s5-banner-tracao').innerHTML = `<div class="status-banner bad">❌ ${motivos.join(' ; ')}. Aumente a armadura da estaca, a altura do bloco, ou use ancoragem mecânica (placa de topo) na cabeça da estaca.</div>`;
-    }
-  } else {
-    $('s5-bloco-tracao').style.display='none';
-  }
-
-  if(caso==='2'){
-    const e = arr.nx===2 ? arr.sx : arr.sy;
-    const ap = apx;
-    const coords=[{x:-e/2,y:0},{x:e/2,y:0}];
-    const proj = e/2 - ap/4;
-    const theta = Math.atan(d/proj), thetaDeg = theta*180/Math.PI;
-    const Rst = NiMaxD*proj/d; // = Rst_simetrico * fatorExc (equivalente, ja que a formula original e linear em Ni)
-    const Rcd = NiMaxD/Math.sin(theta);
-    const sigma_estaca = NiMaxD/Ap_estaca;
-    const bielas = verificarBielasS5(thetaDeg, Nd, NiMaxD, ap*ap, Ap_estaca, fck, fcd, 1.4, 1.4);
-    const As = 1.15*Rst/(fyd*0.1); // fator 1,15: Blévot (1967) constatou nos ensaios que a tração real supera a teórica em ~15%
-    drawPlantaS5(pilhasD, D, ap, ap, afmin, {
-      Nd, RcdLabel:`R_cd=${fmt(Rcd,0)}kN`,
-      tirantes:[{x1:-e/2,y1:0,x2:e/2,y2:0,label:`R_st=${fmt(Rst,0)}kN`}],
-      dims:[{x1:-e/2,y1:0.35+D/2,x2:e/2,y2:0.35+D/2,label:`e=${fmt(e,2)}m`}]
-    });
-    drawCorteS5(e, ap, d, h, thetaDeg, {NdLabel:`N_d=${fmt(Nd,0)}kN`, NiLabel:`N_i=${fmt(NiMaxD,0)}kN`, RcdLabel:`R_cd=${fmt(Rcd,0)}kN`, RstLabel:`R_st=${fmt(Rst,0)}kN`, RstNum:Rst});
-    $('s5-grid-geom').innerHTML = [rb('d',fmt(d,3)+' m'), rb('proj',fmt(proj,3)+' m'), rb('θ',fmt(thetaDeg,1)+'°', thetaDeg>=33.69?'ok':'bad'), rb('N_d,i,máx',fmt(NiMaxD,1)+' kN')].join('');
-    $('s5-form-geom').innerHTML = fstepE('Ângulo','θ = arctan(d/proj)', `θ = arctan(${fmt(d,3)}/${fmt(proj,3)})`,'θ',fmt(thetaDeg,1)+'°');
-    $('s5-banner-rigidez').innerHTML = rigidezBannerHtmlS5(thetaDeg);
-    $('s5-grid-tirante').innerHTML = [rb('R_st (estaca mais carregada)', fmt(Rst,1)+' kN','info'), rb('A_s', fmt(As,2)+' cm²','ok')].join('');
-    $('s5-form-tirante').innerHTML = fstepE('Tirante','Rst = Nd,i,máx · proj / d', `R_st = ${fmt(NiMaxD,1)} × ${fmt(proj,3)} / ${fmt(d,3)}`,'R_st',fmt(Rst,1)+' kN', temMomento?'Usa a reação da estaca mais carregada (não a uniforme) — ver Seção 0.':'') +
-      fstepE('Área de aço (com majoração de Blévot)', 'As = 1,15 × Rst / fyd', `A_s = 1,15 × ${fmt(Rst,1)} / (${fmt(fyd,1)}×0,1)`, 'A_s', fmt(As,2)+' cm²',
-        'O fator 1,15 vem dos ensaios de Blévot (1967): a força de tração medida na prática ficou ~15% maior que a prevista pela teoria da treliça simples — por isso a NBR incorpora essa majoração empírica ao dimensionar o tirante.');
-    $('s5-grid-biela').innerHTML = bielas.grid;
-    $('s5-form-biela').innerHTML = bielas.form;
-    $('s5-banner-biela').innerHTML = bielas.banner;
-    pilarCheckS5(Nd, ap*ap, fcd);
-    BRIDGE.s5Armaduras = [{nome:'Tirante', As:As, comprimento: e+0.8, repeticoes:1, segmentos:[{x1:-e/2,y1:0,x2:e/2,y2:0}]}];
-
-  } else if(caso==='3'){
-    const lt = arr.lt, a = apx;
-    const coords = arr.coords;
-    const R = arr.R;
-    const proj = R - 0.3*a;
-    const theta = Math.atan(d/proj), thetaDeg = theta*180/Math.PI;
-    const Rst_lados = ((Nd/(9*d))*(lt*Math.sqrt(3) - 0.9*a)) * fatorExc; // Rs=(N/9)(e√3-0,9ap)/d — forca na direcao da MEDIANA (Blévot/Bastos)
-    const RstLinha_lados = Rst_lados*Math.sqrt(3)/3; // R's = Rs×√3/3 — componente projetada na direcao do LADO (onde a barra realmente corre)
-    const Rcd = NiMaxD/Math.sin(theta);
-    const sigma_estaca = NiMaxD/Ap_estaca;
-    const bielas = verificarBielasS5(thetaDeg, Nd, NiMaxD, a*a, Ap_estaca, fck, fcd, 1.75, 1.75);
-    const As_lados = 1.15*RstLinha_lados/(fyd*0.1); // fator 1,15 (Blévot), aplicado sobre R's ja projetado
-
-    // desenho cotado estilo CAD (planta), com bielas e tirantes sobrepostos usando a mesma transformação de coordenadas
-    const coordsComCarga = pilhasD.map(p=>({x:p.x,y:p.y,Ni:p.Ni}));
-    const base = desenharBlocoTriangularCAD(coordsComCarga, D, lt, afmin, {apx,apy:apx}, 460, 350);
-    let svgPlanta = defsBielaTiranteS5() + base.svg;
-    coordsComCarga.forEach(p=>{
-      const distC = Math.hypot(p.x,p.y)||1, off=0.3*a;
-      const ox=base.toSx(p.x*off/distC), oy=base.toSy(p.y*off/distC);
-      const px=base.toSx(p.x), py=base.toSy(p.y);
-      const dxL=px-ox, dyL=py-oy, lenL=Math.hypot(dxL,dyL)||1;
-      const pxEnd=px-dxL/lenL*(base.rP+2), pyEnd=py-dyL/lenL*(base.rP+2);
-      svgPlanta += `<line x1="${ox}" y1="${oy}" x2="${pxEnd}" y2="${pyEnd}" stroke="#c0392b" stroke-width="2.2" stroke-linecap="round" marker-end="url(#s5-ahBiela)"/>`;
-    });
-    for(let i=0;i<3;i++){
-      const p1=coords[i], p2=coords[(i+1)%3];
-      const x1=base.toSx(p1.x), y1=base.toSy(p1.y), x2=base.toSx(p2.x), y2=base.toSy(p2.y);
-      svgPlanta += `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="#2a5a8c" stroke-width="3.5" stroke-linecap="round"/>`;
-      if(i===0){
-        const mx=(x1+x2)/2, my=(y1+y2)/2;
-        svgPlanta += `<text x="${mx}" y="${my-9}" font-size="7.5" fill="#1d4066" text-anchor="middle" style="${LBL_HALO}">R_st=${fmt(Rst_lados,0)}kN</text>`;
-      }
-    }
-    svgPlanta += legendaBTS5(10, 336);
-    $('s5-svg-planta').innerHTML = svgPlanta;
-
-    drawCorteS5(2*R, a, d, h, thetaDeg, {offsetFactor:0.3, NdLabel:`N_d=${fmt(Nd,0)}kN`, NiLabel:`N_i=${fmt(NiMaxD,0)}kN`, RcdLabel:`R_cd=${fmt(Rcd,0)}kN`, RstLabel:`R_st=${fmt(Rst_lados,0)}kN`, RstNum:Rst_lados});
-    $('s5-grid-geom').innerHTML = [rb('R',fmt(R,3)+' m'), rb('proj',fmt(proj,3)+' m'), rb('θ',fmt(thetaDeg,1)+'°', thetaDeg>=33.69?'ok':'bad'), rb('N_d,i,máx',fmt(NiMaxD,1)+' kN')].join('');
-    $('s5-form-geom').innerHTML = fstepE('Ângulo','θ = arctan(d/proj), proj=R−0,3a', `θ = arctan(${fmt(d,3)}/${fmt(proj,3)})`,'θ',fmt(thetaDeg,1)+'°');
-    $('s5-banner-rigidez').innerHTML = rigidezBannerHtmlS5(thetaDeg);
-    $('s5-grid-tirante').innerHTML = [rb('R_s (na mediana)', fmt(Rst_lados,1)+' kN','info'), rb("R's (projetado no lado)", fmt(RstLinha_lados,1)+' kN','info'), rb('A_s', fmt(As_lados,2)+' cm²','ok'), rb('Fator de excentricidade', fmt(fatorExc,2))].join('');
-    $('s5-form-tirante').innerHTML = fstepE('Força na mediana (biela → tirante)','Rs = [(N/9)·(lt√3 − 0,9·ap)/d] × fator_exc', `Rs = [(${fmt(Nd,1)}/9)×(${fmt(lt,2)}×√3 − 0,9×${fmt(a,2)})/${fmt(d,3)}] × ${fmt(fatorExc,3)} (fator_exc=Nd,i,máx/Nd,i,uniforme)`,'R_s',fmt(Rst_lados,1)+' kN',
-      temMomento?'Aproximação para carga excêntrica: escala o resultado do caso simétrico de Blévot pela razão entre a reação máxima real e a reação uniforme teórica — não é uma rededução completa do equilíbrio assimétrico da treliça.':'') +
-      fstepE('Projeção na direção do lado (onde a barra corre)', "R's = Rs × √3/3", `R's = ${fmt(Rst_lados,1)} × √3/3`, "R's", fmt(RstLinha_lados,1)+' kN',
-        'A força de tração calculada (Rs) atua na direção da mediana do triângulo, mas as barras correm paralelas aos lados (sobre as estacas) — por isso precisa decompor Rs nessa direção antes de dimensionar o aço.') +
-      fstepE('Área de aço (com majoração de Blévot)', "As = 1,15 × R's / fyd", `A_s = 1,15 × ${fmt(RstLinha_lados,1)} / (${fmt(fyd,1)}×0,1)`, 'A_s', fmt(As_lados,2)+' cm²',
-        'Fator 1,15: nos ensaios de Blévot (1967), a tração medida na prática ficou ~15% acima da prevista pela treliça teórica simples.');
-    $('s5-grid-biela').innerHTML = bielas.grid;
-    $('s5-form-biela').innerHTML = bielas.form;
-    $('s5-banner-biela').innerHTML = bielas.banner;
-    pilarCheckS5(Nd, a*a, fcd);
-    BRIDGE.s5Armaduras = [{nome:'Tirante (laços, 3 lados)', As:As_lados, comprimento: lt+0.8, repeticoes:3, segmentos:[0,1,2].map(i=>({x1:coords[i].x,y1:coords[i].y,x2:coords[(i+1)%3].x,y2:coords[(i+1)%3].y}))}];
-
-  } else if(caso==='4'){
-    const ex = arr.sx, ey = arr.sy;
-    const coords = arr.coords;
-    const projX = ex/2 - apx/4, projY = ey/2 - apy/4;
-    const horiz = Math.sqrt(projX*projX+projY*projY);
-    const theta = Math.atan(d/horiz), thetaDeg = theta*180/Math.PI;
-    const thetaXdeg = Math.atan(d/projX)*180/Math.PI, thetaYdeg = Math.atan(d/projY)*180/Math.PI;
-    const RstX = ((Nd/2)*projX/d) * fatorExc, RstY = ((Nd/2)*projY/d) * fatorExc;
-    const AsX = 1.15*RstX/(fyd*0.1), AsY = 1.15*RstY/(fyd*0.1); // fator 1,15 (Blévot)
-    const sigma_estaca = NiMaxD/Ap_estaca;
-    const bielas = verificarBielasS5(thetaDeg, Nd, NiMaxD, apx*apy, Ap_estaca, fck, fcd, 2.1, 2.1);
-    const Rcd = NiMaxD/Math.sin(theta);
-    drawPlantaS5(pilhasD, D, apx, apy, afmin, {Nd, RcdLabel:`R_cd=${fmt(Rcd,0)}kN`,
-      tirantes:[
-        {x1:-ex/2,y1:-ey/2,x2:ex/2,y2:-ey/2,label:`R_stX=${fmt(RstX,0)}kN`},
-        {x1:-ex/2,y1:ey/2, x2:ex/2,y2:ey/2, label:`R_stX=${fmt(RstX,0)}kN`},
-        {x1:-ex/2,y1:-ey/2,x2:-ex/2,y2:ey/2,label:`R_stY=${fmt(RstY,0)}kN`},
-        {x1:ex/2,y1:-ey/2, x2:ex/2,y2:ey/2, label:`R_stY=${fmt(RstY,0)}kN`}],
-      dims:[{x1:-ex/2,y1:-ey/2-D/2-0.3,x2:ex/2,y2:-ey/2-D/2-0.3,label:`ex=${fmt(ex,2)}m`},{x1:ex/2+D/2+0.3,y1:-ey/2,x2:ex/2+D/2+0.3,y2:ey/2,label:`ey=${fmt(ey,2)}m`,vert:true}]});
-    drawCorteS5(Math.max(ex,ey), Math.max(apx,apy), d, h, Math.min(thetaXdeg,thetaYdeg), {NdLabel:`N_d=${fmt(Nd,0)}kN`, NiLabel:`N_i=${fmt(NiMaxD,0)}kN`, RcdLabel:`R_cd=${fmt(Rcd,0)}kN`, RstLabel:`R_stX=${fmt(RstX,0)}kN / R_stY=${fmt(RstY,0)}kN`, RstNum:Math.max(RstX,RstY)});
-    $('s5-grid-geom').innerHTML = [rb('proj_x',fmt(projX,3)+' m'), rb('proj_y',fmt(projY,3)+' m'), rb('θ_x',fmt(thetaXdeg,1)+'°',thetaXdeg>=33.69?'ok':'bad'), rb('θ_y',fmt(thetaYdeg,1)+'°',thetaYdeg>=33.69?'ok':'bad')].join('');
-    $('s5-form-geom').innerHTML = fstepE('Ângulo 3D','θ = arctan[d/√(projX²+projY²)]', `θ = arctan[${fmt(d,3)}/√(${fmt(projX,3)}²+${fmt(projY,3)}²)]`,'θ',fmt(thetaDeg,1)+'°');
-    $('s5-banner-rigidez').innerHTML = rigidezBannerHtmlS5(Math.min(thetaXdeg,thetaYdeg));
-    $('s5-grid-tirante').innerHTML = [rb('R_st,x', fmt(RstX,1)+' kN','info'), rb('A_s,x', fmt(AsX,2)+' cm²','ok'), rb('R_st,y', fmt(RstY,1)+' kN','info'), rb('A_s,y', fmt(AsY,2)+' cm²','ok'), rb('Fator de excentricidade', fmt(fatorExc,2))].join('');
-    $('s5-form-tirante').innerHTML = fstepE('Tirantes X/Y','Rst = [(Nd/2)·proj/d] × fator_exc', `Rst,x=[(${fmt(Nd,1)}/2)×${fmt(projX,3)}/${fmt(d,3)}]×${fmt(fatorExc,3)} ; Rst,y=[(${fmt(Nd,1)}/2)×${fmt(projY,3)}/${fmt(d,3)}]×${fmt(fatorExc,3)}`,'', '',
-      temMomento?'Escalado pela razão entre a reação máxima e a uniforme — aproximação para carga excêntrica.':'') +
-      fstepE('Área de aço (com majoração de Blévot)', 'As = 1,15 × Rst / fyd', `A_s,x = 1,15×${fmt(RstX,1)}/(${fmt(fyd,1)}×0,1) ; A_s,y = 1,15×${fmt(RstY,1)}/(${fmt(fyd,1)}×0,1)`, '', '',
-        'Fator 1,15: nos ensaios de Blévot (1967), a tração medida na prática ficou ~15% acima da prevista pela treliça teórica simples.');
-    $('s5-grid-biela').innerHTML = bielas.grid;
-    $('s5-form-biela').innerHTML = bielas.form;
-    $('s5-banner-biela').innerHTML = bielas.banner;
-    pilarCheckS5(Nd, apx*apy, fcd);
-    BRIDGE.s5Armaduras = [{nome:'Tirante X (∥Y)', As:AsX, comprimento: ey+0.8, repeticoes:2, segmentos:[{x1:-ex/2,y1:-ey/2,x2:-ex/2,y2:ey/2},{x1:ex/2,y1:-ey/2,x2:ex/2,y2:ey/2}]}, {nome:'Tirante Y (∥X)', As:AsY, comprimento: ex+0.8, repeticoes:2, segmentos:[{x1:-ex/2,y1:-ey/2,x2:ex/2,y2:-ey/2},{x1:-ex/2,y1:ey/2,x2:ex/2,y2:ey/2}]}];
-
-  } else if(caso==='5'){
-    const ex = arr.ex, ey = arr.ey;
-    const coords = arr.coords;
-    const Qeff = Nd*4/5;
-    const projX = ex/2 - apx/4, projY = ey/2 - apy/4;
-    const horiz = Math.sqrt(projX*projX+projY*projY);
-    const theta = Math.atan(d/horiz), thetaDeg = theta*180/Math.PI;
-    const thetaXdeg = Math.atan(d/projX)*180/Math.PI, thetaYdeg = Math.atan(d/projY)*180/Math.PI;
-    const RstX = ((Qeff/2)*projX/d) * fatorExc, RstY = ((Qeff/2)*projY/d) * fatorExc;
-    const AsX = 1.15*RstX/(fyd*0.1), AsY = 1.15*RstY/(fyd*0.1); // fator 1,15 (Blévot)
-    const sigma_estaca = NiMaxD/Ap_estaca;
-    const bielas = verificarBielasS5(thetaDeg, Nd, NiMaxD, apx*apy, Ap_estaca, fck, fcd, 2.6, 2.1);
-    const Rcd = NiMaxD/Math.sin(theta);
-    drawPlantaS5(pilhasD, D, apx, apy, afmin, {Nd, RcdLabel:`R_cd=${fmt(Rcd,0)}kN`,
-      tirantes:[
-        {x1:-ex/2,y1:-ey/2,x2:ex/2,y2:-ey/2,label:`R_stX=${fmt(RstX,0)}kN`},
-        {x1:-ex/2,y1:ey/2, x2:ex/2,y2:ey/2, label:`R_stX=${fmt(RstX,0)}kN`},
-        {x1:-ex/2,y1:-ey/2,x2:-ex/2,y2:ey/2,label:`R_stY=${fmt(RstY,0)}kN`},
-        {x1:ex/2,y1:-ey/2, x2:ex/2,y2:ey/2, label:`R_stY=${fmt(RstY,0)}kN`}],
-      dims:[{x1:-ex/2,y1:-ey/2-D/2-0.3,x2:ex/2,y2:-ey/2-D/2-0.3,label:`ex=${fmt(ex,2)}m`},{x1:ex/2+D/2+0.3,y1:-ey/2,x2:ex/2+D/2+0.3,y2:ey/2,label:`ey=${fmt(ey,2)}m`,vert:true}]});
-    drawCorteS5(Math.max(ex,ey), Math.max(apx,apy), d, h, Math.min(thetaXdeg,thetaYdeg), {NdLabel:`N_d=${fmt(Nd,0)}kN`, NiLabel:`N_i=${fmt(NiMaxD,0)}kN`, RcdLabel:`R_cd=${fmt(Rcd,0)}kN`, RstLabel:`R_stX=${fmt(RstX,0)}kN / R_stY=${fmt(RstY,0)}kN`, RstNum:Math.max(RstX,RstY)});
-    $('s5-grid-geom').innerHTML = [rb('Q_ef', fmt(Qeff,1)+' kN'), rb('θ_x',fmt(thetaXdeg,1)+'°',thetaXdeg>=33.69?'ok':'bad'), rb('θ_y',fmt(thetaYdeg,1)+'°',thetaYdeg>=33.69?'ok':'bad'), rb('N_d,i,máx (periférica)', fmt(NiMaxD,1)+' kN')].join('');
-    $('s5-form-geom').innerHTML = fstepE('Carga efetiva periféricas','Q_ef = 4/5·Nd (Blévot §5.5)', `Q_ef = 4/5 × ${fmt(Nd,1)}`,'Q_ef',fmt(Qeff,1)+' kN', 'A estaca central recebe carga direta (não depende de Mx/My, pois está no centroide), sem biela.');
-    $('s5-banner-rigidez').innerHTML = rigidezBannerHtmlS5(Math.min(thetaXdeg,thetaYdeg));
-    $('s5-grid-tirante').innerHTML = [rb('R_st,x', fmt(RstX,1)+' kN','info'), rb('A_s,x', fmt(AsX,2)+' cm²','ok'), rb('R_st,y', fmt(RstY,1)+' kN','info'), rb('A_s,y', fmt(AsY,2)+' cm²','ok')].join('');
-    $('s5-form-tirante').innerHTML = fstepE('Tirantes X/Y','Rst = [(Qef/2)·proj/d] × fator_exc', `Rst,x=[(${fmt(Qeff,1)}/2)×${fmt(projX,3)}/${fmt(d,3)}]×${fmt(fatorExc,3)} ; Rst,y=[(${fmt(Qeff,1)}/2)×${fmt(projY,3)}/${fmt(d,3)}]×${fmt(fatorExc,3)}`,'', '') +
-      fstepE('Área de aço (com majoração de Blévot)', 'As = 1,15 × Rst / fyd', `A_s,x = 1,15×${fmt(RstX,1)}/(${fmt(fyd,1)}×0,1) ; A_s,y = 1,15×${fmt(RstY,1)}/(${fmt(fyd,1)}×0,1)`, '', '',
-        'Fator 1,15: nos ensaios de Blévot (1967), a tração medida na prática ficou ~15% acima da prevista pela treliça teórica simples.');
-    $('s5-grid-biela').innerHTML = bielas.grid;
-    $('s5-form-biela').innerHTML = bielas.form;
-    $('s5-banner-biela').innerHTML = bielas.banner;
-    pilarCheckS5(Nd, apx*apy, fcd);
-    BRIDGE.s5Armaduras = [{nome:'Tirante X (∥Y)', As:AsX, comprimento: ey+0.8, repeticoes:2, segmentos:[{x1:-ex/2,y1:-ey/2,x2:-ex/2,y2:ey/2},{x1:ex/2,y1:-ey/2,x2:ex/2,y2:ey/2}]}, {nome:'Tirante Y (∥X)', As:AsY, comprimento: ex+0.8, repeticoes:2, segmentos:[{x1:-ex/2,y1:-ey/2,x2:ex/2,y2:-ey/2},{x1:-ex/2,y1:ey/2,x2:ex/2,y2:ey/2}]}];
-
-  } else if(caso==='6'){
-    const lt = arr.lt, a = apx;
-    const coords = arr.coords;
-    const R = arr.R;
-    const proj = R - 0.25*a;
-    const theta = Math.atan(d/proj), thetaDeg = theta*180/Math.PI;
-    const Rst = (Nd*lt/(6*d)*(1 - a/(4*lt))) * fatorExc;
-    const Rcd = NiMaxD/Math.sin(theta);
-    const sigma_estaca = NiMaxD/Ap_estaca;
-    const bielas = verificarBielasS5(thetaDeg, Nd, NiMaxD, a*a, Ap_estaca, fck, fcd, 2.6, 2.1);
-    const As = 1.15*Rst/(fyd*0.1); // fator 1,15: Blévot (1967) constatou nos ensaios que a tração real supera a teórica em ~15%
-    const tirantes = [];
-    for(let i=0;i<6;i++){ const p1=coords[i], p2=coords[(i+1)%6]; tirantes.push({x1:p1.x,y1:p1.y,x2:p2.x,y2:p2.y, label:i===0?`R_st=${fmt(Rst,0)}kN`:''}); }
-    for(let i=0;i<3;i++){ const p1=coords[i], p2=coords[i+3]; tirantes.push({x1:p1.x,y1:p1.y,x2:p2.x,y2:p2.y, label:i===0?`R_st(diam.)=${fmt(Rst,0)}kN`:''}); }
-    drawPlantaS5(pilhasD, D, a, a, afmin, {Nd, RcdLabel:`R_cd=${fmt(Rcd,0)}kN`, origemRadial:true, offsetDist:0.25*a, blocoPoligonal:true, tirantes,
-      dims:[{x1:coords[0].x,y1:coords[0].y, x2:coords[1].x,y2:coords[1].y, label:`lt=${fmt(lt,2)}m`}]});
-    drawCorteS5(2*R, a, d, h, thetaDeg, {offsetFactor:0.25, NdLabel:`N_d=${fmt(Nd,0)}kN`, NiLabel:`N_i=${fmt(NiMaxD,0)}kN`, RcdLabel:`R_cd=${fmt(Rcd,0)}kN`, RstLabel:`R_st=${fmt(Rst,0)}kN`, RstNum:Rst});
-    $('s5-grid-geom').innerHTML = [rb('R',fmt(R,3)+' m'), rb('proj',fmt(proj,3)+' m'), rb('θ',fmt(thetaDeg,1)+'°', thetaDeg>=33.69?'ok':'bad'), rb('N_d,i,máx',fmt(NiMaxD,1)+' kN')].join('');
-    $('s5-form-geom').innerHTML = fstepE('Ângulo','θ = arctan(d/proj), proj=R−0,25a', `θ = arctan(${fmt(d,3)}/${fmt(proj,3)})`,'θ',fmt(thetaDeg,1)+'°');
-    $('s5-banner-rigidez').innerHTML = rigidezBannerHtmlS5(thetaDeg);
-    $('s5-grid-tirante').innerHTML = [rb('R_st (laços)', fmt(Rst,1)+' kN','info'), rb('R_st (diametrais)', fmt(Rst,1)+' kN','info'), rb('A_s (por sistema)', fmt(As,2)+' cm²','ok')].join('');
-    $('s5-form-tirante').innerHTML = fstepE('Força de tração','Rst = [Q·lt/(6d)·(1−a/4lt)] × fator_exc', `Rst = [${fmt(Nd,1)}×${fmt(lt,2)}/(6×${fmt(d,3)})×(1−${fmt(a,2)}/4×${fmt(lt,2)})] × ${fmt(fatorExc,3)}`,'R_st',fmt(Rst,1)+' kN') +
-      fstepE('Área de aço (com majoração de Blévot)', 'As = 1,15 × Rst / fyd', `A_s = 1,15 × ${fmt(Rst,1)} / (${fmt(fyd,1)}×0,1)`, 'A_s', fmt(As,2)+' cm²',
-        'Fator 1,15: nos ensaios de Blévot (1967), a tração medida na prática ficou ~15% acima da prevista pela treliça teórica simples.');
-    $('s5-grid-biela').innerHTML = bielas.grid;
-    $('s5-form-biela').innerHTML = bielas.form;
-    $('s5-banner-biela').innerHTML = bielas.banner;
-    pilarCheckS5(Nd, a*a, fcd);
-    BRIDGE.s5Armaduras = [{nome:'Tirante laços (6 lados)', As:As, comprimento: lt+0.8, repeticoes:6, segmentos:[0,1,2,3,4,5].map(i=>({x1:coords[i].x,y1:coords[i].y,x2:coords[(i+1)%6].x,y2:coords[(i+1)%6].y}))}, {nome:'Tirante diametral (3)', As:As, comprimento: 2*R+0.8, repeticoes:3, segmentos:[0,1,2].map(i=>({x1:coords[i].x,y1:coords[i].y,x2:coords[i+3].x,y2:coords[i+3].y}))}];
-
-  } else if(caso==='7'){
-    const lt = arr.lt, a = apx;
-    const coordsPeriferia = arr.coords.filter(p=>!p.direct);
-    const coords = arr.coords;
-    const R = arr.R;
-    const Qeff = Nd*6/7;
-    const proj = R - 0.25*a;
-    const theta = Math.atan(d/proj), thetaDeg = theta*180/Math.PI;
-    const Rst = (Qeff*lt/(6*d)*(1 - a/(4*lt))) * fatorExc;
-    const Rcd = NiMaxD/Math.sin(theta);
-    const sigma_estaca = NiMaxD/Ap_estaca;
-    const bielas = verificarBielasS5(thetaDeg, Nd, NiMaxD, a*a, Ap_estaca, fck, fcd, 2.6, 2.1);
-    const As = 1.15*Rst/(fyd*0.1); // fator 1,15: Blévot (1967) constatou nos ensaios que a tração real supera a teórica em ~15%
-    const tirantes = [];
-    for(let i=0;i<6;i++){ const p1=coordsPeriferia[i], p2=coordsPeriferia[(i+1)%6]; tirantes.push({x1:p1.x,y1:p1.y,x2:p2.x,y2:p2.y, label:i===0?`R_st=${fmt(Rst,0)}kN`:''}); }
-    for(let i=0;i<3;i++){ const p1=coordsPeriferia[i], p2=coordsPeriferia[i+3]; tirantes.push({x1:p1.x,y1:p1.y,x2:p2.x,y2:p2.y, label:i===0?`R_st(diam.)=${fmt(Rst,0)}kN`:''}); }
-    drawPlantaS5(pilhasD, D, a, a, afmin, {Nd, RcdLabel:`R_cd=${fmt(Rcd,0)}kN`, origemRadial:true, offsetDist:0.25*a, blocoPoligonal:true, tirantes,
-      dims:[{x1:coordsPeriferia[0].x,y1:coordsPeriferia[0].y, x2:coordsPeriferia[1].x,y2:coordsPeriferia[1].y, label:`lt=${fmt(lt,2)}m`}]});
-    drawCorteS5(2*R, a, d, h, thetaDeg, {offsetFactor:0.25, NdLabel:`N_d=${fmt(Nd,0)}kN`, NiLabel:`N_i=${fmt(NiMaxD,0)}kN`, RcdLabel:`R_cd=${fmt(Rcd,0)}kN`, RstLabel:`R_st=${fmt(Rst,0)}kN`, RstNum:Rst});
-    $('s5-grid-geom').innerHTML = [rb('Q_ef', fmt(Qeff,1)+' kN'), rb('R',fmt(R,3)+' m'), rb('θ',fmt(thetaDeg,1)+'°', thetaDeg>=33.69?'ok':'bad'), rb('N_d,i,máx (periférica)', fmt(NiMaxD,1)+' kN')].join('');
-    $('s5-form-geom').innerHTML = fstepE('Carga efetiva periféricas','Q_ef = 6/7·Nd (Blévot §5.7)', '','Q_ef',fmt(Qeff,1)+' kN', 'A estaca central recebe carga direta (não depende de Mx/My), sem biela.');
-    $('s5-banner-rigidez').innerHTML = rigidezBannerHtmlS5(thetaDeg);
-    $('s5-grid-tirante').innerHTML = [rb('R_st (laços)', fmt(Rst,1)+' kN','info'), rb('R_st (diametrais)', fmt(Rst,1)+' kN','info'), rb('A_s (por sistema)', fmt(As,2)+' cm²','ok')].join('');
-    $('s5-form-tirante').innerHTML = fstepE('Força de tração','Rst = [Qef·lt/(6d)·(1−a/4lt)] × fator_exc', `Rst = [${fmt(Qeff,1)}×${fmt(lt,2)}/(6×${fmt(d,3)})×(1−${fmt(a,2)}/4×${fmt(lt,2)})] × ${fmt(fatorExc,3)}`,'R_st',fmt(Rst,1)+' kN') +
-      fstepE('Área de aço (com majoração de Blévot)', 'As = 1,15 × Rst / fyd', `A_s = 1,15 × ${fmt(Rst,1)} / (${fmt(fyd,1)}×0,1)`, 'A_s', fmt(As,2)+' cm²',
-        'Fator 1,15: nos ensaios de Blévot (1967), a tração medida na prática ficou ~15% acima da prevista pela treliça teórica simples.');
-    $('s5-grid-biela').innerHTML = bielas.grid;
-    $('s5-form-biela').innerHTML = bielas.form;
-    $('s5-banner-biela').innerHTML = bielas.banner;
-    pilarCheckS5(Nd, a*a, fcd);
-    BRIDGE.s5Armaduras = [{nome:'Tirante laços (6 lados)', As:As, comprimento: lt+0.8, repeticoes:6, segmentos:[0,1,2,3,4,5].map(i=>({x1:coords[i].x,y1:coords[i].y,x2:coords[(i+1)%6].x,y2:coords[(i+1)%6].y}))}, {nome:'Tirante diametral (3)', As:As, comprimento: 2*R+0.8, repeticoes:3, segmentos:[0,1,2].map(i=>({x1:coords[i].x,y1:coords[i].y,x2:coords[i+3].x,y2:coords[i+3].y}))}];
-  } else if(caso==='generico'){
-    const coords = arr.coords;
-    const apEq = Math.sqrt(apx*apy);
-    const ApilarTotal = apx*apy;
-    let RstX=0, RstY=0, piorThetaDeg=90, piorSigmaEst=0, piorSigmaPil=0, RcdMax=0, nColunasComCarga=0, nLinhasComCarga=0;
-    const porEstaca = coords.map((p,i)=>{
-      const Ni = pilhasD[i].Ni;
-      const ri = Math.hypot(p.x,p.y);
-      if(ri<1e-6 || Ni<=0) return {x:p.x,y:p.y,Ni,ri,thetaDeg:90,Rc:0,Rs:0,Rsx:0,Rsy:0};
-      const proj = Math.max(0.01, ri - apEq/4);
-      const theta = Math.atan(d/proj), thetaDeg=theta*180/Math.PI;
-      const Rc = Ni/Math.sin(theta);
-      const Rs = Ni*proj/d;
-      const Rsx = Rs*(p.x/ri), Rsy = Rs*(p.y/ri);
-      const sigma_estaca_i = (Ni/Ap_estaca)/Math.pow(Math.sin(theta),2);
-      const sigma_pilar_i = (Ni/(ApilarTotal/coords.length))/Math.pow(Math.sin(theta),2);
-      if(thetaDeg<piorThetaDeg) piorThetaDeg=thetaDeg;
-      if(sigma_estaca_i>piorSigmaEst) piorSigmaEst=sigma_estaca_i;
-      if(sigma_pilar_i>piorSigmaPil) piorSigmaPil=sigma_pilar_i;
-      if(Rc>RcdMax) RcdMax=Rc;
-      return {x:p.x,y:p.y,Ni,ri,proj,thetaDeg,Rc,Rs,Rsx,Rsy};
-    });
-    porEstaca.forEach(e=>{ RstX += Math.abs(e.Rsx); RstY += Math.abs(e.Rsy); });
-    // linhas (mesma y) e colunas (mesmo x) — cada tirante direcional reparte a forca igualmente entre elas
-    const ysUnicos = [...new Set(coords.map(p=>p.y.toFixed(3)))];
-    const xsUnicos = [...new Set(coords.map(p=>p.x.toFixed(3)))];
-    nLinhasComCarga = ysUnicos.length; nColunasComCarga = xsUnicos.length;
-    const RstXporLinha = RstX/Math.max(1,nLinhasComCarga), RstYporColuna = RstY/Math.max(1,nColunasComCarga);
-    const AsXporLinha = 1.15*RstXporLinha/(fyd*0.1), AsYporColuna = 1.15*RstYporColuna/(fyd*0.1); // fator 1,15 (Blévot)
-    const KR = KR_S5(fck);
-    const limite_est = 2.1*KR*fcd*1000, limite_pil = 2.1*KR*fcd*1000;
-    const okPil = piorSigmaPil<=limite_pil, okEst = piorSigmaEst<=limite_est;
-
-    const tirantes = [];
-    ysUnicos.forEach((yStr,idx)=>{
-      const y=+yStr; const daLinha = coords.filter(p=>Math.abs(p.y-y)<1e-3);
-      const xMin=Math.min(...daLinha.map(p=>p.x)), xMax=Math.max(...daLinha.map(p=>p.x));
-      if(xMax>xMin) tirantes.push({x1:xMin,y1:y,x2:xMax,y2:y, label: idx===0?`R_stX/linha=${fmt(RstXporLinha,0)}kN`:''});
-    });
-    xsUnicos.forEach((xStr,idx)=>{
-      const x=+xStr; const daColuna = coords.filter(p=>Math.abs(p.x-x)<1e-3);
-      const yMin=Math.min(...daColuna.map(p=>p.y)), yMax=Math.max(...daColuna.map(p=>p.y));
-      if(yMax>yMin) tirantes.push({x1:x,y1:yMin,x2:x,y2:yMax, label: idx===0?`R_stY/coluna=${fmt(RstYporColuna,0)}kN`:''});
-    });
-    const Lx = Math.max(...coords.map(p=>p.x))-Math.min(...coords.map(p=>p.x));
-    const Ly = Math.max(...coords.map(p=>p.y))-Math.min(...coords.map(p=>p.y));
-    drawPlantaS5(pilhasD, D, apx, apy, afmin, {Nd, RcdLabel:`R_cd,máx=${fmt(RcdMax,0)}kN`, tirantes,
-      dims:[{x1:Math.min(...coords.map(p=>p.x)),y1:Math.min(...coords.map(p=>p.y))-D/2-0.3,x2:Math.max(...coords.map(p=>p.x)),y2:Math.min(...coords.map(p=>p.y))-D/2-0.3,label:`Lx=${fmt(Lx,2)}m`}]});
-    drawCorteS5(Math.max(Lx,Ly), Math.max(apx,apy), d, h, piorThetaDeg, {NdLabel:`N_d=${fmt(Nd,0)}kN`, NiLabel:`N_i,máx=${fmt(NiMaxD,0)}kN`, RcdLabel:`R_cd,máx=${fmt(RcdMax,0)}kN`, RstLabel:`R_stX/linha=${fmt(RstXporLinha,0)}kN`, RstNum:Math.max(RstXporLinha,RstYporColuna)});
-    $('s5-grid-geom').innerHTML = [rb('Estacas na grade', `${arr.nx}×${arr.ny}`), rb('θ mín (pior caso)', fmt(piorThetaDeg,1)+'°', piorThetaDeg>=33.69?'ok':'bad'), rb('R_cd,máx', fmt(RcdMax,0)+' kN')].join('');
-    $('s5-form-geom').innerHTML = fstepE('Ângulo por estaca (individual)', 'θ_i = arctan[d / (r_i − a_p,eq/4)]', `Para cada estaca i: r_i = distância ao centro do pilar ; a_p,eq=√(a_p×b_p)=${fmt(apEq,3)}m. Mostrado: o pior caso (menor θ) entre as ${arr.n} estacas.`, 'θ_mín', fmt(piorThetaDeg,1)+'°',
-      `Método generalizado: em vez de uma fórmula fechada para o grupo todo, calcula-se uma biela individual (estaca-a-estaca) do centro do pilar até cada estaca, e depois soma-se as componentes horizontais (tração) por direção. Menos refinado que Blévot fechado, mas segue o mesmo princípio físico da treliça.`);
-    $('s5-banner-rigidez').innerHTML = rigidezBannerHtmlS5(piorThetaDeg);
-    $('s5-grid-tirante').innerHTML = [
-      rb('R_stX total (todas as linhas)', fmt(RstX,1)+' kN','info'), rb(`÷ ${nLinhasComCarga} linha(s) → A_s,x/linha`, fmt(AsXporLinha,2)+' cm²','ok'),
-      rb('R_stY total (todas as colunas)', fmt(RstY,1)+' kN','info'), rb(`÷ ${nColunasComCarga} coluna(s) → A_s,y/coluna`, fmt(AsYporColuna,2)+' cm²','ok')
-    ].join('');
-    $('s5-form-tirante').innerHTML = fstepE('Tração por estaca (radial)', 'R_s,i = N_i × proj_i / d', 'Componente horizontal de cada biela, decomposta em x e y proporcionalmente à posição (x_i,y_i) da estaca.', '', '', '') +
-      fstepE('Tirante total por direção', 'R_stX = Σ|R_sx,i| ; R_stY = Σ|R_sy,i|', `R_stX = ${fmt(RstX,1)} ; R_stY = ${fmt(RstY,1)}`, '', '', '') +
-      fstepE('Reparte entre as linhas/colunas + majoração de Blévot', 'A_s/linha = 1,15×(R_stX/n_linhas)/(f_yd×0,1)', `A_s,x/linha = 1,15×(${fmt(RstX,1)}/${nLinhasComCarga}) / (${fmt(fyd,1)}×0,1)`, 'A_s,x/linha', fmt(AsXporLinha,2)+' cm²',
-        'Simplificação conservadora: reparte o total igualmente entre as linhas/colunas. O fator 1,15 vem dos ensaios de Blévot (1967): a tração real medida ficou ~15% acima da teórica.');
-    $('s5-grid-biela').innerHTML = [
-      rb('σ_cd,b,pil (pior estaca)', fmt(piorSigmaPil,0)+' kPa', okPil?'ok':'bad'),
-      rb('Limite pilar (2,1·K_R·f_cd)', fmt(limite_pil,0)+' kPa'),
-      rb('σ_cd,b,est (pior estaca)', fmt(piorSigmaEst,0)+' kPa', okEst?'ok':'bad'),
-      rb('Limite estaca (2,1·K_R·f_cd)', fmt(limite_est,0)+' kPa')
-    ].join('');
-    $('s5-form-biela').innerHTML = fstepE('Biela no nó do PILAR (pior estaca)','σ_cd,b,pil,i = [N_i/(A_pilar/n)]/sen²θ_i', 'Cada estaca reivindica uma fatia proporcional (1/n) da área do pilar. Mostrado o maior valor entre todas.','σ_cd,b,pil,máx',fmt(piorSigmaPil,0)+' kPa',
-        'Coeficiente 2,1·K_R usado como referência (valor tabelado para 4 estacas) — não há coeficiente específico publicado para arranjos genéricos.') +
-      fstepE('Biela no nó da ESTACA (pior estaca)','σ_cd,b,est,i = N_i/(A_estaca·sen²θ_i)', 'Mostrado o maior valor entre todas as estacas.','σ_cd,b,est,máx',fmt(piorSigmaEst,0)+' kPa');
-    $('s5-banner-biela').innerHTML = (okPil && okEst)
-      ? `<div class="status-banner ok">✅ Ambas as verificações de biela OK (no pilar e na estaca, pior caso entre as estacas).</div>`
-      : `<div class="status-banner bad">❌ ${!okPil?'Biela no nó do PILAR excede o limite (pior estaca). ':''}${!okEst?'Biela no nó da ESTACA excede o limite (pior estaca). ':''}Aumente h, f_ck, ou a seção do pilar/estaca.</div>`;
-    pilarCheckS5(Nd, apx*apy, fcd);
-    BRIDGE.s5Armaduras = [
-      {nome:`Tirante X (∥Y, método generalizado)`, As:AsXporLinha, comprimento: Ly/Math.max(1,nLinhasComCarga-1||1)+0.8+Lx, repeticoes:nLinhasComCarga, segmentos:tirantes.filter(t=>t.y1===t.y2)},
-      {nome:`Tirante Y (∥X, método generalizado)`, As:AsYporColuna, comprimento: Lx/Math.max(1,nColunasComCarga-1||1)+0.8+Ly, repeticoes:nColunasComCarga, segmentos:tirantes.filter(t=>t.x1===t.x2)}
-    ];
-  }
-  atualizarStatus();
-  if(typeof calcularS6==='function') calcularS6();
 }
 </script><script>
 // ═══════════════ SINCRONIA ENTRE PASSOS ═══════════════
@@ -5757,7 +5155,7 @@ $('g-tipoestaca').addEventListener('change',()=>{ atualizarCoefEstacaS1(); calcu
 ['g-fck','g-fyk','g-gammaf'].forEach(id=>$(id).addEventListener('input',()=>{ atualizarES3(); calcularS3(); calcularS5(); }));
 $('g-fs').addEventListener('input',()=>{ calcularS1(); calcularS4(); });
 $('g-na').addEventListener('input',()=>{ calcularS1(); calcularS4(); if(typeof calcularRadier==='function') calcularRadier(); });
-['g-nx','g-ny','g-sx','g-sy','g-espmin'].forEach(id=>$(id).addEventListener('input',()=>{ calcularS2(); calcularS5(); }));
+['g-nx','g-ny','g-sx','g-sy','g-espmin','s5-afmin'].forEach(id=>$(id).addEventListener('input',()=>{ calcularS2(); calcularS5(); }));
 
 ['s1-F1','s1-F2','s1-alfaDQ','s1-betaDQ'].forEach(id=>$(id).addEventListener('input',calcularS1));
 ['s2-Radm','s2-transf','s2-L'].forEach(id=>$(id).addEventListener('input',calcularS2));
@@ -6842,7 +6240,7 @@ atualizarStatus();
 // window.__*_INITIAL_DATA__), para que este app possa futuramente virar um node do editor
 // sem precisar de reescrita — só registro do node type.
 (function(){
-  const FIELD_IDS = ['g-D','g-Mx','g-My','g-Nk','g-arranjo','g-espmin','g-fck','g-forma','g-fs','g-fyk','g-gammaf','g-nx','g-ny','g-sx','g-sy','g-tipoestaca','s1-F1','s1-F2','s1-Lprof','s1-alfaDQ','s1-betaDQ','s2-L','s2-Radm','s2-transf','s3-Aaco','s3-E','s3-L0','s3-Ltot','s3-Mk','s3-Nk','s3-coefadm','s3-dlinha','s3-fsflamb','s3-fyaco','s3-material','s3-nbarras','s3-rho','s3-sigmamadeira','s3-vinc','s4-Nkestr','s4-Ru','s5-As-estaca','s5-afmin','s5-apx','s5-apy','s5-cob','s5-h','s5-phi','s5-phi-estaca','s6-3d-tog-arr','s6-3d-tog-bloco','s6-3d-tog-estacas','s6-3d-tog-n1','s6-3d-tog-n3','s6-3d-tog-n4','s6-3d-tog-pele','s6-camadas-contorno','s6-gancho-arr','s6-narr-pilar','s6-passo-estribo','s6-passo-estribo-arr','s6-passo-pele','s6-perc-emenda-arr','s6-perda-concreto','s6-phi-arr-pilar','s6-phi-contorno','s6-phi-estribo','s6-phi-estribo-arr','s6-phi-long','s6-phi-malha','s6-phi-pele','s6-phi-tirante','s6-rho-malha'];
+  const FIELD_IDS = ['g-D','g-Mx','g-My','g-Nk','g-arranjo','g-espmin','g-fck','g-forma','g-fs','g-fyk','g-gammaf','g-nx','g-ny','g-sx','g-sy','g-tipoestaca','s1-F1','s1-F2','s1-Lprof','s1-alfaDQ','s1-betaDQ','s2-L','s2-Radm','s2-transf','s3-Aaco','s3-E','s3-L0','s3-Ltot','s3-Mk','s3-Nk','s3-coefadm','s3-dlinha','s3-fsflamb','s3-fyaco','s3-material','s3-nbarras','s3-rho','s3-sigmamadeira','s3-vinc','s4-Nkestr','s4-Ru','s5-afmin','s6-3d-tog-arr','s6-3d-tog-bloco','s6-3d-tog-estacas','s6-3d-tog-n1','s6-3d-tog-n3','s6-3d-tog-n4','s6-3d-tog-pele','s6-camadas-contorno','s6-gancho-arr','s6-narr-pilar','s6-passo-estribo','s6-passo-estribo-arr','s6-passo-pele','s6-perc-emenda-arr','s6-perda-concreto','s6-phi-arr-pilar','s6-phi-contorno','s6-phi-estribo','s6-phi-estribo-arr','s6-phi-long','s6-phi-malha','s6-phi-pele','s6-phi-tirante','s6-rho-malha'];
 
   function recalcularTudo(){
     // recalcula os 6 passos em sequência para garantir que o objeto BRIDGE (definido mais
@@ -6973,6 +6371,8 @@ atualizarStatus();
   });
 
   window.addEventListener('message', function(e){
+    // Mesma validação de origem aplicada no módulo Radier — ver comentário lá.
+    if(e.source !== window.parent) return;
     if(!e.data) return;
     if(e.data.type==='estacas-init'){ applyInitialState(e.data); }
     if(e.data.type==='interacao-to-estacas'){ aplicarVerifEstacas(e.data); }

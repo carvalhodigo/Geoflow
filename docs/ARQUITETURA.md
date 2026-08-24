@@ -162,7 +162,61 @@ O app pode rodar standalone (arquivo aberto direto) ou embutido como `<iframe>` 
 
 ---
 
-## 9. Suíte de testes de regressão
+## 9. Empuxo Lateral em Estacas (Efeito Tschebotarioff)
+
+Verificação adicionada depois da revisão de código — sobrecarga assimétrica de um aterro
+próximo às estacas desloca lateralmente o solo mole entre o aterro e o fuste, gerando momento
+fletor. Método de Alonso (1989): aproxima a pressão horizontal `p_h(z)` pelo próprio `Δσz`
+vertical que o aterro geraria naquela posição (sem multiplicar por K₀), limitado à profundidade
+de influência `z_d` onde a tensão efetiva **natural** (sem o aterro) se iguala à sobrecarga do
+aterro `q0=γ·H`. Momento máximo estimado de forma deliberadamente conservadora (cantilever
+engastado em `z_d`, sob `p_h,máx` uniforme) — o próprio método, na literatura, recomenda usá-lo
+só para a ordem de grandeza do momento, não a distribuição real completa.
+
+Implementado em **dois lugares independentes**, com a mesma matemática (`_elSigmaAt` e as
+funções `_elOcI2`/`_elFlamantJ/K/L` que ela chama — Osterberg/Flamant, a mesma distribuição já
+usada pelo node "Análise de Tensões" do `geo_flow_editor.html`) mas fontes de dados diferentes:
+
+| | `radier_estaqueado_unico.html` (Passo 4, Seção 4) | Node "Estacas" do `geo_flow_editor.html` |
+|---|---|---|
+| Geometria do aterro (Bc, H, inclinação, γ) | Card manual (`s4el-Bc`, `s4el-H`, `s4el-n`, `s4el-gamma`) | Detectada automaticamente (`_findAterroParaEstacas`) |
+| Distância estaca↔aterro | Campo manual (`s4el-dist`) | `deslocH_estacas − deslocH_aterro` |
+| Quando calcula | Checkbox `s4el-ativo` marcada | Sempre que há um Aterro/Tensões na mesma seção "Desenho" |
+
+**Detecção automática no `geo_flow_editor.html`** (função `_findAterroParaEstacas(estId)`, no
+arquivo principal, não no widget): reaproveita o mesmo mecanismo de "escopo compartilhado" já
+usado pela sobreposição de isolinhas da Análise de Tensões — nodes com uma edge apontando para o
+mesmo node "Desenho" (visualização técnica) são considerados parte da mesma seção transversal.
+Dado um node Estacas, a função acha os nodes "Desenho" aos quais ele está conectado, e dentro do
+mesmo escopo procura um node "Análise de Tensões" em modo aterro (conectado a um node "Aterro"
+real, ou preenchido manualmente no próprio widget da Análise de Tensões). O node "Análise de
+Tensões" ganhou um campo `deslocH` que não tinha antes (agora no mesmo padrão de
+Sapata/Radier/Máquinas/Estacas), necessário pra essa detecção funcionar.
+
+A ponte de dados (`_buildEstacasCardState` → mensagem `est-init` → `applyInitialState` no widget)
+carrega `aterroConectado` (geometria + `deslocH` do aterro) e `deslocH` (da própria Estacas); o
+widget guarda em `window.__EST_ATERRO_DATA__`/`window.__EST_DESLOCH__` e chama
+`calcularEmpuxoLateral()`. `_pushTensoesToWidget` também foi estendida para reempurrar esses
+dados a qualquer Estacas afetada sempre que o node de Tensões muda, mantendo a ponte viva sem
+precisar fechar/reabrir a caixa Estacas.
+
+`z_d` é calculado reaproveitando as **mesmas camadas e o mesmo N.A.** já cadastrados na Seção 1
+(Atrito Negativo) de cada implementação — `_elSigmaVNatural()` — evitando duplicar entrada de
+dados do usuário.
+
+**Armadilha já encontrada**: o widget `ESTACAS_HTML` (embutido como string dentro do
+`geo_flow_editor.html`) contém tags `<script>` do CDN do Three.js escapadas como `<\/script>` no
+literal da string — necessário para o parser HTML não fechar a tag `<script>` externa
+prematuramente ao encontrar esse texto. Qualquer edição que reserialize essa string via
+`JSON.dumps`/`JSON.stringify` **perde esse escape** (JSON não escapa `/` por padrão) e quebra o
+carregamento da página inteira sem erro de sintaxe JS aparente — só descoberto testando de
+verdade no navegador. Ao editar esse widget, sempre reaplique `.replace('</', '<\\/')` no
+literal antes de gravar, e confira o round-trip (`json.loads(literal) == html_original`) antes de
+considerar a edição pronta.
+
+---
+
+## 10. Suíte de testes de regressão
 
 Pasta `test-suite/` (ver `test-suite/README.md` para o guia completo de uso). Resumo:
 
@@ -174,7 +228,7 @@ Pasta `test-suite/` (ver `test-suite/README.md` para o guia completo de uso). Re
 
 ---
 
-## 10. Convenções estabelecidas numa revisão de código dedicada
+## 11. Convenções estabelecidas numa revisão de código dedicada
 
 Duas fases de revisão já foram feitas (ver commits "Revisão de código (Fase 1+2)..." no histórico do Git do branch `Radier`). Convenções que saíram delas e devem ser mantidas:
 
@@ -186,11 +240,11 @@ Duas fases de revisão já foram feitas (ver commits "Revisão de código (Fase 
 
 ---
 
-## 11. Débito técnico conhecido / trabalho futuro
+## 12. Débito técnico conhecido / trabalho futuro
 
 Nada aqui é urgente — o app funciona e está testado. Lista para quem for continuar:
 
 - **Fase 3 da revisão de código (nunca feita)**: separar cálculo de renderização de forma sistemática — os motores de cálculo virarem funções puras (recebem números, devolvem um objeto de resultado) desacopladas do `$('...').innerHTML=...`. Facilitaria reaproveitar a lógica de cálculo fora do navegador (ex.: rodar no `geo_flow_editor.html` sem precisar simular um DOM inteiro, ou escrever testes unitários de verdade em vez de testes de caracterização via navegador).
 - **`geo_flow_editor.html` não tem os node types registrados** para o Radier Estaqueado — a ponte `postMessage` do lado do app (Seção 8) existe e está pronta, mas não há nada do lado do editor que efetivamente crie um node, monte as mensagens `*-init` com dados de nodes conectados, ou receba `*-params`/`*-autosave`. Esse é o trabalho que falta para a integração ser real, não só possível.
 - **`S1`–`S6` e `Interação` não foram divididas** como `calcularRadier()` foi (Seção 4) — nenhuma está grande o suficiente para justificar isso hoje (≤153 linhas), mas se alguma crescer muito, repita a mesma técnica (contexto + testes de caracterização antes).
-- **`relatorio_validacao_radier_estaqueado.docx`** não foi atualizado com as mudanças mais recentes (N.A. único, sincronização automática de carga, Vista 3D com armadura das estacas, etc.) — continua refletindo uma versão anterior do motor de cálculo.
+- **`relatorio_validacao_radier_estaqueado.docx`** não foi atualizado com as mudanças mais recentes (N.A. único, sincronização automática de carga, Vista 3D com armadura das estacas, verificação de Meyerhof, Empuxo Lateral/Tschebotarioff, etc.) — continua refletindo uma versão anterior do motor de cálculo.

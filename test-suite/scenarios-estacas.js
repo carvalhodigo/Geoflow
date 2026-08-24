@@ -105,6 +105,17 @@ module.exports = [
     capture: CAPTURE_ESTACAS,
     setup: async (page, {setVal}) => { await setVal(page,'s4-Nkestr','900'); },
   },
+  {
+    name: 'estacas_s4_empuxo_lateral_ativo',
+    capture: CAPTURE_ESTACAS,
+    // exercita a seção 4 (Empuxo Lateral, Efeito Tschebotarioff) do Passo 4 — método de Alonso,
+    // com campos manuais de aterro (sem equivalente automático aqui, diferente do Geo·Flow)
+    setup: async (page, {setVal, setChecked}) => {
+      await setChecked(page,'s4el-ativo',true);
+      await setVal(page,'s4el-dist','4'); await setVal(page,'s4el-Bc','3');
+      await setVal(page,'s4el-H','4'); await setVal(page,'s4el-n','1.5'); await setVal(page,'s4el-gamma','19');
+    },
+  },
 
   // ── S6: Detalhamento e quantitativos ──
   {

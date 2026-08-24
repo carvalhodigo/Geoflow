@@ -6056,6 +6056,7 @@ const VIS_DEFS={
   tensoesSolo:       {label:'Análise de Tensões no Solo',    tag:'AT', color:'#D85A30', cat:'calc'},
   maquinas:          {label:'Fundação de Máquinas — N-1848', tag:'MF', color:'#2a5a8c', cat:'calc'},
   estacas:           {label:'Fundação em Estacas — Dimensionamento', tag:'EST', color:'#7a5030', cat:'calc'},
+  radierEstaqueado:  {label:'Radier Estaqueado — Dimensionamento Completo', tag:'RE', color:'#8a4a1a', cat:'calc'},
   osterberg:         {label:'Osterberg (1957) — Fator I₂',        tag:'OS',  color:'#D85A30',cat:'osterberg'},
   tempoAdensamento: {label:'Tempo de Adensamento',          tag:'TA',  color:'#1a6a8c',cat:'calc'},
   recSec:     {label:'Recalque Secundário',              tag:'RS',  color:'#b43025',cat:'calc'},
@@ -6213,7 +6214,7 @@ function makeVisSec(type){
   }
   // Dynamic per-instance sections for foundation elements: sapata:id, radier:id,
   // maquinas:id, tensoesSolo:id — cada caixa vira sua própria seção de cálculo
-  const MULTI_PREFIXES=['sapata:','radier:','maquinas:','estacas:','tensoesSolo:','recPrim:','recImediato:','recSec:','recTotal:','tempoAdensamento:'];
+  const MULTI_PREFIXES=['sapata:','radier:','radierEstaqueado:','maquinas:','estacas:','tensoesSolo:','recPrim:','recImediato:','recSec:','recTotal:','tempoAdensamento:'];
   const _matchedPrefix=MULTI_PREFIXES.find(pfx=>type.startsWith(pfx));
   if(_matchedPrefix){
     const baseType=_matchedPrefix.slice(0,-1);
@@ -6403,7 +6404,7 @@ function exportMemoria(){
     // Seções por instância (sapata:id, radier:id, maquinas:id, estacas:id, tensoesSolo:id,
     // recPrim:id, ...) — o VIS_DEFS só tem entradas pelo TIPO base, não por 'tipo:id',
     // então é preciso resolver vd a partir do tipo base antes de desistir da seção.
-    const MULTI_PREFIXES_EXP=['sapata:','radier:','maquinas:','estacas:','tensoesSolo:','recPrim:','recImediato:','recSec:','recTotal:','tempoAdensamento:'];
+    const MULTI_PREFIXES_EXP=['sapata:','radier:','radierEstaqueado:','maquinas:','estacas:','tensoesSolo:','recPrim:','recImediato:','recSec:','recTotal:','tempoAdensamento:'];
     const _mprefix=MULTI_PREFIXES_EXP.find(pfx=>type.startsWith(pfx));
     if(_mprefix){
       const baseType=_mprefix.slice(0,-1);
@@ -7891,6 +7892,13 @@ function _geoDrawCore(cvId, connectedIds){
       // Collect radier data (TODAS as caixas RAD no escopo)
       const radierNodes=S.nodes.filter(n=>n.type==='radier'&&inScope(n));
       const radiers=radierNodes.map(n=>n.params);
+      // Radier Estaqueado (app completo) também desenha como uma laje de radier na seção —
+      // mesmos campos (L, H, Df, deslocH) que o node "radier" simples usa, então basta somar
+      // à mesma lista. Os pilares individuais (_state_pilares) não existem neste tipo — quem
+      // aparece no lugar deles é o grupo de estacas, desenhado à parte (ver bloco radierEstaqueadoNodes abaixo).
+      const radierEstaqueadoNodes=S.nodes.filter(n=>n.type==='radierEstaqueado'&&inScope(n));
+      const radierEstaqueados=radierEstaqueadoNodes.map(n=>n.params);
+      radiers.push(...radierEstaqueados);
       // Collect fundação de máquinas data (TODAS as caixas MF no escopo)
       const mfNodes=S.nodes.filter(n=>n.type==='maquinas'&&inScope(n));
       const mfs=mfNodes.map(n=>n.params);
@@ -8023,7 +8031,7 @@ function drawCalcSection(type){
   // Seções por instância (uma por elemento de fundação/análise) — sapata:id,
   // radier:id, maquinas:id, tensoesSolo:id — usam os valores DAQUELE node
   // específico, não do primeiro node daquele tipo no canvas.
-  const MULTI_PREFIXES=['sapata:','radier:','maquinas:','estacas:','tensoesSolo:','recPrim:','recImediato:','recSec:','recTotal:','tempoAdensamento:'];
+  const MULTI_PREFIXES=['sapata:','radier:','radierEstaqueado:','maquinas:','estacas:','tensoesSolo:','recPrim:','recImediato:','recSec:','recTotal:','tempoAdensamento:'];
   const matchedPrefix=MULTI_PREFIXES.find(pfx=>type.startsWith(pfx));
   if(matchedPrefix){
     const baseType=matchedPrefix.slice(0,-1);
@@ -9965,6 +9973,38 @@ function drawSection(ctx,{x,y,w,h,gyFrac,zoom,panX,panY,fitted,onFit,wtDepth,wtL
         ctx.fillStyle='#7a4030';
         ctx.fillText((+pil.N||0).toFixed(0)+'kN', px, topY-colH-4);
       });
+    } else if(Number.isFinite(+radier.estD) && +radier.estNx>0){
+      // Radier Estaqueado (sem pilares individuais cadastrados neste node) — desenha o GRUPO
+      // de estacas por baixo da laje, com espaçamento estimado (distribuído uniformemente ao
+      // longo de L, já que o node não expõe sx/sy — só D, nx, ny, L da estaca). Aproximação
+      // razoável pra dar noção do grupo na seção; não é a posição executiva exata (essa só
+      // existe dentro do próprio app, na aba Estacas → Passo 2).
+      const Dp=Math.max(0.1,+radier.estD||0.3);
+      const nxP=Math.max(1,Math.round(+radier.estNx||2));
+      const Lp=Math.max(1,+radier.estLest||10);
+      const pileHalfW=(Dp/2)*scl;
+      const firstX=nxP>1 ? cx-(A*0.7/2)*scl : cx; // espalha as estacas por ~70% da largura do radier
+      const stepPx=nxP>1 ? (A*0.7*scl)/(nxP-1) : 0;
+      for(let k=0;k<nxP;k++){
+        const px=nxP>1 ? firstX+k*stepPx : cx;
+        ctx.fillStyle='#c8bca6';
+        ctx.strokeStyle='#3a3630';
+        ctx.lineWidth=1.2;
+        ctx.beginPath();
+        ctx.rect(px-pileHalfW, botY, 2*pileHalfW, Lp*scl);
+        ctx.fill();ctx.stroke();
+        ctx.save();
+        ctx.beginPath();ctx.rect(px-pileHalfW, botY, 2*pileHalfW, Lp*scl);ctx.clip();
+        ctx.strokeStyle='rgba(50,45,40,0.30)';ctx.lineWidth=0.5;
+        for(let i=px-pileHalfW+3;i<px+pileHalfW;i+=5){
+          ctx.beginPath();ctx.moveTo(i,botY);ctx.lineTo(i,botY+Lp*scl);ctx.stroke();
+        }
+        ctx.restore();
+      }
+      ctx.fillStyle='#5a4a30';
+      ctx.font='8px system-ui';
+      ctx.textAlign='center';
+      ctx.fillText('estacas: '+nxP+'×'+Math.max(1,Math.round(+radier.estNy||1))+', D='+Dp.toFixed(2)+'m, L='+Lp.toFixed(1)+'m (posição esquemática)', cx, botY+Lp*scl+14);
     } else {
       // Sem pilares cadastrados — desenha um pilar de referência centralizado
       // (radier pode estar recebendo apenas cargas distribuídas/especiais)

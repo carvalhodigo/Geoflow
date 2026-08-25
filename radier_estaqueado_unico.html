@@ -1206,7 +1206,9 @@ body{font-family:system-ui,sans-serif;font-size:13px;background:var(--bg);color:
       <input type="number" id="s3-Mk" value="0" step="1" min="0">
       <button type="button" class="btn-sync" data-sync="mx-to-s3">⬇ usar M<sub>x</sub> global</button>
       <button type="button" class="btn-sync" data-sync="my-to-s3">⬇ usar M<sub>y</sub> global</button>
+      <button type="button" class="btn-sync" data-sync="empuxo-to-s3">➕ somar M do Empuxo Lateral (Passo 3)</button>
       <div class="hint">⚠ Este momento é o que atua <b>nesta estaca individualmente</b> (ex.: ação horizontal, desaprumo de cravação) — <b>não</b> é o mesmo que M<sub>x</sub>/M<sub>y</sub> do card global "Carga do Grupo de Estacas", que é o momento do <b>grupo</b> e já foi convertido em cargas axiais desiguais por estaca no Passo 2 (N<sub>i</sub>). Os botões acima só trazem o valor global como referência/atalho — confirme se faz sentido físico usá-lo aqui antes de aceitar.</div>
+      <div class="hint">➕ O botão "somar M do Empuxo Lateral" <b>soma</b> ao valor já digitado (não substitui) — se houver aterro próximo ativo no Passo 3, converte o M<sub>máx</sub> estimado lá (por metro de fuste) multiplicando pelo diâmetro D da estaca. Clique só uma vez por combinação de carregamento, pra não somar em dobro.</div>
     </div>
   </div>
   <div class="card">
@@ -3982,7 +3984,7 @@ $('btn-criar-estacas-auto').addEventListener('click', ()=>{
 });
 
 // resultados-ponte entre passos (preenchidos pelos calcularSN, lidos pelos botoes de sincronia)
-const BRIDGE = { s1Radm:null, s1Ru:null, s1L:null, s2N:null, s2Nimax:null, s2malha:null, s2n:null, s2eta:null, s4NkTotal:null, s5Armaduras:null, s6PileRebar:null };
+const BRIDGE = { s1Radm:null, s1Ru:null, s1L:null, s2N:null, s2Nimax:null, s2malha:null, s2n:null, s2eta:null, s4NkTotal:null, s4elMmax:null, s5Armaduras:null, s6PileRebar:null };
 
 // ═══ navegacao entre passos ═══
 document.querySelectorAll('.step-btn').forEach(btn=>{
@@ -5081,6 +5083,7 @@ function calcularEmpuxoLateral(){
   if(!ativo){
     bannerFonte.innerHTML = `<div class="status-banner info">ℹ Verificação de empuxo lateral desativada — marque "Há um aterro próximo às estacas" no card ao lado, se aplicável.</div>`;
     conteudo.style.display = 'none';
+    BRIDGE.s4elMmax = null;
     return;
   }
   const distancia = Math.abs(+$('s4el-dist').value)||0;
@@ -5090,6 +5093,7 @@ function calcularEmpuxoLateral(){
   if(Bc<=0 || Hat<=0){
     bannerFonte.innerHTML = `<div class="status-banner bad">❌ Informe B<sub>c</sub> e H do aterro (maiores que zero) para calcular.</div>`;
     conteudo.style.display = 'none';
+    BRIDGE.s4elMmax = null;
     return;
   }
   conteudo.style.display = 'block';
@@ -5113,6 +5117,8 @@ function calcularEmpuxoLateral(){
   }
   const phMax = Math.max(...pontos.map(p=>p.ph));
   const Mmax = phMax*zd*zd/2;
+  BRIDGE.s4elMmax = Mmax; // kN·m por metro de largura de fuste — o botão de sincronia no Passo 4
+                          // (Verificação Estrutural → Carregamento) multiplica por D antes de somar
 
   drawPerfilEmpuxoLateral(pontos, zd, phMax);
 
@@ -5344,6 +5350,17 @@ document.querySelectorAll('[data-sync]').forEach(btn=>{
     else if(k==='mx-to-s3'){ $('s3-Mk').value = Math.abs(G_Mx()).toFixed(2); calcularS3(); }
     else if(k==='my-to-s3'){ $('s3-Mk').value = Math.abs(G_My()).toFixed(2); calcularS3(); }
     else if(k==='nktotal-to-s3'){ if(BRIDGE.s4NkTotal!=null){ $('s3-Nk').value = BRIDGE.s4NkTotal.toFixed(1); calcularS3(); } }
+    else if(k==='empuxo-to-s3'){
+      if(BRIDGE.s4elMmax!=null){
+        const D = +$('g-D').value||0;
+        const Madd = BRIDGE.s4elMmax*D; // kN·m/m -> kN·m nesta estaca (largura tributária ≈ D)
+        const atual = +$('s3-Mk').value||0;
+        $('s3-Mk').value = (atual+Madd).toFixed(2);
+        calcularS3();
+      } else {
+        alert('Nenhum empuxo lateral calculado no Passo 3 — marque "Há um aterro próximo às estacas" lá e informe a geometria do aterro primeiro.');
+      }
+    }
     else if(k==='L-to-s3'){ if(BRIDGE.s1L!=null){ $('s3-Ltot').value = BRIDGE.s1L.toFixed(1); calcularS3(); } }
     else if(k==='ni-to-s4'){ if(BRIDGE.s2Nimax!=null){ $('s4-Nkestr').value = BRIDGE.s2Nimax.toFixed(1); calcularS4(); } }
     else if(k==='ru-to-s4'){ if(BRIDGE.s1Ru!=null){ $('s4-Ru').value = BRIDGE.s1Ru.toFixed(1); calcularS4(); } }

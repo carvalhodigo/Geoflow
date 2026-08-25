@@ -116,6 +116,20 @@ module.exports = [
       await setVal(page,'s4el-H','4'); await setVal(page,'s4el-n','1.5'); await setVal(page,'s4el-gamma','19');
     },
   },
+  {
+    name: 'estacas_s3_soma_momento_empuxo_lateral',
+    capture: CAPTURE_ESTACAS,
+    // ativa o empuxo lateral no Passo 3 (Esforços) e soma o M_máx resultante ao momento
+    // fletor do Passo 4 (Verificação Estrutural) via botão "somar M do Empuxo Lateral"
+    setup: async (page, {setVal, setChecked, clickOne}) => {
+      await clickOne(page, '#stepbar-verif button[data-step="4"]');
+      await setChecked(page,'s4el-ativo',true);
+      await setVal(page,'s4el-dist','4'); await setVal(page,'s4el-Bc','3');
+      await setVal(page,'s4el-H','4'); await setVal(page,'s4el-n','1.5'); await setVal(page,'s4el-gamma','19');
+      await clickOne(page, '#stepbar-verif button[data-step="3"]');
+      await clickOne(page, 'button[data-sync="empuxo-to-s3"]');
+    },
+  },
 
   // ── S6: Detalhamento e quantitativos ──
   {

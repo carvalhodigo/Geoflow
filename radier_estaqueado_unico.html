@@ -6598,6 +6598,21 @@ atualizarStatus();
         document.getElementById('g-na').value = st.waterDepth;
       }
       if(typeof atualizarCoefEstacaS1==='function') atualizarCoefEstacaS1();
+      // ── Empuxo Lateral (Efeito Tschebotarioff) — recebe do Geo·Flow um Aterro/Análise de
+      // Tensões detectado na mesma seção técnica (mesmo mecanismo do node Estacas do editor de
+      // fluxo), preenchendo automaticamente o card manual do Passo 3/Esforços em vez de exigir
+      // que o usuário digite tudo de novo. Só se aplica quando embutido no Geo·Flow — quando
+      // standalone, st.aterroConectado nunca chega e o card continua 100% manual.
+      if(st.aterroConectado && document.getElementById('s4el-ativo')){
+        const dist = (st.deslocH||0) - (st.aterroConectado.deslocH||0);
+        document.getElementById('s4el-ativo').checked = true;
+        document.getElementById('s4el-campos').style.display = 'block';
+        document.getElementById('s4el-dist').value = Math.abs(dist).toFixed(2);
+        document.getElementById('s4el-Bc').value = st.aterroConectado.Bc;
+        document.getElementById('s4el-H').value = st.aterroConectado.Hat;
+        document.getElementById('s4el-n').value = st.aterroConectado.Hat>0 ? (st.aterroConectado.Bs/st.aterroConectado.Hat).toFixed(3) : 1.5;
+        document.getElementById('s4el-gamma').value = st.aterroConectado.gamma;
+      }
       recalcularTudo();
       if(typeof atualizarStatus==='function') atualizarStatus();
     }catch(err){ console.warn('Erro ao aplicar estado inicial do Estacas:', err); }

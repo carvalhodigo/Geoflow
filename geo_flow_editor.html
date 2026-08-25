@@ -4284,6 +4284,15 @@ function openRadierEstaqueado(nodeId){
   const estacasState=_buildRadierEstaqueadoEstacasState(nodeId);
   if(frm){
     frm.style.display='block';
+    // Reenvia o estado atualizado ao reabrir uma caixa já existente — sem isso, mudanças
+    // feitas no canvas DEPOIS da primeira abertura (ex.: conectar um Aterro à mesma seção
+    // "Desenho" só depois de já ter aberto essa caixa uma vez) nunca chegavam ao widget,
+    // porque ele ficava com o snapshot da primeira abertura pra sempre. Mesmo padrão que
+    // openEstacas() e openRadier() já usam.
+    try{
+      frm.contentWindow.postMessage({type:'radier-init',state:radierState},'*');
+      frm.contentWindow.postMessage({type:'estacas-init',state:estacasState},'*');
+    }catch(_){}
     return;
   }
   const injection='<'+'script>window.__RADIER_INITIAL_DATA__='+JSON.stringify({state:radierState})+

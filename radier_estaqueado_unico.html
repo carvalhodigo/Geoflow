@@ -17,15 +17,16 @@
               (ex.: g-na, o N.A. único do app — ver Dados Globais)
     s1-*      Aba 2 · Estacas, Passo 1 (Estaca Isolada — capacidade de carga)
     s2-*      Aba 2 · Estacas, Passo 2 (Grupo de Estacas — distribuição de carga)
-    s3-*      Aba 5 · Verificação das Estacas, Passo 3 (Verificação Estrutural)
-    s4-*      Aba 5 · Verificação das Estacas, Passo 4 (Atrito Negativo)
+    s3-*      Aba 5 · Verificação das Estacas, Passo 4 (Verificação Estrutural)
+    s4-*      Aba 5 · Verificação das Estacas, Passo 3 (Esforços — Carga Axial,
+              Atrito Negativo e Empuxo Lateral)
     s5-*      Bloco de Coroamento — DESATIVADO nesta variante (radier estaqueado
               não usa bloco; a laje do radier recebe a carga direto). O único
               campo restante, s5-afmin (afastamento estaca→borda do radier), foi
               religado à verificação de Espaçamento Mínimo (Passo 2, Seção 3) —
               nome do prefixo ficou como legado histórico, não reflete mais o
               módulo desativado.
-    s6-*      Aba 5 · Verificação das Estacas, Passo 6 (Detalhamento e Quantitativos)
+    s6-*      Aba 5 · Verificação das Estacas, Passo 5 (Detalhamento e Quantitativos)
     i-*       Aba 3 · Interação Radier-Estaca (PDR)
     btn-*     Botões de ação (memória de cálculo, sincronização, criar estacas...)
     svg-*     Elementos <svg> dos desenhos esquemáticos (um por diagrama)
@@ -650,7 +651,7 @@ body{font-family:system-ui,sans-serif;font-size:13px;background:var(--bg);color:
         <option value="5">Raiz</option>
         <option value="6">Omega</option>
       </select>
-      <div class="hint">Define F1/F2 e alfa/beta no Passo 1, e sugere o material estrutural no Passo 3 (editavel la).</div>
+      <div class="hint">Define F1/F2 e alfa/beta no Passo 1, e sugere o material estrutural no Passo 4 (editavel la).</div>
     </div>
     <div class="field-row">
       <div class="field"><label>Secao da estaca</label>
@@ -677,9 +678,9 @@ body{font-family:system-ui,sans-serif;font-size:13px;background:var(--bg);color:
   </div>
 
   <div class="card global">
-    <div class="card-title">📐 Arranjo de Estacas (compartilhado entre Passo 2 e Passo 5)</div>
+    <div class="card-title">📐 Arranjo de Estacas (compartilhado entre Passo 2 e o cálculo do bloco fictício)</div>
     <input type="hidden" id="g-arranjo" value="grade">
-    <div class="hint" style="margin-bottom:9px">Arranjo em <b>grade retangular N×M</b> — é o único tipo que faz sentido para um radier estaqueado (as estacas cobrem a área do radier em malha, e não um bloco isolado). Mesma geometria usada na distribuição de carga do grupo (Passo 2) e no dimensionamento do bloco fictício (Passo 5).</div>
+    <div class="hint" style="margin-bottom:9px">Arranjo em <b>grade retangular N×M</b> — é o único tipo que faz sentido para um radier estaqueado (as estacas cobrem a área do radier em malha, e não um bloco isolado). Mesma geometria usada na distribuição de carga do grupo (Passo 2) e no dimensionamento interno do bloco fictício (eficiência de grupo).</div>
     <div id="arr-grade">
       <div class="field-row">
         <div class="field"><label>Nº de colunas (X)</label>
@@ -771,7 +772,7 @@ body{font-family:system-ui,sans-serif;font-size:13px;background:var(--bg);color:
       <input type="number" id="s2-Radm" value="230" step="5" min="1">
       <button type="button" class="btn-sync" data-sync="radm-to-s2">⬇ usar valor calculado no Passo 1</button>
     </div>
-    <div class="hint">O arranjo/malha das estacas é definido em <b>Dados Globais → Arranjo de Estacas</b> (compartilhado com o Passo 5).</div>
+    <div class="hint">O arranjo/malha das estacas é definido em <b>Dados Globais → Arranjo de Estacas</b> (compartilhado com o cálculo do bloco fictício).</div>
   </div>
   <div class="card">
     <div class="card-title">🧱 Bloco Fictício (recalque)</div>
@@ -1093,96 +1094,7 @@ body{font-family:system-ui,sans-serif;font-size:13px;background:var(--bg);color:
     Não substitui projeto executivo, investigação geotécnica completa (SPT/ensaio de placa), modelagem em grelha sobre base elástica ou MEF (obrigatória quando a faixa for classificada como flexível), nem responsabilidade técnica registrada (ART/CREA).
     Os desenhos de corte e detalhamento de armadura são <b>esquemáticos e fora de escala</b> — servem para orientar o raciocínio de pré-dimensionamento (posição de malhas, cobrimento, armadura de punção), não para uso direto em obra; o detalhamento executivo (bitolas finais, espaçamentos, ganchos, traspasses) deve ser produzido e assinado pelo projetista estrutural responsável.<br><br>
     <b>Referências:</b> ABNT NBR 6122:2019/2022 · ABNT NBR 6118:2023 · ACI 336.2R-88 · Bowles, J.E. — <i>Foundation Analysis and Design</i> · Velloso, D.A. &amp; Lopes, F.R. — <i>Fundações</i> (vol. 2) · Meyerhof, G.G. (1953) · Morrison (1993) — correlação σ_adm×Kv (software SAFE) · Carvalho, R.C. &amp; Figueiredo Filho, J.R. — <i>Cálculo e detalhamento de estruturas usuais de concreto armado</i>.
-  </div></div></div></div><div id="mod-panel-estacas-verif" class="mod-panel"><div id="layout-e-verif" style="display:flex;gap:0;min-height:calc(100vh - 84px)"><div id="side-e-verif"><div data-step-panel="3" class="active">
-  <div class="card">
-    <div class="card-title">🧱 Material do Fuste</div>
-    <div class="field">
-      <label>Material da estaca</label>
-      <select id="s3-material">
-        <option value="concreto_pm">Concreto pré-moldado (centrifugado/vibrado)</option>
-        <option value="concreto_moldado" selected="">Concreto moldado in loco (hélice, escavada, raiz...)</option>
-        <option value="metalica">Metálica (aço)</option>
-        <option value="madeira">Madeira</option>
-      </select>
-      <div class="hint">Sugerido a partir do tipo de estaca (Dados Globais) — editável.</div>
-    </div>
-    <div id="s3-bloco-concreto">
-      <div class="field">
-        <label>Taxa de armadura ρ (% da área bruta)</label>
-        <input type="number" id="s3-rho" value="1.0" step="0.1" min="0">
-      </div>
-      <div class="field">
-        <label>Coeficiente de tensão admissível × f<sub>ck</sub></label>
-        <input type="number" id="s3-coefadm" value="0.30" step="0.01" min="0.1" max="0.5">
-      </div>
-      <div class="field-row">
-        <div class="field"><label>Nº de barras (flexo-compressão)</label>
-          <input type="number" id="s3-nbarras" value="8" step="1" min="4"></div>
-        <div class="field"><label>d' — centro da barra à face (m)</label>
-          <input type="number" id="s3-dlinha" value="0.05" step="0.005" min="0.02"></div>
-      </div>
-    </div>
-    <div id="s3-bloco-aco" style="display:none">
-      <div class="field-row">
-        <div class="field"><label>f<sub>y</sub> do aço (MPa)</label>
-          <input type="number" id="s3-fyaco" value="250" step="10" min="150"></div>
-        <div class="field"><label>Área de aço (cm²)</label>
-          <input type="number" id="s3-Aaco" value="60" step="1" min="1"></div>
-      </div>
-    </div>
-    <div id="s3-bloco-madeira" style="display:none">
-      <div class="field">
-        <label>Tensão admissível à compressão σ<sub>adm</sub> (MPa)</label>
-        <input type="number" id="s3-sigmamadeira" value="8" step="0.5" min="1">
-      </div>
-    </div>
-  </div>
-  <div class="card">
-    <div class="card-title">⚖️ Carregamento</div>
-    <div class="field">
-      <label>Carga axial N<sub>k</sub> (kN, serviço)</label>
-      <input type="number" id="s3-Nk" value="450" step="10" min="0">
-      <button type="button" class="btn-sync" data-sync="ni-to-s3">⬇ usar N<sub>i,máx</sub> do Passo 2</button>
-      <button type="button" class="btn-sync" data-sync="nktotal-to-s3">⬇ usar N<sub>k,total</sub> do Passo 4 (c/ atrito negativo)</button>
-    </div>
-    <div class="field">
-      <label>Momento fletor M<sub>k</sub> (kN·m, serviço, na cabeça desta estaca)</label>
-      <input type="number" id="s3-Mk" value="0" step="1" min="0">
-      <button type="button" class="btn-sync" data-sync="mx-to-s3">⬇ usar M<sub>x</sub> global</button>
-      <button type="button" class="btn-sync" data-sync="my-to-s3">⬇ usar M<sub>y</sub> global</button>
-      <div class="hint">⚠ Este momento é o que atua <b>nesta estaca individualmente</b> (ex.: ação horizontal, desaprumo de cravação) — <b>não</b> é o mesmo que M<sub>x</sub>/M<sub>y</sub> do card global "Carga do Grupo de Estacas", que é o momento do <b>grupo</b> e já foi convertido em cargas axiais desiguais por estaca no Passo 2 (N<sub>i</sub>). Os botões acima só trazem o valor global como referência/atalho — confirme se faz sentido físico usá-lo aqui antes de aceitar.</div>
-    </div>
-  </div>
-  <div class="card">
-    <div class="card-title">📏 Flambagem — Trecho sem Apoio Lateral</div>
-    <div class="field">
-      <label>Comprimento total da estaca L (m)</label>
-      <input type="number" id="s3-Ltot" value="10" step="0.5" min="1">
-      <button type="button" class="btn-sync" data-sync="L-to-s3">⬇ usar L do Passo 1</button>
-    </div>
-    <div class="field">
-      <label>Comprimento livre sem apoio lateral L₀ (m)</label>
-      <input type="number" id="s3-L0" value="0" step="0.1" min="0">
-    </div>
-    <div class="field">
-      <label>Condição de vinculação</label>
-      <select id="s3-vinc">
-        <option value="2.0">Engastada na base / livre no topo (K=2,0)</option>
-        <option value="1.0" selected="">Biapoiada (K=1,0)</option>
-        <option value="0.7">Engastada na base / rotulada no topo (K=0,7)</option>
-        <option value="0.5">Engastada nas duas extremidades (K=0,5)</option>
-      </select>
-    </div>
-    <div class="field">
-      <label>Módulo de elasticidade E (MPa)</label>
-      <input type="number" id="s3-E" value="21287" step="100" min="1000">
-    </div>
-    <div class="field">
-      <label>FS contra flambagem</label>
-      <input type="number" id="s3-fsflamb" value="2.0" step="0.1" min="1.2">
-    </div>
-  </div>
-  </div><div data-step-panel="4">
+  </div></div></div></div><div id="mod-panel-estacas-verif" class="mod-panel"><div id="layout-e-verif" style="display:flex;gap:0;min-height:calc(100vh - 84px)"><div id="side-e-verif"><div data-step-panel="4" class="active">
   <div class="card">
     <div class="card-title">🔎 Necessidade de Verificação</div>
     <ul class="checklist" id="s4-checklist-necessidade"></ul>
@@ -1237,10 +1149,99 @@ body{font-family:system-ui,sans-serif;font-size:13px;background:var(--bg);color:
       <div class="hint">Sem "caixas conectadas" aqui (app standalone) — a distância é a única entrada que precisa ser medida/estimada manualmente; o resto é a mesma geometria trapezoidal usada no módulo de Análise de Tensões do Geo·Flow.</div>
     </div>
   </div>
+  </div><div data-step-panel="3">
+  <div class="card">
+    <div class="card-title">🧱 Material do Fuste</div>
+    <div class="field">
+      <label>Material da estaca</label>
+      <select id="s3-material">
+        <option value="concreto_pm">Concreto pré-moldado (centrifugado/vibrado)</option>
+        <option value="concreto_moldado" selected="">Concreto moldado in loco (hélice, escavada, raiz...)</option>
+        <option value="metalica">Metálica (aço)</option>
+        <option value="madeira">Madeira</option>
+      </select>
+      <div class="hint">Sugerido a partir do tipo de estaca (Dados Globais) — editável.</div>
+    </div>
+    <div id="s3-bloco-concreto">
+      <div class="field">
+        <label>Taxa de armadura ρ (% da área bruta)</label>
+        <input type="number" id="s3-rho" value="1.0" step="0.1" min="0">
+      </div>
+      <div class="field">
+        <label>Coeficiente de tensão admissível × f<sub>ck</sub></label>
+        <input type="number" id="s3-coefadm" value="0.30" step="0.01" min="0.1" max="0.5">
+      </div>
+      <div class="field-row">
+        <div class="field"><label>Nº de barras (flexo-compressão)</label>
+          <input type="number" id="s3-nbarras" value="8" step="1" min="4"></div>
+        <div class="field"><label>d' — centro da barra à face (m)</label>
+          <input type="number" id="s3-dlinha" value="0.05" step="0.005" min="0.02"></div>
+      </div>
+    </div>
+    <div id="s3-bloco-aco" style="display:none">
+      <div class="field-row">
+        <div class="field"><label>f<sub>y</sub> do aço (MPa)</label>
+          <input type="number" id="s3-fyaco" value="250" step="10" min="150"></div>
+        <div class="field"><label>Área de aço (cm²)</label>
+          <input type="number" id="s3-Aaco" value="60" step="1" min="1"></div>
+      </div>
+    </div>
+    <div id="s3-bloco-madeira" style="display:none">
+      <div class="field">
+        <label>Tensão admissível à compressão σ<sub>adm</sub> (MPa)</label>
+        <input type="number" id="s3-sigmamadeira" value="8" step="0.5" min="1">
+      </div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-title">⚖️ Carregamento</div>
+    <div class="field">
+      <label>Carga axial N<sub>k</sub> (kN, serviço)</label>
+      <input type="number" id="s3-Nk" value="450" step="10" min="0">
+      <button type="button" class="btn-sync" data-sync="ni-to-s3">⬇ usar N<sub>i,máx</sub> do Passo 2</button>
+      <button type="button" class="btn-sync" data-sync="nktotal-to-s3">⬇ usar N<sub>k,total</sub> do Passo 3 (c/ atrito negativo)</button>
+    </div>
+    <div class="field">
+      <label>Momento fletor M<sub>k</sub> (kN·m, serviço, na cabeça desta estaca)</label>
+      <input type="number" id="s3-Mk" value="0" step="1" min="0">
+      <button type="button" class="btn-sync" data-sync="mx-to-s3">⬇ usar M<sub>x</sub> global</button>
+      <button type="button" class="btn-sync" data-sync="my-to-s3">⬇ usar M<sub>y</sub> global</button>
+      <div class="hint">⚠ Este momento é o que atua <b>nesta estaca individualmente</b> (ex.: ação horizontal, desaprumo de cravação) — <b>não</b> é o mesmo que M<sub>x</sub>/M<sub>y</sub> do card global "Carga do Grupo de Estacas", que é o momento do <b>grupo</b> e já foi convertido em cargas axiais desiguais por estaca no Passo 2 (N<sub>i</sub>). Os botões acima só trazem o valor global como referência/atalho — confirme se faz sentido físico usá-lo aqui antes de aceitar.</div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-title">📏 Flambagem — Trecho sem Apoio Lateral</div>
+    <div class="field">
+      <label>Comprimento total da estaca L (m)</label>
+      <input type="number" id="s3-Ltot" value="10" step="0.5" min="1">
+      <button type="button" class="btn-sync" data-sync="L-to-s3">⬇ usar L do Passo 1</button>
+    </div>
+    <div class="field">
+      <label>Comprimento livre sem apoio lateral L₀ (m)</label>
+      <input type="number" id="s3-L0" value="0" step="0.1" min="0">
+    </div>
+    <div class="field">
+      <label>Condição de vinculação</label>
+      <select id="s3-vinc">
+        <option value="2.0">Engastada na base / livre no topo (K=2,0)</option>
+        <option value="1.0" selected="">Biapoiada (K=1,0)</option>
+        <option value="0.7">Engastada na base / rotulada no topo (K=0,7)</option>
+        <option value="0.5">Engastada nas duas extremidades (K=0,5)</option>
+      </select>
+    </div>
+    <div class="field">
+      <label>Módulo de elasticidade E (MPa)</label>
+      <input type="number" id="s3-E" value="21287" step="100" min="1000">
+    </div>
+    <div class="field">
+      <label>FS contra flambagem</label>
+      <input type="number" id="s3-fsflamb" value="2.0" step="0.1" min="1.2">
+    </div>
+  </div>
   </div><div data-step-panel="6">
   <div class="card">
     <div class="card-title">🔩 Armadura Longitudinal da Estaca</div>
-    <div class="hint">Reaproveita ρ, nº de barras e d' do Passo 3 (Verificação Estrutural) — ajuste lá se precisar mudar a taxa de armadura.</div>
+    <div class="hint">Reaproveita ρ, nº de barras e d' do Passo 4 (Verificação Estrutural) — ajuste lá se precisar mudar a taxa de armadura.</div>
     <div class="field">
       <label>Diâmetro comercial disponível para a barra longitudinal</label>
       <select id="s6-phi-long">
@@ -1252,7 +1253,7 @@ body{font-family:system-ui,sans-serif;font-size:13px;background:var(--bg);color:
         <option value="25">25,0 mm</option>
         <option value="32">32,0 mm</option>
       </select>
-      <div class="hint">O app arredonda para cima: se a bitola escolhida não bastar com o nº de barras do Passo 3, sobe automaticamente para a próxima.</div>
+      <div class="hint">O app arredonda para cima: se a bitola escolhida não bastar com o nº de barras do Passo 4, sobe automaticamente para a próxima.</div>
     </div>
   </div>
   <div class="card">
@@ -1288,7 +1289,48 @@ body{font-family:system-ui,sans-serif;font-size:13px;background:var(--bg);color:
   
   
   
-  </div></div><div id="main-e-verif-wrap" style="flex:1;padding:14px 18px;overflow-y:auto;max-height:calc(100vh - 84px)"><div class="stepbar" id="stepbar-verif"><button class="step-btn active" data-step="3" style="--step-color:#6b3090"><span class="num">PASSO 3</span>Verificacao Estrutural</button><button class="step-btn" data-step="4" style="--step-color:#96421f"><span class="num">PASSO 4</span>Atrito Negativo</button><button class="step-btn" data-step="6" style="--step-color:#8a6a1a"><span class="num">PASSO 6</span>Detalhamento e Quantitativos</button></div><div id="main-e-verif"><div data-step-panel="3" class="active">
+  </div></div><div id="main-e-verif-wrap" style="flex:1;padding:14px 18px;overflow-y:auto;max-height:calc(100vh - 84px)"><div class="stepbar" id="stepbar-verif"><button class="step-btn active" data-step="4" style="--step-color:#96421f"><span class="num">PASSO 3</span>Esforços</button><button class="step-btn" data-step="3" style="--step-color:#6b3090"><span class="num">PASSO 4</span>Verificação Estrutural</button><button class="step-btn" data-step="6" style="--step-color:#8a6a1a"><span class="num">PASSO 5</span>Detalhamento e Quantitativos</button><div id="main-e-verif"><div data-step-panel="4" class="active">
+  <p class="section-sub" style="margin:0 0 10px;font-style:italic">Reúne os esforços que chegam à estaca antes da verificação estrutural propriamente dita (Passo 4): a carga axial total — carga da superestrutura somada ao atrito negativo, quando aplicável — e o empuxo lateral de um aterro próximo, quando houver. Atrito negativo: quando o solo ao redor da estaca recalca mais do que ela (aterro recente, rebaixamento de NA, solo mole em adensamento), o atrito que antes ajudava a sustentar a estaca passa a puxá-la para baixo; esta seção estima essa carga extra (P<sub>n</sub>) e seu efeito tanto na carga axial total quanto na capacidade geotécnica disponível.</p>
+  <div class="diagram-box">
+    <svg id="s4-svg-perfil" viewBox="0 0 560 320" xmlns="http://www.w3.org/2000/svg"></svg>
+    <div class="diagram-cap">Zona de atrito negativo × zona de atrito positivo</div>
+  </div>
+
+  <div class="section-title"><span class="n">1</span>Tensão Efetiva e Atrito Negativo por Camada<button class="help-ic" type="button" onclick="abrirAjuda('s4-atrito')" title="Ajuda">?</button></div>
+  <table class="iso-table" id="s4-tbl-atrito"></table>
+  <div class="result-grid" id="s4-grid-atrito"></div>
+  <div class="formula-box" id="s4-form-atrito"></div>
+
+  <div class="section-title"><span class="n">2</span>Carga Axial Total (com Atrito Negativo)<button class="help-ic" type="button" onclick="abrirAjuda('s4-estrutural')" title="Ajuda">?</button></div>
+  <div class="result-grid" id="s4-grid-estrutural"></div>
+  <div id="s4-banner-estrutural"></div>
+
+  <div class="section-title"><span class="n">3</span>Efeito Geotécnico<button class="help-ic" type="button" onclick="abrirAjuda('s4-geotecnico')" title="Ajuda">?</button></div>
+  <div class="result-grid" id="s4-grid-geotecnico"></div>
+  <div id="s4-banner-geotecnico"></div>
+
+  <div class="section-title"><span class="n">4</span>Empuxo Lateral (Aterro Próximo)<button class="help-ic" type="button" onclick="abrirAjuda('s4-empuxo-lateral')" title="Ajuda">?</button></div>
+  <div class="section-sub">Sobrecarga assimétrica de um aterro próximo desloca o solo mole lateralmente contra o fuste da estaca (Efeito Tschebotarioff) — fenômeno distinto do atrito negativo acima (que é vertical), verificado à parte. Marque a caixa "Há um aterro próximo" ao lado para ativar.</div>
+  <div id="s4el-banner-fonte"></div>
+  <div id="s4el-conteudo" style="display:none">
+    <div class="diagram-box">
+      <svg id="s4el-svg-perfil" viewBox="0 0 460 320" xmlns="http://www.w3.org/2000/svg"></svg>
+      <div class="diagram-cap">Pressão horizontal p<sub>h</sub>(z) no fuste, até a profundidade de influência z<sub>d</sub></div>
+    </div>
+    <table class="iso-table" id="s4el-tbl"></table>
+    <div class="result-grid" id="s4el-grid"></div>
+    <div class="formula-box" id="s4el-form"></div>
+    <div class="warn-box">
+      <b>⚠ Apoio técnico ao dimensionamento — estimativa de ordem de grandeza.</b> Método de Alonso (1989): aproxima p<sub>h</sub>(z) pelo próprio Δσz vertical do aterro na posição da estaca (sem multiplicar por K₀) — os autores do método destacam que ele deve ser usado apenas para estimar o valor <b>máximo</b> do momento fletor induzido, não a distribuição real completa (não considera a profundidade, extensão ou resistência inicial do solo que se desloca). M<sub>máx</sub> aqui estimado como uma estaca engastada abaixo de z<sub>d</sub>, sob p<sub>h,máx</sub> uniforme ao longo de z<sub>d</sub> (conservador). Para verificação final, use um modelo de estaca sob carga lateral (viga em base elástica) com este diagrama de pressão como carregamento.
+      <div class="ref-list"><b>Referências:</b> Tschebotarioff (1973) · Alonso (1989) · ABNT NBR 6122:2019 §7.6 (empuxos laterais sobre fustes em solo mole)</div>
+    </div>
+  </div>
+
+  <div class="warn-box">
+    <b>⚠ Apoio técnico ao dimensionamento.</b> Método β simplificado. Ponto neutro conservador (base da camada informada). Não substitui investigação geotécnica completa.
+    <div class="ref-list"><b>Referências:</b> ABNT NBR 6122 · Caputo — Mecânica dos Solos · Fellenius — método β</div>
+  </div>
+</div><div data-step-panel="3">
   <p class="section-sub" style="margin:0 0 10px;font-style:italic">Verificação estrutural do fuste da estaca: primeiro a compressão simples (a carga cabe na seção?), depois flambagem caso haja trecho sem apoio lateral do solo, e por fim flexo-compressão caso exista momento fletor na cabeça da estaca — as três verificações são independentes e todas precisam passar.</p>
   <div class="diagram-box">
     <svg id="s3-svg-estaca" viewBox="0 0 460 320" xmlns="http://www.w3.org/2000/svg"></svg>
@@ -1321,47 +1363,6 @@ body{font-family:system-ui,sans-serif;font-size:13px;background:var(--bg);color:
   <div class="warn-box">
     <b>⚠ Apoio técnico ao dimensionamento.</b> Flexo-compressão por integração de fibras (domínios 2-4); domínio 5 aproximado por interpolação linear até N<sub>Rd0</sub>. Não considera 2ª ordem nem excentricidade acidental. Flambagem usa carga crítica de Euler simplificada.
     <div class="ref-list"><b>Referências:</b> ABNT NBR 6122 · ABNT NBR 6118 §17.2 · ABNT NBR 8800 · ABNT NBR 7190 · Euler</div>
-  </div>
-</div><div data-step-panel="4">
-  <p class="section-sub" style="margin:0 0 10px;font-style:italic">Quando o solo ao redor da estaca recalca mais do que ela (aterro recente, rebaixamento de NA, solo mole em adensamento), o atrito que antes ajudava a sustentar a estaca passa a puxá-la para baixo. Esta etapa estima essa carga extra (P<sub>n</sub>) e mostra seu efeito tanto na estrutura da estaca quanto na capacidade geotécnica disponível.</p>
-  <div class="diagram-box">
-    <svg id="s4-svg-perfil" viewBox="0 0 560 320" xmlns="http://www.w3.org/2000/svg"></svg>
-    <div class="diagram-cap">Zona de atrito negativo × zona de atrito positivo</div>
-  </div>
-
-  <div class="section-title"><span class="n">1</span>Tensão Efetiva e Atrito Negativo por Camada<button class="help-ic" type="button" onclick="abrirAjuda('s4-atrito')" title="Ajuda">?</button></div>
-  <table class="iso-table" id="s4-tbl-atrito"></table>
-  <div class="result-grid" id="s4-grid-atrito"></div>
-  <div class="formula-box" id="s4-form-atrito"></div>
-
-  <div class="section-title"><span class="n">2</span>Efeito Estrutural<button class="help-ic" type="button" onclick="abrirAjuda('s4-estrutural')" title="Ajuda">?</button></div>
-  <div class="result-grid" id="s4-grid-estrutural"></div>
-  <div id="s4-banner-estrutural"></div>
-
-  <div class="section-title"><span class="n">3</span>Efeito Geotécnico<button class="help-ic" type="button" onclick="abrirAjuda('s4-geotecnico')" title="Ajuda">?</button></div>
-  <div class="result-grid" id="s4-grid-geotecnico"></div>
-  <div id="s4-banner-geotecnico"></div>
-
-  <div class="section-title"><span class="n">4</span>Empuxo Lateral (Aterro Próximo)<button class="help-ic" type="button" onclick="abrirAjuda('s4-empuxo-lateral')" title="Ajuda">?</button></div>
-  <div class="section-sub">Sobrecarga assimétrica de um aterro próximo desloca o solo mole lateralmente contra o fuste da estaca (Efeito Tschebotarioff) — fenômeno distinto do atrito negativo acima (que é vertical), verificado à parte. Marque a caixa "Há um aterro próximo" ao lado para ativar.</div>
-  <div id="s4el-banner-fonte"></div>
-  <div id="s4el-conteudo" style="display:none">
-    <div class="diagram-box">
-      <svg id="s4el-svg-perfil" viewBox="0 0 460 320" xmlns="http://www.w3.org/2000/svg"></svg>
-      <div class="diagram-cap">Pressão horizontal p<sub>h</sub>(z) no fuste, até a profundidade de influência z<sub>d</sub></div>
-    </div>
-    <table class="iso-table" id="s4el-tbl"></table>
-    <div class="result-grid" id="s4el-grid"></div>
-    <div class="formula-box" id="s4el-form"></div>
-    <div class="warn-box">
-      <b>⚠ Apoio técnico ao dimensionamento — estimativa de ordem de grandeza.</b> Método de Alonso (1989): aproxima p<sub>h</sub>(z) pelo próprio Δσz vertical do aterro na posição da estaca (sem multiplicar por K₀) — os autores do método destacam que ele deve ser usado apenas para estimar o valor <b>máximo</b> do momento fletor induzido, não a distribuição real completa (não considera a profundidade, extensão ou resistência inicial do solo que se desloca). M<sub>máx</sub> aqui estimado como uma estaca engastada abaixo de z<sub>d</sub>, sob p<sub>h,máx</sub> uniforme ao longo de z<sub>d</sub> (conservador). Para verificação final, use um modelo de estaca sob carga lateral (viga em base elástica) com este diagrama de pressão como carregamento.
-      <div class="ref-list"><b>Referências:</b> Tschebotarioff (1973) · Alonso (1989) · ABNT NBR 6122:2019 §7.6 (empuxos laterais sobre fustes em solo mole)</div>
-    </div>
-  </div>
-
-  <div class="warn-box">
-    <b>⚠ Apoio técnico ao dimensionamento.</b> Método β simplificado. Ponto neutro conservador (base da camada informada). Não substitui investigação geotécnica completa.
-    <div class="ref-list"><b>Referências:</b> ABNT NBR 6122 · Caputo — Mecânica dos Solos · Fellenius — método β</div>
   </div>
 </div><div data-step-panel="6">
   <p class="section-sub" style="margin:0 0 10px;font-style:italic">Converte as áreas de aço calculadas nos passos anteriores em bitolas comerciais reais (arredondando para cima), monta o detalhamento da estaca, e fecha com os quantitativos de aço (por bitola) e concreto — o material para levar direto pra planilha de orçamento ou nota de pedido.</p>
@@ -4970,7 +4971,7 @@ function calcularS4(){
     rb('+ P_n', fmt(Pn,1)+' kN', 'warn'),
     rb('= N_k,total', fmt(NkTotal,1)+' kN', 'info')
   ].join('');
-  $('s4-banner-estrutural').innerHTML = `<div class="status-banner info">ℹ Use N<sub>k,total</sub> = ${fmt(NkTotal,1)} kN no Passo 3 (botão de sincronia).</div>`;
+  $('s4-banner-estrutural').innerHTML = `<div class="status-banner info">ℹ Use N<sub>k,total</sub> = ${fmt(NkTotal,1)} kN no Passo 4 (botão de sincronia).</div>`;
 
   const RadmOriginal = Ru/FS;
   const RadmLiquida = (Ru-Pn)/FS;
@@ -6102,9 +6103,9 @@ function atualizar3DRadier(L, B, H, cob, pilares, pilesLayout, espInf, espSup, p
     });
 
     // ── armadura das estacas (barras longitudinais + estribos/espiral), a partir dos mesmos
-    // dados calculados e desenhados em 2D no Passo 6 (Detalhamento) — não é esquemática: usa
+    // dados calculados e desenhados em 2D no Passo 5 (Detalhamento) — não é esquemática: usa
     // exatamente o nº de barras, bitola e passo de estribo dimensionados ali. Só aparece se a
-    // estaca for de concreto (Passo 3) — estaca metálica/madeira não tem armadura para desenhar.
+    // estaca for de concreto (Passo 4) — estaca metálica/madeira não tem armadura para desenhar.
     const rebar = BRIDGE.s6PileRebar;
     if(rebar && rebar.nBarras>0){
       const yTopoEstaca = -H, yPontaEstaca = -H-Lp;
@@ -6125,7 +6126,7 @@ function atualizar3DRadier(L, B, H, cob, pilares, pilesLayout, espInf, espSup, p
         // (8 segmentos — curvatura suave o bastante na escala do desenho). Mesmo padrão já usado
         // acima na malha N1/N34 desta função: teto de anéis por estaca só para não travar o
         // navegador com estacas longas e passo de estribo apertado — não distorce o passo real
-        // mostrado nas tabelas/desenhos 2D do Passo 6, só limita a densidade da vista 3D.
+        // mostrado nas tabelas/desenhos 2D do Passo 5, só limita a densidade da vista 3D.
         const MAX_ANEIS_3D = 30;
         const passo3dEstribo = Math.max(rebar.passoEstribo, Lp/MAX_ANEIS_3D);
         const nLados = 8;
@@ -6394,7 +6395,7 @@ function calcularS6(){
   let phiLongGlobalEstaca = null; // exposto fora do bloco isConcreto, para uso no 3D
 
   if(!isConcreto){
-    $('s6-banner-pre').innerHTML = `<div class="status-banner info">ℹ Material da estaca (Passo 3) é ${material==='metalica'?'metálico':'madeira'} — detalhamento de armadura e quantitativo de concreto da estaca não se aplicam. Só o bloco (sempre em concreto armado) é detalhado abaixo.</div>`;
+    $('s6-banner-pre').innerHTML = `<div class="status-banner info">ℹ Material da estaca (Passo 4) é ${material==='metalica'?'metálico':'madeira'} — detalhamento de armadura e quantitativo de concreto da estaca não se aplicam. Só o bloco (sempre em concreto armado) é detalhado abaixo.</div>`;
     $('s6-svg-secao-estaca').innerHTML = '<text x="150" y="150" font-size="11" text-anchor="middle" fill="#8a8680">Não se aplica (estaca não é de concreto)</text>';
     $('s6-svg-perfil-estaca').innerHTML = '<text x="150" y="230" font-size="11" text-anchor="middle" fill="#8a8680">Não se aplica (estaca não é de concreto)</text>';
     $('s6-tbl-estaca').innerHTML = '';
@@ -6523,7 +6524,7 @@ atualizarStatus();
         n:    (typeof BRIDGE!=='undefined')?BRIDGE.s2n:null,      // nº de estacas do arranjo (Passo 2)
         eta:  (typeof BRIDGE!=='undefined')?BRIDGE.s2eta:null,    // eficiência de grupo Converse-Labarre (Passo 2)
         NiMax:(typeof BRIDGE!=='undefined')?BRIDGE.s2Nimax:null,  // carga máx. por estaca no grupo (Passo 2)
-        NkTotal: (typeof BRIDGE!=='undefined')?BRIDGE.s4NkTotal:null, // carga total c/ atrito negativo, se calculado (Passo 4)
+        NkTotal: (typeof BRIDGE!=='undefined')?BRIDGE.s4NkTotal:null, // carga total c/ atrito negativo, se calculado (Passo 3)
         zw: (typeof G_na==='function')?G_na():null // N.A. (fonte única do app) — exposto p/ nodes a jusante
       }
     };
@@ -7163,7 +7164,7 @@ document.querySelectorAll('.mod-btn').forEach(btn=>{
     's1-comp': {t:'Comparação e Carga Admissível', ico:null, html:`
       <p>Compara os dois métodos e adota o <b>mais conservador</b> (menor resistência última) como referência de projeto — critério a favor da segurança quando não há prova de carga para calibrar qual método é mais aderente ao solo local.</p>
       <div class="help-formula">R<sub>adm</sub> = R<sub>u</sub> / FS &nbsp;&nbsp;(FS ≈ 2,0, NBR 6122 — método semiempírico)</div>
-      <p>Esse R<sub>adm</sub> é a base de tudo que vem depois: distribuição de carga no grupo (Passo 2), verificação de FS na Interação PDR e no atrito negativo (Passo 4).</p>`},
+      <p>Esse R<sub>adm</sub> é a base de tudo que vem depois: distribuição de carga no grupo (Passo 2), verificação de FS na Interação PDR e no atrito negativo (Passo 3).</p>`},
 
     's2-distrib': {t:'Distribuição de Carga entre as Estacas', ico:ICO.grupoEstacas, html:`
       <p>Com N estacas suportando uma carga excêntrica (N<sub>k</sub> + momentos M<sub>x</sub>, M<sub>y</sub>), a reação em cada estaca <b>não é igual</b> — as mais afastadas do centro do grupo, na direção do momento, recebem mais carga. O app assume o <b>bloco/radier rígido</b> (hipótese clássica): a placa não se deforma, então a distribuição de carga varia linearmente com a posição.</p>
@@ -7279,12 +7280,12 @@ document.querySelectorAll('.mod-btn').forEach(btn=>{
       <p style="font-size:11px;color:#8a8680">Desenhos esquemáticos e fora de escala — orientam o raciocínio, não substituem detalhamento executivo assinado pelo projetista.</p>`},
 
     'r-3d': {t:'Vista 3D do Radier Estaqueado', ico:null, html:`
-      <p>Monta em três dimensões, a partir dos mesmos dados já calculados nas seções anteriores, a geometria completa: a laje do radier, os pilares que chegam nela, as estacas no arranjo real do Passo 2 (Estacas) — com sua armadura real (nº de barras, bitola e espaçamento de estribo, os mesmos do detalhamento no Passo 6) quando a estaca é de concreto — e uma representação esquemática das malhas de armadura inferior (N1/N2) e superior (N3/N4) do radier.</p>
+      <p>Monta em três dimensões, a partir dos mesmos dados já calculados nas seções anteriores, a geometria completa: a laje do radier, os pilares que chegam nela, as estacas no arranjo real do Passo 2 (Estacas) — com sua armadura real (nº de barras, bitola e espaçamento de estribo, os mesmos do detalhamento no Passo 5) quando a estaca é de concreto — e uma representação esquemática das malhas de armadura inferior (N1/N2) e superior (N3/N4) do radier.</p>
       <ul>
         <li><b>Arraste</b> com o botão do mouse para girar a câmera em torno do modelo; <b>role a roda do mouse</b> para aproximar/afastar.</li>
         <li>As caixas <b>"Mostrar"</b> abaixo do modelo ligam/desligam cada grupo de elementos independentemente — útil para ver só as estacas, só a armadura delas, ou só o radier, sem o resto atrapalhando a visão.</li>
         <li>A malha de armadura do radier respeita o espaçamento real calculado (Seção 5), mas em radiers grandes com malha apertada, a vista 3D usa um passo um pouco mais grosso só para não sobrecarregar o navegador — o espaçamento exato continua nas tabelas e no desenho 2D, que são a referência estrutural. O mesmo vale para os estribos da estaca (passo real respeitado até um teto de anéis por estaca).</li>
-        <li>Estaca metálica ou de madeira (Passo 3) não tem armadura desenhada — só concreto armado é detalhado no Passo 6.</li>
+        <li>Estaca metálica ou de madeira (Passo 4) não tem armadura desenhada — só concreto armado é detalhado no Passo 5.</li>
       </ul>
       <p style="font-size:11px;color:#8a8680">Assim como os demais desenhos do app, é uma representação esquemática de apoio ao raciocínio — não substitui um modelo BIM/estrutural executivo.</p>
       <div class="help-refs">Motor de renderização: Three.js (WebGL) — mesmo usado no módulo de detalhamento de blocos sobre estacas</div>`},
@@ -7321,8 +7322,8 @@ document.querySelectorAll('.mod-btn').forEach(btn=>{
       ${tblSolosBeta()}
       <div class="help-refs">Método β — atrito negativo em estacas</div>`},
 
-    's4-estrutural': {t:'Efeito Estrutural', ico:null, html:`
-      <p>A carga de arrasto (P<sub>n</sub>) se <b>soma</b> à carga estrutural que já chega à estaca (N<sub>k</sub> do Passo 3) — a estaca precisa ser verificada à compressão para essa carga total aumentada, já que o atrito negativo empurra a estaca para baixo como se fosse mais peso em cima dela.</p>
+    's4-estrutural': {t:'Carga Axial Total (com Atrito Negativo)', ico:null, html:`
+      <p>A carga de arrasto (P<sub>n</sub>) se <b>soma</b> à carga estrutural que já chega à estaca (N<sub>k</sub> do Passo 4) — a estaca precisa ser verificada à compressão para essa carga total aumentada, já que o atrito negativo empurra a estaca para baixo como se fosse mais peso em cima dela.</p>
       <div class="help-formula">N<sub>d,total</sub> = γ<sub>f</sub>·(N<sub>k,estrutural</sub> + P<sub>n</sub>)</div>`},
 
     's4-geotecnico': {t:'Efeito Geotécnico', ico:null, html:`
@@ -7337,7 +7338,7 @@ document.querySelectorAll('.mod-btn').forEach(btn=>{
       <div class="help-refs">Tschebotarioff (1973) · Alonso (1989) · ABNT NBR 6122:2019 §7.6</div>`},
 
     's6-detalhamento': {t:'Detalhamento da Estaca', ico:ICO.detalheEstaca, html:`
-      <p>Converte a armadura verificada no Passo 3 (compressão/flambagem/flexo-compressão) em um detalhamento esquemático: nº de barras longitudinais, bitola, espaçamento de estribos e comprimento — a base para o quantitativo de aço e concreto desta seção.</p>
+      <p>Converte a armadura verificada no Passo 4 (compressão/flambagem/flexo-compressão) em um detalhamento esquemático: nº de barras longitudinais, bitola, espaçamento de estribos e comprimento — a base para o quantitativo de aço e concreto desta seção.</p>
       <div class="help-svg-box">${ICO.detalheEstaca}</div>
       <p style="font-size:11px;color:#8a8680">Esquemático e fora de escala — não substitui o detalhamento executivo (ganchos, traspasses, cobrimentos exatos) do projetista responsável.</p>`},
 

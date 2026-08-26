@@ -2673,6 +2673,17 @@ function calcularRadier(){
   cargasAreaReal.forEach(a=>{ const w=Math.abs(a.x1-a.x0), h=Math.abs(a.y1-a.y0); if(w>0&&h>0) cargasEspeciaisReal.push({F:a.q*w*h}); });
   const NtotalReal = pilaresReal.reduce((a,p)=>a+p.N,0) + cargasEspeciaisReal.reduce((a,c)=>a+c.F,0) + WswReal + WqDistReal;
 
+  // Se a Interação já foi ativada (_PrAtivo != null) mas o N_total real mudou desde então —
+  // pilar/carga especial adicionada, removida ou editada — o fator de projeto (P_r/N_total)
+  // ficaria calculado com o N_total ANTIGO, então a carga nova entraria só parcialmente (ou nem
+  // entraria) no dimensionamento, silenciosamente. Invalida _PrAtivo nesse caso: volta a
+  // dimensionar para 100% da carga (fatorProjeto=1) até o usuário rodar a Interação de novo com
+  // a configuração de cargas atual — mais seguro que continuar usando uma proporção defasada.
+  if(window._PrAtivo!=null && window._NtotalRealAoAtivarPr!=null &&
+     Math.abs(NtotalReal-window._NtotalRealAoAtivarPr) > 0.5){
+    window._PrAtivo = null;
+  }
+
   // ── fator de projeto: se a Interação já rodou, o radier passa a ser dimensionado para
   // P_r (a fração que ela calculou), não para o N_total inteiro — escala TODAS as cargas
   // proporcionalmente (pilares, lineares, área, distribuída, peso próprio) mantendo a mesma
@@ -5522,7 +5533,19 @@ function gerarMemoriaGeral(retornarHtmlApenas){
   try{ if(typeof calcularS4==='function') calcularS4(); }catch(_){}
   try{ if(typeof calcularS6==='function') calcularS6(); }catch(_){}
   try{ if(typeof calcularRadier==='function') calcularRadier(); }catch(_){}
-  try{ if(typeof calcularInteracao==='function') calcularInteracao(); }catch(_){}
+  // calcularInteracao() ATIVA window._PrAtivo como efeito colateral (o radier passa a ser
+  // dimensionado para a fração P_r calculada pela Interação, não mais para 100% da carga) —
+  // uma mudança de estado deliberada, pensada para só acontecer quando o usuário de fato pede
+  // (visita a aba Interação e roda o cálculo lá). Como esta função (gerarMemoriaGeral) agora
+  // também é chamada automaticamente pelo autosave (a cada ~600ms após qualquer alteração, para
+  // manter a Visualização Técnica do Geo·Flow atualizada), chamar calcularInteracao() aqui
+  // incondicionalmente ativaria esse modo silenciosamente, mesmo para quem nunca abriu a aba
+  // Interação — e pior: uma vez ativo, _PrAtivo nunca é reavaliado sozinho quando o usuário
+  // adiciona novas cargas especiais (pilar/linear/área) depois, fazendo o radier continuar
+  // dimensionado para a fração antiga, "perdendo" as cargas novas na conta. Por isso, só
+  // recalcula a Interação aqui se ela já tiver sido ativada explicitamente antes (_PrAtivo!=null)
+  // — mantém os números atualizados nesse caso, sem NUNCA ativar o modo por conta própria.
+  try{ if(typeof calcularInteracao==='function' && window._PrAtivo!=null) calcularInteracao(); }catch(_){}
 
   const appCss = document.querySelector('style') ? document.querySelector('style').textContent : '';
 
@@ -6840,6 +6863,10 @@ function calcularInteracao(){
   // P_r vira a carga PRINCIPAL de projeto do radier (recalcula tudo: geotecnia, grelha,
   // punção, armadura, quantitativos) — não é mais só um card informativo à parte.
   window._PrAtivo = Pr;
+  window._NtotalRealAoAtivarPr = Ntot; // "foto" do N_total no momento em que a Interação rodou —
+    // usada por calcularRadier() para detectar se pilares/cargas especiais mudaram depois
+    // (nesse caso, o fator P_r/N_total ficaria calculado com o N_total antigo, "perdendo" carga
+    // nova silenciosamente) e invalidar _PrAtivo automaticamente até a Interação rodar de novo.
   if(typeof calcularRadier==='function') calcularRadier();
   // e o card roxo do Radier passa a mostrar a verificação de ROBUSTEZ (100%, sem estacas)
   if(typeof aplicarVerifRadier==='function') aplicarVerifRadier({NtotalReal: Ntot});

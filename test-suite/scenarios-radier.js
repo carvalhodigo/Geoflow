@@ -177,4 +177,17 @@ module.exports = [
       }
     },
   },
+  {
+    name: 'radier_pilar_e_cargas_especiais_combinados',
+    capture: CAPTURE,
+    // Regressão dedicada para o bug relatado: N_total (e a posição da resultante Xr/Yr) deve
+    // somar pilar + carga linear + carga em área + peso próprio, todos explicitamente visíveis
+    // na fórmula (form-geo) — não só no card N_total, mas na derivação passo a passo.
+    setup: async (page, {callFn}) => {
+      await callFn(page, 'addPilar', 'P1', 2, 2, 500, 0.4, 0.4);
+      await callFn(page, 'addCargaLinear', 'L1', 1, 1, 4, 1, 100, 0.2); // F=300kN
+      await callFn(page, 'addCargaArea', 'A1', 1, 1, 3, 3, 10); // F=40kN
+      await callFn(page, 'calcularRadier');
+    },
+  },
 ];

@@ -2706,12 +2706,12 @@ function calcularRadier(){
   cargasLin.forEach(l=>{
     const comp = Math.hypot(l.x2-l.x1, l.y2-l.y1);
     if(comp<=0) return;
-    cargasEspeciais.push({F: l.q*comp, x:(l.x1+l.x2)/2, y:(l.y1+l.y2)/2});
+    cargasEspeciais.push({F: l.q*comp, x:(l.x1+l.x2)/2, y:(l.y1+l.y2)/2, label:l.label, tipo:'linear'});
   });
   cargasArea.forEach(a=>{
     const w=Math.abs(a.x1-a.x0), h=Math.abs(a.y1-a.y0);
     if(w<=0||h<=0) return;
-    cargasEspeciais.push({F: a.q*w*h, x:(a.x0+a.x1)/2, y:(a.y0+a.y1)/2});
+    cargasEspeciais.push({F: a.q*w*h, x:(a.x0+a.x1)/2, y:(a.y0+a.y1)/2, label:a.label, tipo:'área'});
   });
   const Nsum = pilares.reduce((a,p)=>a+p.N,0) + cargasEspeciais.reduce((a,c)=>a+c.F,0);
   const Ntotal = Nsum + Wtotal_uniforme;
@@ -2740,8 +2740,12 @@ function calcularRadier(){
   const isoStep = parseFloat($('in-iso-step').value)||10;
   drawTensoes(L,B,pAvg,ex,ey,sadm,pilares,pMax,pMin,isoStep);
 
+  const NsumPilares = pilares.reduce((a,p)=>a+p.N,0);
+  const FcargasEspeciais = cargasEspeciais.reduce((a,c)=>a+c.F,0);
   $('grid-geo').innerHTML =
     rb('N total (cargas+PP+dist.)', fmt(Ntotal,0)+' kN') +
+    (pilares.length ? rb('Carga dos pilares (ΣN)', fmt(NsumPilares,0)+' kN') : '') +
+    (cargasEspeciais.length ? rb('Cargas especiais (linear+área)', fmt(FcargasEspeciais,0)+' kN') : '') +
     rb('Peso próprio do radier', fmt(Wsw,0)+' kN') +
     (qDist>0 ? rb('Carga distribuída (q='+fmt(qDist,1)+'kN/m²)', fmt(WqDist,0)+' kN') : '') +
     rb('e_x (excentricidade)', fmt(ex,3)+' m') +
@@ -2894,13 +2898,19 @@ function calcularRadier(){
 
   const somaNx = pilares.map(p=>`${fmt(p.N,0)}·${fmt(p.x,2)}`).join('+');
   const somaNy = pilares.map(p=>`${fmt(p.N,0)}·${fmt(p.y,2)}`).join('+');
+  const somaCEx = cargasEspeciais.map(c=>`${fmt(c.F,0)}·${fmt(c.x,2)}`).join('+');
+  const somaCEy = cargasEspeciais.map(c=>`${fmt(c.F,0)}·${fmt(c.y,2)}`).join('+');
   $('form-geo').innerHTML =
     fstepR('Peso próprio + carga distribuída','W = L·B·H·γc + L·B·q', `W = ${fmt(L,2)}·${fmt(B,2)}·${fmt(H,2)}·${fmt(gc,1)} + ${fmt(L,2)}·${fmt(B,2)}·${fmt(qDist,1)}`,'W',fmt(Wtotal_uniforme,0)+' kN',
-      'Peso do concreto do radier somado à carga distribuída informada (sobrecarga, líquido em bacia etc.) — ambos uniformes sobre toda a área, somados às cargas dos pilares para achar a carga total resistida pelo solo.','NBR 6122') +
-    fstepR('Posição da resultante das cargas','X_r = (ΣNᵢ·xᵢ + W·L/2) / N_total &nbsp;·&nbsp; Y_r análogo em Y',
-      `X_r = (${somaNx}+${fmt(Wtotal_uniforme,0)}·${fmt(L/2,2)}) / ${fmt(Ntotal,0)}<br>Y_r = (${somaNy}+${fmt(Wtotal_uniforme,0)}·${fmt(B/2,2)}) / ${fmt(Ntotal,0)}`,
+      'Peso do concreto do radier somado à carga distribuída informada (sobrecarga, líquido em bacia etc.) — ambos uniformes sobre toda a área. Somados, logo abaixo, às cargas dos pilares E às cargas especiais (lineares/em área), para achar a carga total resistida pelo solo.','NBR 6122') +
+    (cargasEspeciais.length ? fstepR('Cargas especiais (lineares e em área)','F = Σ(cargas lineares convertidas em força) + Σ(cargas em área × largura × altura)',
+      cargasEspeciais.map(c=>`${c.label} (${c.tipo}): F=${fmt(c.F,1)}kN`).join(' · '),
+      'ΣF (cargas especiais)', fmt(FcargasEspeciais,0)+' kN',
+      'Cada carga linear (kN/m) é multiplicada pelo comprimento do trecho desenhado; cada carga em área (kN/m²) é multiplicada pela área do retângulo desenhado. O centroide de cada uma (x,y) é usado no cálculo da posição da resultante, no próximo passo — mesmo tratamento dado aos pilares.') : '') +
+    fstepR('Posição da resultante das cargas','X_r = (ΣNᵢ·xᵢ + ΣFⱼ·xⱼ + W·L/2) / N_total &nbsp;·&nbsp; Y_r análogo em Y',
+      `X_r = (${somaNx||'0'}${somaCEx?'+'+somaCEx:''}+${fmt(Wtotal_uniforme,0)}·${fmt(L/2,2)}) / ${fmt(Ntotal,0)}<br>Y_r = (${somaNy||'0'}${somaCEy?'+'+somaCEy:''}+${fmt(Wtotal_uniforme,0)}·${fmt(B/2,2)}) / ${fmt(Ntotal,0)}`,
       'X_r , Y_r', `${fmt(Xr,3)} m , ${fmt(Yr,3)} m`,
-      'Acha onde a resultante de todas as cargas "cai" na planta — quanto mais perto do centro geométrico, mais uniforme fica a pressão no solo.') +
+      'Acha onde a resultante de TODAS as cargas — pilares (Nᵢ), cargas especiais (Fⱼ, se houver) e o peso uniforme (W) — "cai" na planta. Quanto mais perto do centro geométrico, mais uniforme fica a pressão no solo.') +
     fstepR('Pressão nos cantos (flexão composta oblíqua)','p = (N/A)·(1 ± 6eₓ/L ± 6e_y/B)',
       `p = ${fmt(pAvg,1)}·(1 ± ${fmt(fx,3)} ± ${fmt(fy,3)}) → cantos entre ${fmt(pMin,1)} e ${fmt(pMax,1)} kPa`,
       'p_máx / p_mín', `${fmt(pMax,1)} / ${fmt(pMin,1)} kPa`,

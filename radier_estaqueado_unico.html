@@ -3624,12 +3624,21 @@ calcularRadier();
     const mainElDim=document.getElementById('main-r-dim');
     const outputHtml=(mainEl?mainEl.innerHTML:'')+(mainElDim?mainElDim.innerHTML:'');
     let memHtml=outputHtml;
-    try{ if(typeof gerarMemoria==='function'){
-      // Reaproveita a montagem de HTML da própria função de memória, sem abrir nova janela
-      const appCss=document.querySelector('style')?document.querySelector('style').textContent:'';
-      const L=(document.getElementById('in-L')||{}).value, B=(document.getElementById('in-B')||{}).value, H=(document.getElementById('in-H')||{}).value;
-      memHtml=`<div class="memo-sub">Radier — L=${L}m, B=${B}m, H=${H}m</div>${outputHtml}`;
-    }}catch(_){ memHtml=outputHtml; }
+    try{
+      if(typeof buildMemoriaCompleta==='function'){
+        // Relatório completo (Estacas + Interação PDR + Radier + Verificação) — o MESMO
+        // conteúdo do botão "🗂 GERAR MEMÓRIA DE CÁLCULO COMPLETA" (aba Estacas), não só a
+        // parte do Radier. Enviado automaticamente a cada autosave (debounced, ~600ms após
+        // qualquer alteração), então a Visualização Técnica do Geo·Flow fica sempre com o
+        // relatório atualizado, sem precisar clicar em nada dentro da caixa.
+        memHtml = buildMemoriaCompleta();
+      } else if(typeof gerarMemoria==='function'){
+        // Fallback (não deveria ocorrer — buildMemoriaCompleta já devia estar carregada a esta
+        // altura): reaproveita só a montagem de HTML da parte do Radier
+        const L=(document.getElementById('in-L')||{}).value, B=(document.getElementById('in-B')||{}).value, H=(document.getElementById('in-H')||{}).value;
+        memHtml=`<div class="memo-sub">Radier — L=${L}m, B=${B}m, H=${H}m</div>${outputHtml}`;
+      }
+    }catch(_){ memHtml=outputHtml; }
     return {state, outputHtml, memHtml};
   }
 
@@ -5616,14 +5625,14 @@ function gerarMemoriaGeral(retornarHtmlApenas){
     const p = tmp.querySelector(`[data-step-panel="${passo}"]`);
     return p ? p.innerHTML : '';
   }
-  const secVI = secao('VI','Verificação Estrutural das Estacas',
-    'Compressão simples, flambagem (trecho sem apoio lateral, se houver) e flexo-compressão (integração de fibras na seção transversal), conforme NBR 6118.',
-    painelVerif(3));
-  const secVII = secao('VII','Atrito Negativo',
-    'Estimativa da carga de arrasto (P_n) quando o solo ao redor da estaca recalca mais do que ela, e seu efeito na estrutura da estaca e na capacidade geotécnica disponível — método β.',
+  const secVI = secao('VI','Esforços — Carga Axial, Atrito Negativo e Empuxo Lateral',
+    'Carga axial total que chega à estaca (superestrutura + atrito negativo, quando aplicável) e, quando houver aterro próximo, o empuxo lateral (Efeito Tschebotarioff) — estimativa da carga de arrasto (P_n) quando o solo ao redor da estaca recalca mais do que ela, e do momento fletor induzido pela sobrecarga assimétrica do aterro.',
     painelVerif(4));
+  const secVII = secao('VII','Verificação Estrutural das Estacas',
+    'Compressão simples, flambagem (trecho sem apoio lateral, se houver) e flexo-compressão (integração de fibras na seção transversal), conforme NBR 6118 — já considerando a carga axial total e o momento (com atrito negativo e empuxo lateral, quando aplicável) da Seção VI.',
+    painelVerif(3));
   const secVIII = secao('VIII','Detalhamento e Quantitativos das Estacas',
-    'Armadura longitudinal e transversal da estaca (seção e perfil), a partir da verificação estrutural (Seção VI), e quantitativos de aço/concreto.',
+    'Armadura longitudinal e transversal da estaca (seção e perfil), a partir da verificação estrutural (Seção VII), e quantitativos de aço/concreto.',
     painelVerif(6));
 
   // ── Sumário executivo (rápida checagem de OK/reprovado, com base no que já foi calculado) ──
@@ -5634,8 +5643,8 @@ function gerarMemoriaGeral(retornarHtmlApenas){
     ['III', 'Grupo de Estacas — Distribuição e Eficiência'],
     ['IV', 'Radier — Geotecnia, Rigidez, Punção e Armadura'],
     ['V', 'Interação Radier-Estaca (PDR)'],
-    ['VI', 'Verificação Estrutural das Estacas'],
-    ['VII', 'Atrito Negativo'],
+    ['VI', 'Esforços — Carga Axial, Atrito Negativo e Empuxo Lateral'],
+    ['VII', 'Verificação Estrutural das Estacas'],
     ['VIII', 'Detalhamento e Quantitativos das Estacas'],
     ['IX', 'Referências Normativas e Bibliográficas'],
   ];

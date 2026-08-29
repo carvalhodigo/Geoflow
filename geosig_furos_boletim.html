@@ -111,12 +111,20 @@ hr{border:none;border-top:1px solid var(--bdr);margin:2px 0}
   border:2px solid #fff;box-shadow:0 1px 3px rgba(0,0,0,.4)}
 .furo-pin.interp{background:#7a3fa0}
 .furo-pin.interpsel{box-shadow:0 0 0 3px rgba(122,63,160,.5),0 1px 3px rgba(0,0,0,.4)}
+.furo-pin.exportsel{box-shadow:0 0 0 3px rgba(42,90,140,.6),0 1px 3px rgba(0,0,0,.4)}
 .furo-pin.selpin{background:var(--green)}
 
 .perfil-wrap{display:flex;gap:10px;align-items:flex-start;background:#fff;border:1px solid var(--bdr);
   border-radius:var(--r);padding:8px;overflow-x:auto}
 
 .item.interpsel{border-color:#7a3fa0;background:#f5f0fa}
+.item.exportsel{border-color:#2a5a8c;background:#eef3f8}
+#export-select-bar{
+  display:none;position:absolute;bottom:14px;left:50%;transform:translateX(-50%);
+  background:var(--card);border:1px solid var(--bdr-s);border-radius:10px;padding:10px 14px;
+  z-index:950;gap:10px;align-items:center;box-shadow:0 6px 20px rgba(0,0,0,.25)
+}
+#export-select-bar span{font-family:var(--mono);font-size:11px;color:var(--tx)}
 .tag-list{display:flex;flex-wrap:wrap;gap:6px}
 .tag-chip{background:var(--surf);border:1px solid var(--bdr);border-radius:12px;padding:3px 9px;
   font-size:10.5px;font-family:var(--mono);color:var(--tx)}
@@ -324,13 +332,18 @@ table.edit-tbl input:focus,table.edit-tbl select:focus{outline:none;border-color
   <div class="sep"></div>
   <input id="search-box" placeholder="Buscar furo / obra…">
   <div class="sep"></div>
-  <button class="tbtn" id="btn-import">⇪ Importar</button>
+  <button class="tbtn" id="btn-import" title="Aceita shapefile (.zip), GeoJSON, ou campanha completa em JSON ({&quot;furos&quot;:[...]}, com camadas e golpes por profundidade)">⇪ Importar</button>
   <button class="tbtn" id="btn-export-shp">⇩ Shapefile</button>
   <button class="tbtn" id="btn-export-gj">⇩ GeoJSON</button>
   <button class="tbtn" id="btn-export-csv">⇩ CSV</button>
   <div class="sep"></div>
   <select class="tsel" id="sel-crs" title="Zona UTM usada apenas para exibição/CSV"></select>
-  <select class="tsel" id="sel-base"><option value="osm">Mapa (OSM)</option><option value="sat">Satélite</option></select>
+  <select class="tsel" id="sel-base">
+    <option value="osm">Mapa (OSM)</option>
+    <option value="sat">Satélite (Esri)</option>
+    <option value="gsat">Satélite (Google)</option>
+    <option value="ghyb">Híbrido (Google)</option>
+  </select>
   <div class="sep"></div>
   <button class="tbtn" id="btn-load-sample" title="Carrega 9 furos de exemplo dispostos em malha 3×3, cobrindo uma área de 100×100 m">🧪 Exemplo (100×100m)</button>
   <button class="tbtn" id="btn-load-sample2" title="Carrega 11 furos de exemplo com terreno irregular, cotas variadas e número de camadas variável — bom para testar interpolação e perfis">🧪 Exemplo 2 (variado)</button>
@@ -359,6 +372,12 @@ table.edit-tbl input:focus,table.edit-tbl select:focus{outline:none;border-color
     <button class="mini-btn" id="interp-btn-rect" type="button" title="Arraste um retângulo no mapa para selecionar vários furos de uma vez">▭ Selecionar por retângulo</button>
     <button class="mini-btn primary" id="interp-btn-confirm" disabled>Criar bloco interpolado</button>
     <button class="mini-btn" id="interp-btn-cancel">Cancelar</button>
+  </div>
+  <div id="export-select-bar">
+    <span id="export-select-count"></span>
+    <button class="mini-btn" id="export-btn-rect" type="button" title="Arraste um retângulo no mapa para selecionar vários itens de uma vez">▭ Selecionar por retângulo</button>
+    <button class="mini-btn primary" id="export-btn-confirm" disabled>Exportar selecionados</button>
+    <button class="mini-btn" id="export-btn-cancel">Cancelar</button>
   </div>
 
   <div id="panel" class="hidden"></div>
@@ -533,6 +552,28 @@ table.edit-tbl input:focus,table.edit-tbl select:focus{outline:none;border-color
     <div class="popup-footer">
       <button class="btn-ghost" type="button" onclick="closeRasterView()">Fechar</button>
       <button class="btn-primary" type="button" id="raster-save-btn">💾 Salvar imagem (PNG)</button>
+      <button class="btn-primary" type="button" id="raster-save-tif-btn">🌍 Salvar GeoTIFF</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ ESCOLHA DE EXPORTAÇÃO DE SHAPEFILE ══ -->
+<div class="popup-overlay" id="export-shp-choice-overlay">
+  <div class="editor-box" style="max-width:460px;width:92vw;">
+    <div class="popup-header">
+      <h3>Exportar Shapefile</h3>
+      <button class="popup-close" onclick="closeExportShpChoice()">✕</button>
+    </div>
+    <div class="popup-body">
+      <p class="hint">Escolha o que incluir no shapefile (furos, áreas e linhas viram camadas separadas dentro do .zip).</p>
+      <div class="btn-row" style="flex-direction:column;gap:10px;margin-top:6px;">
+        <button class="btn-primary" type="button" id="export-shp-all-btn" style="width:100%;text-align:left;padding:14px 16px;">
+          📦 Exportar tudo<br><span id="export-shp-all-count" style="font-weight:400;font-size:11px;opacity:.85;"></span>
+        </button>
+        <button class="btn-ghost" type="button" id="export-shp-select-btn" style="width:100%;text-align:left;padding:14px 16px;border:1.5px solid var(--blue);color:var(--blue);">
+          🖱️ Selecionar no mapa<br><span style="font-weight:400;font-size:11px;opacity:.85;">Clique nos furos/áreas, ou use seleção por retângulo</span>
+        </button>
+      </div>
     </div>
   </div>
 </div>
@@ -542,7 +583,7 @@ table.edit-tbl input:focus,table.edit-tbl select:focus{outline:none;border-color
 <script src="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.js"></script>
 <script src="https://unpkg.com/proj4@2.9.2/dist/proj4.js"></script>
 <script src="https://unpkg.com/shpjs@4.0.4/dist/shp.js"></script>
-<script src="https://unpkg.com/shp-write@0.3.2/shpwrite.js"></script>
+<script src="https://unpkg.com/@mapbox/shp-write@0.4.3/shpwrite.js"></script>
 <script>
 /* ══════════════════ ESTADO ══════════════════ */
 let furos = [];
@@ -913,10 +954,20 @@ const osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
   maxZoom:19, attribution:'© OpenStreetMap'}).addTo(map);
 const sat = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',{
   maxZoom:19, attribution:'© Esri'});
+// endpoint de tiles do Google — mesmo mecanismo usado por praticamente todo projeto Leaflet
+// que integra imagens do Google (ex.: plugin googlemutant); não é a API oficial com chave/
+// faturamento, então pode mudar de comportamento sem aviso do Google.
+const gsat = L.tileLayer('https://mt{s}.google.com/vt/lyrs=s&x={x}&y={y}&z={z}',{
+  maxZoom:20, subdomains:['0','1','2','3'], attribution:'© Google'});
+const ghyb = L.tileLayer('https://mt{s}.google.com/vt/lyrs=y&x={x}&y={y}&z={z}',{
+  maxZoom:20, subdomains:['0','1','2','3'], attribution:'© Google'});
 
+const baseLayers = {osm, sat, gsat, ghyb};
+let currentBase = 'osm';
 document.getElementById('sel-base').addEventListener('change', e=>{
-  if(e.target.value==='sat'){map.removeLayer(osm);sat.addTo(map);}
-  else{map.removeLayer(sat);osm.addTo(map);}
+  map.removeLayer(baseLayers[currentBase]);
+  currentBase = e.target.value;
+  baseLayers[currentBase].addTo(map);
 });
 
 const drawnItems = new L.FeatureGroup().addTo(map);
@@ -1029,7 +1080,11 @@ function drawFuro(f){
   const cls = 'furo-pin'+(f._interpolado?' interp':'');
   const icon = L.divIcon({className:'leaflet-div-icon', html:`<div class="${cls}" id="pin-${f.id}"></div>`, iconSize:[16,16], iconAnchor:[8,8]});
   const m = L.marker([f.lat,f.lng], {icon, draggable:true}).addTo(map);
-  m.on('click', ()=>{ if(interpSelectMode){ toggleInterpFuroSelect(f.id); return; } selectFuro(f.id); });
+  m.on('click', ()=>{
+    if(interpSelectMode){ toggleInterpFuroSelect(f.id); return; }
+    if(exportSelectMode){ toggleExportFuroSelect(f.id); return; }
+    selectFuro(f.id);
+  });
   m.on('dragend', ()=>{ const p=m.getLatLng(); f.lat=p.lat; f.lng=p.lng; scheduleSave(); renderFuroList(); if(selected&&selected.id===f.id) openFuroPanel(f.id); });
   markers[f.id]=m;
 }
@@ -1055,13 +1110,15 @@ function renderFuroList(){
     const div = document.createElement('div');
     const selCls = (selected&&selected.kind==='furo'&&selected.id===f.id) ? ' sel' : '';
     const interpCls = interpSelectMode && interpSelected.has(f.id) ? ' interpsel' : '';
-    div.className = 'item'+selCls+interpCls;
+    const exportCls = exportSelectMode && exportSelectedFuros.has(f.id) ? ' exportsel' : '';
+    div.className = 'item'+selCls+interpCls+exportCls;
     const badge = f._interpolado ? '🔮 ' : '';
     div.innerHTML = `<div class="item-title">${badge}${esc(f.ident.sondagemNum)}</div>
       <div class="item-sub">${esc(f.ident.obra||'sem obra')} · até ${profFinal(f).toFixed(1)}m</div>
       <div class="item-sub">E ${u.e.toFixed(1)} · N ${u.n.toFixed(1)}</div>`;
     div.onclick=()=>{
       if(interpSelectMode){ toggleInterpFuroSelect(f.id); return; }
+      if(exportSelectMode){ toggleExportFuroSelect(f.id); return; }
       selectFuro(f.id); map.setView([f.lat,f.lng], Math.max(map.getZoom(),15));
     };
     el.appendChild(div);
@@ -1665,7 +1722,10 @@ function drawShape(s){
     layer = L.polyline(latlngs, {color:s.color||'#2a5a8c'});
   }
   layer.addTo(map);
-  layer.on('click', ()=>selectShape(s.id));
+  layer.on('click', ()=>{
+    if(exportSelectMode){ toggleExportShapeSelect(s.id); return; }
+    selectShape(s.id);
+  });
   shapeLayers[s.id]=layer;
 }
 
@@ -1710,9 +1770,14 @@ function renderShapeList(){
   el.innerHTML='';
   shapes.forEach(s=>{
     const div=document.createElement('div');
-    div.className='item'+(selected&&selected.kind==='shape'&&selected.id===s.id?' sel':'');
+    const selCls = (selected&&selected.kind==='shape'&&selected.id===s.id) ? ' sel' : '';
+    const exportCls = exportSelectMode && exportSelectedShapes.has(s.id) ? ' exportsel' : '';
+    div.className='item'+selCls+exportCls;
     div.innerHTML=`<div class="item-title">${esc(s.name)}</div><div class="item-sub">${esc(s.type)} · ${s.geomType}</div>`;
-    div.onclick=()=>selectShape(s.id);
+    div.onclick=()=>{
+      if(exportSelectMode){ toggleExportShapeSelect(s.id); return; }
+      selectShape(s.id);
+    };
     el.appendChild(div);
   });
 }
@@ -1776,6 +1841,13 @@ map.on(L.Draw.Event.CREATED, e=>{
     toast(added>0 ? added+' furo(s) adicionados à seleção pelo retângulo' : 'Nenhum furo dentro do retângulo desenhado');
     return;
   }
+  if(drawingExportRectSelect){
+    drawingExportRectSelect = false;
+    const bounds = layer.getBounds();
+    const added = selectExportItemsInBounds(bounds);
+    toast(added>0 ? added+' item(ns) adicionados à seleção pelo retângulo' : 'Nenhum item dentro do retângulo desenhado');
+    return;
+  }
   const gj = layer.toGeoJSON().geometry;
   if(drawingProfileForBlockId && gj.type==='LineString'){
     const blockId = drawingProfileForBlockId;
@@ -1803,6 +1875,10 @@ map.on(L.Draw.Event.CREATED, e=>{
    O furo interpolado é claramente sinalizado como estimativa, nunca
    confundido com um boletim de campo real.
    ══════════════════════════════════════════════════════════════ */
+let exportSelectMode = false;
+let exportSelectedFuros = new Set();
+let exportSelectedShapes = new Set();
+let drawingExportRectSelect = false;
 let interpBlocks = [];
 let interpLayers = {};
 let interpSelectMode = false;
@@ -1959,7 +2035,23 @@ function handleInterpBlockClick(blockId, latlng){
 }
 
 /* ── núcleo da interpolação: gera um furo sintético num ponto (lat,lng) do bloco ── */
-function computeInterpolatedFuro(block, lat, lng){
+// escolhe um único furo pra ser o "molde" fixo da sequência de camadas de um perfil inteiro —
+// critério: o com mais camadas (perfil mais detalhado/completo), desempate pelo mais central do bloco
+function pickBlockTemplateFuro(block){
+  const srcFuros = block.furoIds.map(id=>furos.find(f=>f.id===id)).filter(Boolean);
+  if(!srcFuros.length) return null;
+  const cLat = srcFuros.reduce((s,f)=>s+f.lat,0)/srcFuros.length;
+  const cLng = srcFuros.reduce((s,f)=>s+f.lng,0)/srcFuros.length;
+  let best = srcFuros[0], bestScore = -Infinity;
+  srcFuros.forEach(f=>{
+    const d = Math.hypot((f.lat-cLat)*111320, (f.lng-cLng)*111320*Math.cos(cLat*Math.PI/180));
+    const score = f.camadas.length*1e6 - d; // mais camadas pesa muito mais que a distância ao centro
+    if(score>bestScore){ bestScore=score; best=f; }
+  });
+  return best;
+}
+
+function computeInterpolatedFuro(block, lat, lng, forcedTemplateFuro){
   const srcFuros = block.furoIds.map(id=>furos.find(f=>f.id===id)).filter(Boolean);
   if(srcFuros.length<2) return null;
 
@@ -1971,10 +2063,17 @@ function computeInterpolatedFuro(block, lat, lng){
   const weights = idwWeights(pt, sources, block.power||2);
   const wMap = {}; weights.forEach(w=>{ wMap[w.id]=w.weight; });
 
-  // furo mais próximo em planta = "molde" da sequência de camadas (tipo/descrição)
-  let nearest = sources[0], nearestD = Infinity;
-  sources.forEach(s=>{ const d=Math.hypot(s.x-pt.x, s.y-pt.y); if(d<nearestD){ nearestD=d; nearest=s; } });
-  const template = nearest.furo;
+  // furo mais próximo em planta = "molde" da sequência de camadas (tipo/descrição) — a menos que
+  // um molde fixo tenha sido informado (usado ao gerar um PERFIL, pra evitar que o molde troque de
+  // amostra pra amostra e crie um "degrau" onde a estrutura de camadas muda de repente)
+  let template;
+  if(forcedTemplateFuro){
+    template = forcedTemplateFuro;
+  } else {
+    let nearest = sources[0], nearestD = Infinity;
+    sources.forEach(s=>{ const d=Math.hypot(s.x-pt.x, s.y-pt.y); if(d<nearestD){ nearestD=d; nearest=s; } });
+    template = nearest.furo;
+  }
 
   // profundidade de cada topo de camada — IDW por índice de camada, usando o molde como referência
   const camadas = template.camadas.map((c,i)=>{
@@ -2221,13 +2320,18 @@ function generateGeotechProfile(blockId, latlngs){
   const totalLength = localPts[localPts.length-1].cum;
   if(totalLength<1){ toast('Linha muito curta para gerar um perfil (mín. 1 m)'); return; }
 
+  // molde FIXO pro perfil inteiro (furo com mais camadas, desempate pelo mais central do bloco) —
+  // evita que o molde troque de amostra pra amostra e crie um "degrau" onde a estrutura de
+  // camadas muda de repente; as profundidades continuam variando suavemente por IDW
+  const profileTemplate = pickBlockTemplateFuro(block);
+
   const N = Math.min(60, Math.max(12, Math.round(totalLength/3)));
   const samples = [];
   for(let i=0;i<=N;i++){
     const d = totalLength*i/N;
     const xy = pointAtDistance(localPts, d);
     const [lat,lng] = xyToLatLng(xy.x, xy.y, block.refLat, block.refLng);
-    const interp = computeInterpolatedFuro(block, lat, lng);
+    const interp = computeInterpolatedFuro(block, lat, lng, profileTemplate);
     const cota = interp && interp.ident.cota!=='' && interp.ident.cota!=null && isFinite(parseFloat(interp.ident.cota))
       ? parseFloat(interp.ident.cota) : null;
     samples.push({ dist:d, lat, lng, camadas: interp ? interp.camadas : [], cota });
@@ -2494,6 +2598,7 @@ const RASTER_PARAMS = [
 let currentRasterBlockId = null;
 let currentRasterParam = 'cota';
 let currentRasterCanvas = null;
+let currentRasterGridResult = null;
 
 // ponto-em-polígono (ray casting) em coordenadas locais XY — usado pra recortar o raster no casco convexo
 function pointInPolygonXY(pt, poly){
@@ -2573,10 +2678,12 @@ function computeRasterGrid(block, paramKey, elev){
   const cols = Math.max(2, Math.round(spanX/cellSize));
   const rows = Math.max(2, Math.round(spanY/cellSize));
 
+  // linha 0 da grade = a mais ao NORTE (maior Y), pra bater com a convenção padrão de raster
+  // (linha 0 no topo da imagem) e permitir georreferenciar corretamente no GeoTIFF
   const grid = [];
   for(let r=0;r<rows;r++){
     const row = [];
-    const y = minY + (r+0.5)*cellSize;
+    const y = maxY - (r+0.5)*cellSize;
     for(let c=0;c<cols;c++){
       const x = minX + (c+0.5)*cellSize;
       if(!pointInPolygonXY({x,y}, hullXY)){ row.push({valid:false}); continue; }
@@ -2587,7 +2694,7 @@ function computeRasterGrid(block, paramKey, elev){
     }
     grid.push(row);
   }
-  return {cols, rows, cellSize, grid};
+  return {cols, rows, cellSize, minX, minY, maxX, maxY, grid};
 }
 
 // paleta contínua (azul → vermelho) para parâmetros numéricos
@@ -2610,6 +2717,144 @@ function continuousColor(t){
 function hexToRgb(hex){
   const h = (hex||'#cccccc').replace('#','');
   return [parseInt(h.substring(0,2),16)||0, parseInt(h.substring(2,4),16)||0, parseInt(h.substring(4,6),16)||0];
+}
+
+/* ══════════════════════════════════════════════════════════════
+   EXPORTAÇÃO GEOTIFF — escritor mínimo de TIFF/GeoTIFF em JS puro
+   (sem biblioteca externa). Grava o raster em banda única, com o
+   VALOR NUMÉRICO real de cada célula (não uma imagem colorida):
+   Float32 para parâmetros contínuos (cota, N.A., prof. até rocha,
+   N-SPT), com nodata = -9999; ou Byte com código inteiro (1..6,
+   seguindo a ordem de TIPOS_SOLO) para "material", com nodata = 0.
+   Georreferenciado em WGS84 geográfico (EPSG:4326) via GeoKeys.
+   Isso permite abrir o raster num SIG (QGIS etc.) com os valores
+   reais utilizáveis para análise, não só uma figura.
+   ══════════════════════════════════════════════════════════════ */
+function cellRasterValue(cell, paramKey){
+  if(paramKey==='material'){
+    if(!cell.valid) return 0;
+    const idx = TIPOS_SOLO.findIndex(t=>t[0]===cell.tipo);
+    return idx>=0 ? idx+1 : TIPOS_SOLO.length; // 1..N, na mesma ordem de TIPOS_SOLO
+  }
+  return cell.valid ? cell.num : -9999;
+}
+
+function encodeTiffFieldBytes(entry){
+  if(entry.raw) return entry.raw;
+  const buf = new ArrayBuffer(entry.bytesPer*entry.count);
+  const dv = new DataView(buf);
+  entry.values.forEach((v,i)=>{
+    const off = i*entry.bytesPer;
+    if(entry.type===3) dv.setUint16(off, v, true);
+    else if(entry.type===4) dv.setUint32(off, v, true);
+    else if(entry.type===12) dv.setFloat64(off, v, true);
+  });
+  return new Uint8Array(buf);
+}
+
+function buildGeoTiffBytes(gridResult, paramKey, block){
+  const { cols:width, rows:height, cellSize, minX, maxY, grid } = gridResult;
+  const isFloat = paramKey!=='material';
+  const bitsPerSample = isFloat ? 32 : 8;
+  const nodataStr = isFloat ? '-9999' : '0';
+
+  // valores em banda única, linha a linha (grid[0] já é a linha mais ao norte)
+  let pixelBuf = isFloat ? new Float32Array(width*height) : new Uint8Array(width*height);
+  for(let r=0;r<height;r++){
+    for(let c=0;c<width;c++){
+      pixelBuf[r*width+c] = cellRasterValue(grid[r][c], paramKey);
+    }
+  }
+  const pixelBytes = new Uint8Array(pixelBuf.buffer, pixelBuf.byteOffset, pixelBuf.byteLength);
+
+  // georreferenciamento — WGS84 geográfico (graus), escala derivada do tamanho de célula em metros
+  const scaleXdeg = cellSize / (111320*Math.cos(block.refLat*Math.PI/180));
+  const scaleYdeg = cellSize / 111320;
+  const [cornerLat, cornerLng] = xyToLatLng(minX, maxY, block.refLat, block.refLng); // canto NO do raster
+
+  const geoKeys = [
+    1,1,0,3,          // KeyDirectoryVersion, KeyRevision, MinorRevision, NumberOfKeys
+    1024,0,1,2,       // GTModelTypeGeoKey = 2 (Geographic)
+    1025,0,1,1,       // GTRasterTypeGeoKey = 1 (RasterPixelIsArea)
+    2048,0,1,4326,    // GeographicTypeGeoKey = 4326 (WGS84)
+  ];
+  const nodataBytes = new TextEncoder().encode(nodataStr+'\0');
+
+  const list = [];
+  const addU16 = (tag,values)=> list.push({tag, type:3, count:values.length, values, bytesPer:2});
+  const addU32 = (tag,values)=> list.push({tag, type:4, count:values.length, values, bytesPer:4});
+  const addF64 = (tag,values)=> list.push({tag, type:12, count:values.length, values, bytesPer:8});
+  const addAscii = (tag,bytesArr)=> list.push({tag, type:2, count:bytesArr.length, raw:bytesArr, bytesPer:1});
+
+  addU32(256, [width]);
+  addU32(257, [height]);
+  addU16(258, [bitsPerSample]);
+  addU16(259, [1]);           // Compression = nenhuma
+  addU16(262, [1]);           // PhotometricInterpretation = BlackIsZero (dado, não imagem)
+  addU32(273, [0]);           // StripOffsets — placeholder, ajustado depois
+  addU16(277, [1]);           // SamplesPerPixel = 1 (banda única)
+  addU32(278, [height]);      // RowsPerStrip
+  addU32(279, [pixelBytes.length]); // StripByteCounts
+  addU16(284, [1]);           // PlanarConfiguration
+  if(isFloat) addU16(339, [3]); // SampleFormat = 3 (IEEE float) — necessário pro Float32 ser lido certo
+  addF64(33550, [scaleXdeg, scaleYdeg, 0]);       // ModelPixelScaleTag
+  addF64(33922, [0,0,0, cornerLng, cornerLat, 0]); // ModelTiepointTag (pixel 0,0 -> canto NO)
+  addU16(34735, geoKeys);     // GeoKeyDirectoryTag
+  addAscii(42113, nodataBytes); // GDAL_NODATA (convenção reconhecida por QGIS/GDAL)
+
+  list.sort((a,b)=>a.tag-b.tag);
+  list.forEach(e=>{ e.bytes = encodeTiffFieldBytes(e); });
+
+  const HEADER_SIZE = 8;
+  const ifdOffset = HEADER_SIZE;
+  const ifdSize = 2 + list.length*12 + 4;
+  let offset = ifdOffset + ifdSize;
+
+  list.forEach(e=>{
+    if(e.bytes.length<=4){
+      e.inline = true;
+    } else {
+      e.inline = false;
+      e.dataOffset = offset;
+      offset += e.bytes.length;
+      if(offset%2===1) offset++;
+    }
+  });
+
+  const pixelDataOffset = offset;
+  offset += pixelBytes.length;
+
+  // agora que sabemos o offset real dos pixels, atualiza o StripOffsets (continua cabendo inline)
+  const stripEntry = list.find(e=>e.tag===273);
+  stripEntry.values = [pixelDataOffset];
+  stripEntry.bytes = encodeTiffFieldBytes(stripEntry);
+
+  const totalSize = offset;
+  const buf = new ArrayBuffer(totalSize);
+  const dv = new DataView(buf);
+  const bytes = new Uint8Array(buf);
+
+  // header TIFF: little-endian ("II"), magic 42, offset da primeira IFD
+  dv.setUint8(0, 0x49); dv.setUint8(1, 0x49);
+  dv.setUint16(2, 42, true);
+  dv.setUint32(4, ifdOffset, true);
+
+  let p = ifdOffset;
+  dv.setUint16(p, list.length, true); p += 2;
+  list.forEach(e=>{
+    dv.setUint16(p, e.tag, true);
+    dv.setUint16(p+2, e.type, true);
+    dv.setUint32(p+4, e.count, true);
+    if(e.inline) bytes.set(e.bytes, p+8);
+    else dv.setUint32(p+8, e.dataOffset, true);
+    p += 12;
+  });
+  dv.setUint32(p, 0, true); // sem próxima IFD
+
+  list.filter(e=>!e.inline).forEach(e=>{ bytes.set(e.bytes, e.dataOffset); });
+  bytes.set(pixelBytes, pixelDataOffset);
+
+  return bytes;
 }
 
 // desenha a grade num <canvas> em baixa resolução (1 px = 1 célula) — ampliado via CSS na exibição
@@ -2695,6 +2940,7 @@ function generateRaster(){
   const gridResult = computeRasterGrid(block, currentRasterParam, elev);
   const {canvas, minV, maxV} = renderRasterToCanvas(gridResult, currentRasterParam);
   currentRasterCanvas = canvas;
+  currentRasterGridResult = gridResult;
 
   const dispW = Math.min(680, Math.max(200, gridResult.cols*7));
   const scale = dispW/gridResult.cols;
@@ -2717,6 +2963,7 @@ function openRasterView(blockId){
   currentRasterBlockId = blockId;
   currentRasterParam = 'cota';
   currentRasterCanvas = null;
+  currentRasterGridResult = null;
   buildRasterParamButtons();
   document.getElementById('raster-elev-wrap').style.display='none';
   document.getElementById('raster-elev-input').value='';
@@ -2730,7 +2977,7 @@ function openRasterView(blockId){
 function closeRasterView(){
   document.getElementById('raster-view-overlay').classList.remove('open');
   document.body.style.overflow='';
-  currentRasterBlockId=null; currentRasterCanvas=null;
+  currentRasterBlockId=null; currentRasterCanvas=null; currentRasterGridResult=null;
 }
 document.getElementById('raster-view-overlay').addEventListener('click', e=>{ if(e.target.id==='raster-view-overlay') closeRasterView(); });
 document.getElementById('raster-gerar-btn').addEventListener('click', generateRaster);
@@ -2761,6 +3008,24 @@ document.getElementById('raster-save-btn').addEventListener('click', ()=>{
   document.body.appendChild(a); a.click(); a.remove();
   toast('Imagem salva: '+filename);
 });
+document.getElementById('raster-save-tif-btn').addEventListener('click', ()=>{
+  if(!currentRasterGridResult){ toast('Gere o raster antes de salvar'); return; }
+  const block = interpBlocks.find(b=>b.id===currentRasterBlockId); if(!block) return;
+  const paramDef = RASTER_PARAMS.find(p=>p.key===currentRasterParam);
+  const tiffBytes = buildGeoTiffBytes(currentRasterGridResult, currentRasterParam, block);
+  const blob = new Blob([tiffBytes], {type:'image/tiff'});
+  const url = URL.createObjectURL(blob);
+  const nomeBloco = block.nome.replace(/[^a-z0-9]+/gi,'_');
+  const filename = `raster_${nomeBloco}_${paramDef.key}.tif`;
+  const a = document.createElement('a');
+  a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url), 2000);
+  const nota = paramDef.key==='material'
+    ? ' Códigos de material: '+TIPOS_SOLO.map((t,i)=>(i+1)+'='+t[0]).join(', ')+' (0 = sem dado).'
+    : ' Sem dado = -9999.';
+  toast('GeoTIFF salvo: '+filename+'.'+nota);
+});
 
 /* ══════════════════ ABAS ══════════════════ */
 document.querySelectorAll('.sb-tab').forEach(tab=>{
@@ -2785,7 +3050,14 @@ document.getElementById('file-input').addEventListener('change', async e=>{
       geojson = await shp(buf);
     } else {
       const txt = await file.text();
-      geojson = JSON.parse(txt);
+      const parsed = JSON.parse(txt);
+      if(parsed && Array.isArray(parsed.furos)){
+        const n = importFuroCampaignJSON(parsed.furos);
+        renderFuroList(); fitAll(); scheduleSave();
+        toast(`Importado: ${n} furo(s) da campanha (dados completos — camadas e golpes)`);
+        e.target.value=''; return;
+      }
+      geojson = parsed;
     }
     const collections = Array.isArray(geojson) ? geojson : [geojson];
     let nPts=0, nShp=0;
@@ -2797,9 +3069,86 @@ document.getElementById('file-input').addEventListener('change', async e=>{
     });
     renderFuroList(); renderShapeList(); fitAll(); scheduleSave();
     toast(`Importado: ${nPts} furo(s), ${nShp} área/linha(s)`);
-  }catch(err){ console.error(err); alert('Não foi possível ler o arquivo. Verifique se é um .zip de shapefile válido (com .shp, .shx, .dbf) ou um GeoJSON.'); }
+  }catch(err){ console.error(err); alert('Não foi possível ler o arquivo. Verifique se é um .zip de shapefile válido (com .shp, .shx, .dbf), um GeoJSON, ou um JSON de campanha completa (formato {"furos":[...]}).'); }
   e.target.value='';
 });
+
+/* ══════════════════════════════════════════════════════════════
+   IMPORTAÇÃO DE CAMPANHA COMPLETA (JSON) — diferente do import de
+   GeoJSON/Shapefile genérico (importFeature, abaixo), que só traz um
+   resumo simplificado (1 leitura de N.A., 1 valor de N-SPT), esta
+   via reconstrói o furo por inteiro: todas as camadas, todos os
+   golpes por profundidade, dados de identificação completos. Aceita
+   localização em lat/lng direto OU em UTM (E, N, zona, datum), que
+   é convertida automaticamente. Pensado pra importar relatórios de
+   sondagem reais (convertidos manualmente ou por outra ferramenta)
+   no formato nativo do app.
+   ══════════════════════════════════════════════════════════════ */
+function importFuroCampaignJSON(furosData){
+  let count = 0;
+  (furosData||[]).forEach(fd=>{
+    let lat, lng;
+    if(fd.lat!=null && fd.lng!=null && isFinite(parseFloat(fd.lat)) && isFinite(parseFloat(fd.lng))){
+      lat = parseFloat(fd.lat); lng = parseFloat(fd.lng);
+    } else if(fd.utm && isFinite(parseFloat(fd.utm.e)) && isFinite(parseFloat(fd.utm.n)) && fd.utm.zone){
+      const conv = utmToLatLng(parseFloat(fd.utm.e), parseFloat(fd.utm.n), parseInt(fd.utm.zone), fd.utm.datum||'SIRGAS2000');
+      lat = conv.lat; lng = conv.lng;
+    } else {
+      return; // sem localização utilizável (nem lat/lng nem UTM válidos) — pula este furo
+    }
+    if(!isFinite(lat) || !isFinite(lng)) return;
+
+    const f = blankFuro(lat, lng);
+    f.ident.sondagemNum = fd.sondagemNum || f.ident.sondagemNum;
+    f.ident.obra = fd.obra || '';
+    f.ident.cliente = fd.cliente || '';
+    f.ident.local = fd.local || '';
+    f.ident.dataInicio = fd.dataInicio || '';
+    f.ident.dataFim = fd.dataFim || fd.dataInicio || '';
+    f.ident.cota = fd.cota!=null ? String(fd.cota) : '';
+    f.ident.datum = fd.datum || (fd.utm && fd.utm.datum) || 'SIRGAS2000';
+    f.ident.coordN = fd.utm ? String(fd.utm.n) : '';
+    f.ident.coordE = fd.utm ? String(fd.utm.e) : '';
+    f.ident.responsavel = fd.responsavel || '';
+    f.ident.sondador = fd.sondador || '';
+    f.ident.desenhista = fd.desenhista || '';
+    if(fd.amostrador){
+      f.ident.amDiamInt = fd.amostrador.diamInt!=null ? String(fd.amostrador.diamInt) : f.ident.amDiamInt;
+      f.ident.amDiamExt = fd.amostrador.diamExt!=null ? String(fd.amostrador.diamExt) : f.ident.amDiamExt;
+      f.ident.amPeso = fd.amostrador.peso!=null ? String(fd.amostrador.peso) : f.ident.amPeso;
+      f.ident.amAltura = fd.amostrador.altura!=null ? String(fd.amostrador.altura) : f.ident.amAltura;
+    }
+    f.metodo = fd.metodo || 'SPT (NBR 6484)';
+    f.equipamento = fd.equipamento || '';
+    f.revestimento = fd.revestimento || '';
+    f.arquivo_ref = fd.arquivo_ref || '';
+    f.obs = fd.obs || '';
+
+    if(Array.isArray(fd.agua) && fd.agua.length){
+      f.agua = fd.agua.map(a=>({data:a.data||'', prof: a.prof!=null ? String(a.prof) : ''}));
+    }
+    if(Array.isArray(fd.camadas) && fd.camadas.length){
+      f.camadas = fd.camadas.map(c=>({
+        profFinal: +c.profFinal||0,
+        tipo: TIPOS_SOLO.some(t=>t[0]===c.tipo) ? c.tipo : inferTipoSolo(c.descricao),
+        descricao: c.descricao || ''
+      }));
+    }
+    if(Array.isArray(fd.golpes) && fd.golpes.length){
+      f.golpes = fd.golpes.map(g=>({
+        prof: +g.prof||0,
+        g1: (g.g1!==undefined && g.g1!==null) ? g.g1 : '',
+        g2: (g.g2!==undefined && g.g2!==null) ? g.g2 : '',
+        g3: (g.g3!==undefined && g.g3!==null) ? g.g3 : ''
+      }));
+    }
+
+    furos.push(f);
+    drawFuro(f);
+    count++;
+  });
+  return count;
+}
 
 function findProp(props, keys){
   if(!props) return '';
@@ -2834,9 +3183,12 @@ function importFeature(feat){
 }
 
 /* ══════════════════ EXPORTAR ══════════════════ */
-function buildGeoJSON(){
+function buildGeoJSON(furoIds, shapeIds){
+  const fIds = furoIds ? new Set(furoIds) : null;
+  const sIds = shapeIds ? new Set(shapeIds) : null;
   const features = [];
   furos.forEach(f=>{
+    if(fIds && !fIds.has(f.id)) return;
     const camadasTxt = f.camadas.map(c=>`até ${c.profFinal}m: ${c.descricao} [${c.tipo}]`).join(' | ');
     const golpesTxt = f.golpes.map(g=>`${g.prof}m G1=${g.g1} G2=${g.g2} G3=${g.g3}`).join(' | ');
     const naTxt = f.agua.map(r=>`${r.data||'-'}: ${r.prof}m`).join(' | ');
@@ -2851,6 +3203,7 @@ function buildGeoJSON(){
         nivel_agua:naTxt, prof_final:profFinal(f), camadas:camadasTxt, golpes_spt:golpesTxt, obs:f.obs}});
   });
   shapes.forEach(s=>{
+    if(sIds && !sIds.has(s.id)) return;
     features.push({type:'Feature', geometry:{type:s.geomType, coordinates:s.coords},
       properties:{id:s.id, nome:s.name, tipo:s.type}});
   });
@@ -2868,12 +3221,144 @@ document.getElementById('btn-export-gj').onclick=()=>{
   download('geosig_export.geojson', JSON.stringify(buildGeoJSON(), null, 2), 'application/geo+json');
 };
 
-document.getElementById('btn-export-shp').onclick=()=>{
-  if(furos.length===0 && shapes.length===0){ toast('Nada para exportar'); return; }
-  const gj = buildGeoJSON();
-  shpwrite.download(gj, {types:{point:'furos_spt', polygon:'areas', polyline:'linhas'}});
+/* ══════════════════════════════════════════════════════════════
+   EXPORTAÇÃO DE SHAPEFILE
+   ══════════════════════════════════════════════════════════════
+   Dois bugs corrigidos aqui:
+   1) shpwrite.download() (shp-write@0.3.2, versão antiga usada
+      antes) fazia `location.href = 'data:...'` — navegação que
+      navegadores modernos bloqueiam silenciosamente pro frame
+      principal, por isso o botão "não fazia nada". Trocado por
+      gerar o .zip como Blob e baixar via link temporário, como os
+      outros exports do app.
+   2) O bundle publicado de shp-write@0.3.2 (servido pelo CDN)
+      embute uma versão do JSZip incompatível com o método que ele
+      chama internamente (`zip.generate is not a function` / "This
+      method has been removed in JSZip 3.0") — quebra ANTES mesmo de
+      chegar no passo 1. Corrigido trocando para o pacote sucessor
+      mantido oficialmente, @mapbox/shp-write, cuja API `zip()` é
+      assíncrona (retorna Promise) e usa o JSZip 3.x corretamente.
+   Também abre um popup: exportar tudo, ou selecionar no mapa
+   (clique ou retângulo) quais furos/áreas incluir.
+   ══════════════════════════════════════════════════════════════ */
+async function exportShapefileFromGeoJSON(gj){
+  if(!gj.features.length){ toast('Nada para exportar'); return; }
+  toast('Gerando shapefile…');
+  let base64;
+  try{
+    base64 = await shpwrite.zip(gj, {types:{point:'furos_spt', polygon:'areas', polyline:'linhas'}});
+  }catch(e){
+    console.error('erro ao gerar shapefile', e);
+    toast('Erro ao gerar o shapefile — veja o console para detalhes');
+    return;
+  }
+  const binary = atob(base64);
+  const bytes = new Uint8Array(binary.length);
+  for(let i=0;i<binary.length;i++) bytes[i] = binary.charCodeAt(i);
+  const blob = new Blob([bytes], {type:'application/zip'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = 'geosig_shapefile.zip';
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url), 2000);
   toast('Shapefile (WGS84) gerado — reprojete no seu SIG se necessário');
+}
+
+function openExportShpChoice(){
+  if(furos.length===0 && shapes.length===0){ toast('Nada para exportar'); return; }
+  document.getElementById('export-shp-all-count').textContent = furos.length+' furo(s), '+shapes.length+' área(s)/linha(s)';
+  document.getElementById('export-shp-choice-overlay').classList.add('open');
+  document.body.style.overflow='hidden';
+}
+function closeExportShpChoice(){
+  document.getElementById('export-shp-choice-overlay').classList.remove('open');
+  document.body.style.overflow='';
+}
+document.getElementById('export-shp-choice-overlay').addEventListener('click', e=>{ if(e.target.id==='export-shp-choice-overlay') closeExportShpChoice(); });
+document.getElementById('btn-export-shp').onclick = openExportShpChoice;
+document.getElementById('export-shp-all-btn').onclick = ()=>{
+  closeExportShpChoice();
+  exportShapefileFromGeoJSON(buildGeoJSON());
 };
+document.getElementById('export-shp-select-btn').onclick = ()=>{
+  closeExportShpChoice();
+  enterExportSelectMode();
+};
+
+function enterExportSelectMode(){
+  exportSelectMode = true;
+  exportSelectedFuros.clear();
+  exportSelectedShapes.clear();
+  document.getElementById('export-select-bar').style.display = 'flex';
+  updateExportSelectBar();
+  closePanel();
+  toast('Clique nos furos/áreas que deseja exportar, ou use "▭ Selecionar por retângulo"');
+}
+function exitExportSelectMode(){
+  exportSelectMode = false;
+  drawingExportRectSelect = false;
+  document.getElementById('export-select-bar').style.display = 'none';
+  exportSelectedFuros.forEach(id=>{ const p=document.getElementById('pin-'+id); if(p) p.classList.remove('exportsel'); });
+  exportSelectedFuros.clear();
+  exportSelectedShapes.clear();
+  renderFuroList(); renderShapeList();
+}
+function toggleExportFuroSelect(id){
+  if(exportSelectedFuros.has(id)) exportSelectedFuros.delete(id); else exportSelectedFuros.add(id);
+  const pin = document.getElementById('pin-'+id);
+  if(pin) pin.classList.toggle('exportsel', exportSelectedFuros.has(id));
+  updateExportSelectBar();
+  renderFuroList();
+}
+function toggleExportShapeSelect(id){
+  if(exportSelectedShapes.has(id)) exportSelectedShapes.delete(id); else exportSelectedShapes.add(id);
+  updateExportSelectBar();
+  renderShapeList();
+}
+function updateExportSelectBar(){
+  const n = exportSelectedFuros.size + exportSelectedShapes.size;
+  document.getElementById('export-select-count').textContent = n+' item(ns) selecionado(s)';
+  document.getElementById('export-btn-confirm').disabled = n<1;
+}
+document.getElementById('export-btn-cancel').addEventListener('click', exitExportSelectMode);
+document.getElementById('export-btn-confirm').addEventListener('click', ()=>{
+  const gj = buildGeoJSON(Array.from(exportSelectedFuros), Array.from(exportSelectedShapes));
+  exitExportSelectMode();
+  exportShapefileFromGeoJSON(gj);
+});
+document.getElementById('export-btn-rect').addEventListener('click', ()=>{
+  if(!exportSelectMode) return;
+  drawingExportRectSelect = true;
+  toast('Arraste um retângulo no mapa sobre os itens que deseja adicionar à seleção');
+  new L.Draw.Rectangle(map, {shapeOptions:{color:'#2a5a8c', weight:2}}).enable();
+});
+
+// soma à seleção de exportação todos os furos (por posição) e áreas/linhas (por qualquer vértice)
+// que caiam dentro do retângulo desenhado
+function selectExportItemsInBounds(bounds){
+  let added = 0;
+  furos.forEach(f=>{
+    if(bounds.contains([f.lat, f.lng]) && !exportSelectedFuros.has(f.id)){
+      exportSelectedFuros.add(f.id);
+      added++;
+      const pin = document.getElementById('pin-'+f.id);
+      if(pin) pin.classList.add('exportsel');
+    }
+  });
+  shapes.forEach(s=>{
+    if(exportSelectedShapes.has(s.id)) return;
+    const coordsFlat = [];
+    (function flatten(coords){
+      if(typeof coords[0]==='number'){ coordsFlat.push(coords); return; }
+      coords.forEach(flatten);
+    })(s.coords);
+    const intersects = coordsFlat.some(c=> bounds.contains([c[1], c[0]]));
+    if(intersects){ exportSelectedShapes.add(s.id); added++; }
+  });
+  updateExportSelectBar();
+  renderFuroList(); renderShapeList();
+  return added;
+}
 
 document.getElementById('btn-export-csv').onclick=()=>{
   if(furos.length===0){ toast('Nenhum furo para exportar'); return; }

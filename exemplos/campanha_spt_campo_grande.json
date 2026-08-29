@@ -1,0 +1,417 @@
+{
+  "furos": [
+    {
+      "cliente": "TBG - Transportadora Brasileira Gasoduto Bolívia-Brasil S.A.",
+      "obra": "PE CAMPO GRANDE UTE V",
+      "local": "BR-060, sn - Zona Rural - Campo Grande - MS",
+      "dataInicio": "11/08/2026",
+      "dataFim": "11/08/2026",
+      "datum": "SIRGAS2000",
+      "responsavel": "Eng. Paulo Sergio Ferreira (CREA 200747/D-PR)",
+      "sondador": "Alfa-Geo Curitiba Sondagens",
+      "metodo": "SPT (NBR 6484:2020)",
+      "equipamento": "Sonda a percussão",
+      "revestimento": "3,00 m",
+      "sondagemNum": "SPT-01",
+      "cota": "493,00",
+      "utm": {
+        "e": 735277.26,
+        "n": 7719457.85,
+        "zone": 21,
+        "datum": "SIRGAS2000"
+      },
+      "agua": [
+        {
+          "data": "11/08/2026",
+          "prof": 1.4
+        }
+      ],
+      "camadas": [
+        {
+          "profFinal": 3.45,
+          "tipo": "argila",
+          "descricao": "Argila pouca siltosa, marrom amarelado"
+        },
+        {
+          "profFinal": 5.45,
+          "tipo": "argila",
+          "descricao": "Argila siltosa, marrom avermelhada"
+        },
+        {
+          "profFinal": 6.45,
+          "tipo": "argila",
+          "descricao": "Argila siltosa, marrom avermelhada com veios preto"
+        },
+        {
+          "profFinal": 8.45,
+          "tipo": "silte",
+          "descricao": "Silte argiloso, vermelho e roxo com veios pretos"
+        },
+        {
+          "profFinal": 10.45,
+          "tipo": "silte",
+          "descricao": "Silte argiloso, marrom amarelado e preto"
+        },
+        {
+          "profFinal": 13.45,
+          "tipo": "silte",
+          "descricao": "Silte, marrom amarelado e preto"
+        }
+      ],
+      "golpes": [
+        {
+          "prof": 1.45,
+          "g1": 2,
+          "g2": 1,
+          "g3": 1
+        },
+        {
+          "prof": 2.45,
+          "g1": 1,
+          "g2": 1,
+          "g3": 1
+        },
+        {
+          "prof": 3.45,
+          "g1": 1,
+          "g2": 1,
+          "g3": 1
+        },
+        {
+          "prof": 4.45,
+          "g1": 2,
+          "g2": 2,
+          "g3": 2
+        },
+        {
+          "prof": 5.45,
+          "g1": 2,
+          "g2": 2,
+          "g3": 2
+        },
+        {
+          "prof": 6.45,
+          "g1": 2,
+          "g2": 3,
+          "g3": 4
+        },
+        {
+          "prof": 7.45,
+          "g1": 3,
+          "g2": 4,
+          "g3": 5
+        },
+        {
+          "prof": 8.45,
+          "g1": 4,
+          "g2": 6,
+          "g3": 9
+        },
+        {
+          "prof": 9.45,
+          "g1": 8,
+          "g2": 10,
+          "g3": 12
+        },
+        {
+          "prof": 10.45,
+          "g1": 11,
+          "g2": 13,
+          "g3": 16
+        },
+        {
+          "prof": 11.45,
+          "g1": 12,
+          "g2": 14,
+          "g3": 18
+        },
+        {
+          "prof": 12.45,
+          "g1": 19,
+          "g2": 22,
+          "g3": 20
+        }
+      ],
+      "obs": "Convertido do relatório técnico de sondagem SPT (Alfa-Geo Curitiba Sondagens, REL 227/2026). Nível d'água: inicial 1,40 m; esgotado 5,80 m; 01 hora após 1,10 m. Limite de sondagem: 13,04 m (impenetrável a percussão, conforme item 5.2.4.2 da NBR 6484:2020). Amostra 12 (12,45 m): 3º segmento com penetração parcial (20 golpes para 9 cm, não representa cravação completa de 15 cm). Amostra 13 (13,45 m) excluída dos golpes: apenas o 1º segmento foi executado (17 golpes para 4 cm), 2º e 3º não executados — sondagem encerrada por impenetrabilidade. ATENÇÃO: o relatório original indica zona UTM 22J, mas essa zona não é compatível com a localização (Campo Grande-MS); as coordenadas foram convertidas usando a zona 21S, que bate com o endereço informado — confirme com o relatório original antes de usar em projeto executivo."
+    },
+    {
+      "cliente": "TBG - Transportadora Brasileira Gasoduto Bolívia-Brasil S.A.",
+      "obra": "PE CAMPO GRANDE UTE V",
+      "local": "BR-060, sn - Zona Rural - Campo Grande - MS",
+      "dataInicio": "11/08/2026",
+      "dataFim": "11/08/2026",
+      "datum": "SIRGAS2000",
+      "responsavel": "Eng. Paulo Sergio Ferreira (CREA 200747/D-PR)",
+      "sondador": "Alfa-Geo Curitiba Sondagens",
+      "metodo": "SPT (NBR 6484:2020)",
+      "equipamento": "Sonda a percussão",
+      "revestimento": "3,00 m",
+      "sondagemNum": "SPT-02",
+      "cota": "493,00",
+      "utm": {
+        "e": 735293.59,
+        "n": 7719484.87,
+        "zone": 21,
+        "datum": "SIRGAS2000"
+      },
+      "agua": [
+        {
+          "data": "11/08/2026",
+          "prof": 0.9
+        }
+      ],
+      "camadas": [
+        {
+          "profFinal": 2.45,
+          "tipo": "argila",
+          "descricao": "Argila pouca siltosa, marrom vermelho escuro"
+        },
+        {
+          "profFinal": 4.45,
+          "tipo": "argila",
+          "descricao": "Argila pouco siltosa, marrom avermelhada"
+        },
+        {
+          "profFinal": 7.45,
+          "tipo": "argila",
+          "descricao": "Argila siltosa, marrom avermelhada com veios pretos"
+        },
+        {
+          "profFinal": 9.45,
+          "tipo": "silte",
+          "descricao": "Silte argiloso, marrom com veios roxo variegado"
+        },
+        {
+          "profFinal": 11.45,
+          "tipo": "silte",
+          "descricao": "Silte pouco argiloso, marrom e roxo escuro com veios preto amarelado"
+        },
+        {
+          "profFinal": 13.45,
+          "tipo": "silte",
+          "descricao": "Silte pouco argiloso, com veios amarelo e preto"
+        }
+      ],
+      "golpes": [
+        {
+          "prof": 1.45,
+          "g1": 2,
+          "g2": 2,
+          "g3": 2
+        },
+        {
+          "prof": 2.45,
+          "g1": 1,
+          "g2": 1,
+          "g3": 1
+        },
+        {
+          "prof": 3.45,
+          "g1": 1,
+          "g2": 1,
+          "g3": 1
+        },
+        {
+          "prof": 4.45,
+          "g1": 1,
+          "g2": 1,
+          "g3": 2
+        },
+        {
+          "prof": 5.45,
+          "g1": 2,
+          "g2": 2,
+          "g3": 2
+        },
+        {
+          "prof": 6.45,
+          "g1": 2,
+          "g2": 3,
+          "g3": 4
+        },
+        {
+          "prof": 7.45,
+          "g1": 3,
+          "g2": 5,
+          "g3": 7
+        },
+        {
+          "prof": 8.45,
+          "g1": 6,
+          "g2": 8,
+          "g3": 9
+        },
+        {
+          "prof": 9.45,
+          "g1": 7,
+          "g2": 9,
+          "g3": 12
+        },
+        {
+          "prof": 10.45,
+          "g1": 10,
+          "g2": 13,
+          "g3": 14
+        },
+        {
+          "prof": 11.45,
+          "g1": 15,
+          "g2": 17,
+          "g3": 20
+        },
+        {
+          "prof": 12.45,
+          "g1": 19,
+          "g2": 24,
+          "g3": 26
+        }
+      ],
+      "obs": "Convertido do relatório técnico de sondagem SPT (Alfa-Geo Curitiba Sondagens, REL 227/2026). Nível d'água: inicial 0,90 m; esgotado 5,80 m; 01 hora após 1,10 m. Limite de sondagem: 13,23 m (impenetrável a percussão, conforme item 5.2.4.2 da NBR 6484:2020). Amostra 13 (13,45 m) excluída dos golpes: 1º segmento completo (21 golpes), 2º com penetração parcial (12 golpes para 8 cm), 3º não executado — sondagem encerrada por impenetrabilidade. ATENÇÃO: o relatório original indica zona UTM 22J, mas essa zona não é compatível com a localização (Campo Grande-MS); as coordenadas foram convertidas usando a zona 21S, que bate com o endereço informado — confirme com o relatório original antes de usar em projeto executivo."
+    },
+    {
+      "cliente": "TBG - Transportadora Brasileira Gasoduto Bolívia-Brasil S.A.",
+      "obra": "PE CAMPO GRANDE UTE V",
+      "local": "BR-060, sn - Zona Rural - Campo Grande - MS",
+      "dataInicio": "11/08/2026",
+      "dataFim": "11/08/2026",
+      "datum": "SIRGAS2000",
+      "responsavel": "Eng. Paulo Sergio Ferreira (CREA 200747/D-PR)",
+      "sondador": "Alfa-Geo Curitiba Sondagens",
+      "metodo": "SPT (NBR 6484:2020)",
+      "equipamento": "Sonda a percussão",
+      "revestimento": "3,00 m",
+      "sondagemNum": "SPT-03",
+      "cota": "493,00",
+      "utm": {
+        "e": 735304.0,
+        "n": 7719510.0,
+        "zone": 21,
+        "datum": "SIRGAS2000"
+      },
+      "agua": [
+        {
+          "data": "11/08/2026",
+          "prof": 1.2
+        }
+      ],
+      "camadas": [
+        {
+          "profFinal": 1.0,
+          "tipo": "silte",
+          "descricao": "Silte argiloso, marrom e vermelho"
+        },
+        {
+          "profFinal": 2.45,
+          "tipo": "argila",
+          "descricao": "Argila, marrom amarelada escura"
+        },
+        {
+          "profFinal": 4.45,
+          "tipo": "argila",
+          "descricao": "Argila, marrom avermelhada"
+        },
+        {
+          "profFinal": 7.45,
+          "tipo": "silte",
+          "descricao": "Silte argiloso, marrom avermelhada escuro com veios variegado"
+        },
+        {
+          "profFinal": 9.45,
+          "tipo": "silte",
+          "descricao": "Silte argiloso, roxo avermelhado com veios variegado"
+        },
+        {
+          "profFinal": 11.45,
+          "tipo": "silte",
+          "descricao": "Silte, marrom com veios roxo, amarelo e preto"
+        },
+        {
+          "profFinal": 14.45,
+          "tipo": "silte",
+          "descricao": "Silte, marrom com veios amarelo escuro e preto"
+        }
+      ],
+      "golpes": [
+        {
+          "prof": 1.45,
+          "g1": 2,
+          "g2": 2,
+          "g3": 2
+        },
+        {
+          "prof": 2.45,
+          "g1": 2,
+          "g2": 1,
+          "g3": 1
+        },
+        {
+          "prof": 3.45,
+          "g1": 1,
+          "g2": 1,
+          "g3": 1
+        },
+        {
+          "prof": 4.45,
+          "g1": 1,
+          "g2": 1,
+          "g3": 1
+        },
+        {
+          "prof": 5.45,
+          "g1": 1,
+          "g2": 1,
+          "g3": 2
+        },
+        {
+          "prof": 6.45,
+          "g1": 2,
+          "g2": 2,
+          "g3": 3
+        },
+        {
+          "prof": 7.45,
+          "g1": 2,
+          "g2": 4,
+          "g3": 5
+        },
+        {
+          "prof": 8.45,
+          "g1": 4,
+          "g2": 7,
+          "g3": 8
+        },
+        {
+          "prof": 9.45,
+          "g1": 6,
+          "g2": 10,
+          "g3": 12
+        },
+        {
+          "prof": 10.45,
+          "g1": 8,
+          "g2": 9,
+          "g3": 12
+        },
+        {
+          "prof": 11.45,
+          "g1": 10,
+          "g2": 13,
+          "g3": 15
+        },
+        {
+          "prof": 12.45,
+          "g1": 14,
+          "g2": 17,
+          "g3": 20
+        },
+        {
+          "prof": 13.45,
+          "g1": 18,
+          "g2": 22,
+          "g3": 25
+        }
+      ],
+      "obs": "Convertido do relatório técnico de sondagem SPT (Alfa-Geo Curitiba Sondagens, REL 227/2026). Nível d'água: inicial 1,20 m; esgotado 4,50 m; 01 hora após 1,50 m. Limite de sondagem: 14,06 m (impenetrável a percussão, conforme item 5.2.4.2 da NBR 6484:2020). Amostra 14 (14,45 m) excluída dos golpes: apenas o 1º segmento foi executado (19 golpes para 6 cm), 2º e 3º não executados — sondagem encerrada por impenetrabilidade. ATENÇÃO: o relatório original indica zona UTM 22J, mas essa zona não é compatível com a localização (Campo Grande-MS); as coordenadas foram convertidas usando a zona 21S, que bate com o endereço informado — confirme com o relatório original antes de usar em projeto executivo."
+    }
+  ]
+}

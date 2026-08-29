@@ -507,6 +507,36 @@ table.edit-tbl input:focus,table.edit-tbl select:focus{outline:none;border-color
   </div>
 </div>
 
+<!-- ══ FATIA EM PLANTA (RASTER) DA INTERPOLAÇÃO ══ -->
+<div class="popup-overlay" id="raster-view-overlay">
+  <div class="editor-box" style="max-width:800px;width:96vw;">
+    <div class="popup-header">
+      <h3>Fatia em Planta — Raster de Interpolação</h3>
+      <button class="popup-close" onclick="closeRasterView()">✕</button>
+    </div>
+    <div class="popup-body">
+      <div class="fieldset-title">Parâmetro (eixo Z do raster)</div>
+      <div class="loc-toggle" id="raster-param-toggle" style="flex-wrap:wrap;"></div>
+      <p class="hint">"Cota do terreno", "N.A." e "Profundidade até a rocha" são superfícies únicas — cada ponto tem um só valor. "Material" e "N-SPT" cortam a estratigrafia numa profundidade específica, por isso pedem a cota da fatia.</p>
+
+      <div class="input-grid" id="raster-elev-wrap" style="display:none;">
+        <div class="field"><label>Cota da fatia (m)</label><input id="raster-elev-input" type="number" step="0.1" placeholder="Ex: 735.0"></div>
+        <div class="field"><label>&nbsp;</label><button class="add-row-btn" type="button" id="raster-elev-sugestao">Sugerir cota (~3 m abaixo do terreno)</button></div>
+      </div>
+
+      <button class="btn-primary" type="button" id="raster-gerar-btn" style="margin-top:10px;">🖼️ Gerar raster</button>
+
+      <div id="raster-canvas-area" style="margin-top:14px;"></div>
+      <div id="raster-legend" style="margin-top:10px;"></div>
+      <p class="hint" id="raster-hint"></p>
+    </div>
+    <div class="popup-footer">
+      <button class="btn-ghost" type="button" onclick="closeRasterView()">Fechar</button>
+      <button class="btn-primary" type="button" id="raster-save-btn">💾 Salvar imagem (PNG)</button>
+    </div>
+  </div>
+</div>
+
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.js"></script>
@@ -1793,24 +1823,15 @@ function xyToLatLng(x,y,refLat,refLng){
   return [lat,lng];
 }
 
-// casco convexo (Andrew's monotone chain) — define o contorno da área onde a interpolação é válida
-function convexHull(points){
-  const pts = points.slice().sort((a,b)=> a.x-b.x || a.y-b.y);
-  if(pts.length<3) return pts;
-  const cross=(o,a,b)=> (a.x-o.x)*(b.y-o.y)-(a.y-o.y)*(b.x-o.x);
-  const lower=[];
-  for(const p of pts){
-    while(lower.length>=2 && cross(lower[lower.length-2],lower[lower.length-1],p)<=0) lower.pop();
-    lower.push(p);
-  }
-  const upper=[];
-  for(let i=pts.length-1;i>=0;i--){
-    const p=pts[i];
-    while(upper.length>=2 && cross(upper[upper.length-2],upper[upper.length-1],p)<=0) upper.pop();
-    upper.push(p);
-  }
-  upper.pop(); lower.pop();
-  return lower.concat(upper);
+// retângulo envolvente (bounding box) dos furos selecionados, expandido pela distância
+// de extrapolação em todas as direções — define o contorno da área onde a interpolação é válida
+function computeBoundingRect(points, expandM){
+  const xs = points.map(p=>p.x), ys = points.map(p=>p.y);
+  const minX = Math.min(...xs) - expandM, maxX = Math.max(...xs) + expandM;
+  const minY = Math.min(...ys) - expandM, maxY = Math.max(...ys) + expandM;
+  return [
+    {x:minX, y:minY}, {x:maxX, y:minY}, {x:maxX, y:maxY}, {x:minX, y:maxY}
+  ];
 }
 
 // pesos de IDW (Inverse Distance Weighting) — ponto exatamente sobre um furo usa 100% dele (interpolador exato)
@@ -1887,6 +1908,8 @@ function selectFurosInBounds(bounds){
   return added;
 }
 
+const DEFAULT_EXTRAP_M = 10; // distância padrão de extrapolação além do retângulo envolvente dos furos
+
 function createInterpBlock(){
   if(interpSelected.size<3){ alert('Selecione ao menos 3 furos.'); return; }
   const ids = Array.from(interpSelected);
@@ -1896,11 +1919,8 @@ function createInterpBlock(){
   const refLat = srcFuros.reduce((s,f)=>s+f.lat,0)/srcFuros.length;
   const refLng = srcFuros.reduce((s,f)=>s+f.lng,0)/srcFuros.length;
   const pts = srcFuros.map(f=>{ const xy=localXY(f.lat,f.lng,refLat,refLng); return {x:xy.x, y:xy.y, id:f.id}; });
-  const hull = convexHull(pts);
-  if(hull.length<3){
-    alert('Os furos selecionados estão alinhados (colineares) — não formam uma área válida para interpolação. Escolha furos que não estejam todos em linha reta.');
-    return;
-  }
+  const extrapDist = DEFAULT_EXTRAP_M;
+  const rect = computeBoundingRect(pts, extrapDist);
 
   const block = {
     id: newInterpId(),
@@ -1908,7 +1928,8 @@ function createInterpBlock(){
     furoIds: ids,
     refLat, refLng,
     power: 2,
-    hull: hull.map(p=> xyToLatLng(p.x,p.y,refLat,refLng)),
+    extrapDist,
+    hull: rect.map(p=> xyToLatLng(p.x,p.y,refLat,refLng)),
     createdAt: Date.now()
   };
   interpBlocks.push(block);
@@ -1916,7 +1937,7 @@ function createInterpBlock(){
   renderInterpList();
   exitInterpSelectMode();
   scheduleSave();
-  toast('Bloco interpolado criado — clique dentro da área tracejada para gerar um furo interpolado');
+  toast('Bloco interpolado criado (retângulo envolvente + '+extrapDist+' m de extrapolação) — clique dentro da área tracejada para gerar um furo interpolado');
 }
 
 function drawInterpBlock(block){
@@ -2082,11 +2103,18 @@ function openInterpBlockPanel(id){
       </div>
       <div class="f-row"><label>Potência IDW (p) — maior = mais peso ao furo mais próximo</label>
         <input class="f-input" type="number" id="pb-power" value="${b.power||2}" step="0.5" min="0.5" max="6"></div>
-      <p class="hint">Clique dentro da área tracejada roxa no mapa para gerar um furo interpolado nesse ponto.</p>
+      <div class="f-row"><label>Extrapolação além dos furos (m) — expande o retângulo envolvente em todas as direções</label>
+        <input class="f-input" type="number" id="pb-extrap" value="${b.extrapDist!=null?b.extrapDist:DEFAULT_EXTRAP_M}" step="1" min="0" max="200"></div>
+      <p class="hint">A área de interpolação é sempre o retângulo envolvente dos furos selecionados, expandido pela distância de extrapolação acima. Clique dentro da área tracejada roxa no mapa para gerar um furo interpolado nesse ponto.</p>
       <div class="sec-title">Perfil geotécnico</div>
       <p class="hint">Trace uma linha sobre a área para gerar a seção transversal interpolada (perfil de camadas ao longo do traçado).</p>
       <div class="btn-row">
         <button class="mini-btn" id="pb-draw-profile" type="button">📐 Traçar perfil geotécnico</button>
+      </div>
+      <div class="sec-title">Visualização em planta</div>
+      <p class="hint">Gera um raster mostrando a interpolação vista de cima — escolha cota do terreno, N.A., profundidade até a rocha, material ou N-SPT numa cota específica.</p>
+      <div class="btn-row">
+        <button class="mini-btn" id="pb-open-raster" type="button">🗺️ Fatia em planta (raster)</button>
       </div>
       <div class="btn-row" style="margin-top:10px">
         <button class="mini-btn primary" id="pb-save">Salvar</button>
@@ -2099,9 +2127,25 @@ function openInterpBlockPanel(id){
     toast('Clique no mapa para marcar os pontos da linha do perfil; dê duplo-clique (ou Enter) pra terminar');
     new L.Draw.Polyline(map, {shapeOptions:{color:'#1a4e7a', weight:3}}).enable();
   };
+  document.getElementById('pb-open-raster').onclick=()=>{
+    openRasterView(b.id);
+  };
   document.getElementById('pb-save').onclick=()=>{
     b.nome = document.getElementById('pb-nome').value.trim() || b.nome;
     b.power = parseFloat(document.getElementById('pb-power').value) || 2;
+    let novoExtrap = parseFloat(document.getElementById('pb-extrap').value);
+    if(!isFinite(novoExtrap) || novoExtrap<0) novoExtrap = DEFAULT_EXTRAP_M;
+    b.extrapDist = novoExtrap;
+
+    // recalcula o retângulo envolvente com a nova distância de extrapolação
+    const srcFuros = b.furoIds.map(fid=>furos.find(x=>x.id===fid)).filter(Boolean);
+    if(srcFuros.length>=2){
+      const pts = srcFuros.map(f=>{ const xy=localXY(f.lat,f.lng,b.refLat,b.refLng); return {x:xy.x,y:xy.y}; });
+      const rect = computeBoundingRect(pts, b.extrapDist);
+      b.hull = rect.map(p=> xyToLatLng(p.x,p.y,b.refLat,b.refLng));
+      if(interpLayers[b.id]){ map.removeLayer(interpLayers[b.id]); delete interpLayers[b.id]; }
+      drawInterpBlock(b);
+    }
     scheduleSave(); renderInterpList(); toast('Bloco salvo');
   };
   document.getElementById('pb-del').onclick=()=>{
@@ -2430,6 +2474,293 @@ function renderProfileList(){
     el.appendChild(div);
   });
 }
+
+/* ══════════════════════════════════════════════════════════════
+   FATIA EM PLANTA (RASTER) — visualização em vista de cima da
+   interpolação, dentro do casco convexo do bloco. O usuário escolhe
+   qual grandeza vira o valor (cor) de cada célula do raster:
+   - superfícies únicas (não precisam de cota): cota do terreno,
+     profundidade do N.A., profundidade até a rocha;
+   - fatias numa cota específica (precisam de cota): material
+     predominante e N-SPT interpolado naquela cota.
+   ══════════════════════════════════════════════════════════════ */
+const RASTER_PARAMS = [
+  {key:'cota',     label:'Cota do terreno',            needsElev:false, kind:'continuous', unidade:'m'},
+  {key:'na',       label:'Profundidade do N.A.',       needsElev:false, kind:'continuous', unidade:'m'},
+  {key:'rocha',    label:'Profundidade até a rocha',   needsElev:false, kind:'continuous', unidade:'m'},
+  {key:'material', label:'Material na cota informada', needsElev:true,  kind:'categorical', unidade:''},
+  {key:'spt',      label:'N-SPT na cota informada',    needsElev:true,  kind:'continuous', unidade:'golpes'},
+];
+let currentRasterBlockId = null;
+let currentRasterParam = 'cota';
+let currentRasterCanvas = null;
+
+// ponto-em-polígono (ray casting) em coordenadas locais XY — usado pra recortar o raster no casco convexo
+function pointInPolygonXY(pt, poly){
+  let inside = false;
+  for(let i=0, j=poly.length-1; i<poly.length; j=i++){
+    const xi=poly[i].x, yi=poly[i].y, xj=poly[j].x, yj=poly[j].y;
+    const intersect = ((yi>pt.y)!==(yj>pt.y)) && (pt.x < (xj-xi)*(pt.y-yi)/(yj-yi)+xi);
+    if(intersect) inside = !inside;
+  }
+  return inside;
+}
+
+// extrai o valor do parâmetro escolhido a partir de um furo interpolado num ponto
+function extractRasterValue(interp, paramKey, elev){
+  const cotaStr = interp.ident.cota;
+  const cota = (cotaStr!=='' && cotaStr!=null && isFinite(parseFloat(cotaStr))) ? parseFloat(cotaStr) : null;
+
+  if(paramKey==='cota'){
+    return cota!=null ? {valid:true, num:cota} : {valid:false};
+  }
+  if(paramKey==='na'){
+    const naStr = interp.agua && interp.agua[0] ? interp.agua[0].prof : '';
+    const naProf = (naStr!=='' && naStr!=null && isFinite(parseFloat(naStr))) ? parseFloat(naStr) : null;
+    return naProf!=null ? {valid:true, num:naProf} : {valid:false};
+  }
+  if(paramKey==='rocha'){
+    let prof=0, achou=null;
+    for(const c of interp.camadas){
+      if(c.tipo==='rocha'){ achou=prof; break; }
+      prof = c.profFinal;
+    }
+    return achou!=null ? {valid:true, num:achou} : {valid:false};
+  }
+  if(paramKey==='material' || paramKey==='spt'){
+    if(cota==null) return {valid:false};
+    const depth = cota - elev;
+    if(depth<0) return {valid:false}; // cota da fatia está acima do terreno nesse ponto
+    if(paramKey==='material'){
+      let profAnt=0, tipoAchado=null;
+      for(const c of interp.camadas){
+        if(depth<=c.profFinal+1e-6){ tipoAchado=c.tipo; break; }
+        profAnt=c.profFinal;
+      }
+      return tipoAchado!=null ? {valid:true, tipo:tipoAchado} : {valid:false};
+    }
+    // spt: interpola linearmente entre as leituras de golpes por profundidade
+    const gp = interp.golpes;
+    if(!gp || !gp.length) return {valid:false};
+    const nOf = g => (+g.g2||0)+(+g.g3||0);
+    let nVal;
+    if(depth<=gp[0].prof) nVal = nOf(gp[0]);
+    else if(depth>=gp[gp.length-1].prof) nVal = nOf(gp[gp.length-1]);
+    else {
+      for(let i=1;i<gp.length;i++){
+        if(depth<=gp[i].prof){
+          const a=gp[i-1], b=gp[i];
+          const t = (depth-a.prof)/((b.prof-a.prof)||1);
+          nVal = nOf(a) + t*(nOf(b)-nOf(a));
+          break;
+        }
+      }
+    }
+    return nVal!=null ? {valid:true, num:nVal} : {valid:false};
+  }
+  return {valid:false};
+}
+
+// monta a grade (raster) de valores dentro do casco convexo do bloco
+function computeRasterGrid(block, paramKey, elev){
+  const hullXY = block.hull.map(([lat,lng])=> localXY(lat,lng, block.refLat, block.refLng));
+  const minX = Math.min(...hullXY.map(p=>p.x)), maxX = Math.max(...hullXY.map(p=>p.x));
+  const minY = Math.min(...hullXY.map(p=>p.y)), maxY = Math.max(...hullXY.map(p=>p.y));
+  const spanX = Math.max(1, maxX-minX), spanY = Math.max(1, maxY-minY);
+
+  const targetCols = Math.min(140, Math.max(30, Math.round(spanX/Math.max(0.5, spanX/100))));
+  const cellSize = spanX/targetCols;
+  const cols = Math.max(2, Math.round(spanX/cellSize));
+  const rows = Math.max(2, Math.round(spanY/cellSize));
+
+  const grid = [];
+  for(let r=0;r<rows;r++){
+    const row = [];
+    const y = minY + (r+0.5)*cellSize;
+    for(let c=0;c<cols;c++){
+      const x = minX + (c+0.5)*cellSize;
+      if(!pointInPolygonXY({x,y}, hullXY)){ row.push({valid:false}); continue; }
+      const [lat,lng] = xyToLatLng(x, y, block.refLat, block.refLng);
+      const interp = computeInterpolatedFuro(block, lat, lng);
+      if(!interp){ row.push({valid:false}); continue; }
+      row.push(extractRasterValue(interp, paramKey, elev));
+    }
+    grid.push(row);
+  }
+  return {cols, rows, cellSize, grid};
+}
+
+// paleta contínua (azul → vermelho) para parâmetros numéricos
+function hslToRgb(h,s,l){
+  let r,g,b;
+  if(s===0){ r=g=b=l; }
+  else{
+    const hue2rgb=(p,q,t)=>{ if(t<0)t+=1; if(t>1)t-=1; if(t<1/6)return p+(q-p)*6*t; if(t<1/2)return q; if(t<2/3)return p+(q-p)*(2/3-t)*6; return p; };
+    const q = l<0.5 ? l*(1+s) : l+s-l*s;
+    const p = 2*l-q;
+    r=hue2rgb(p,q,h+1/3); g=hue2rgb(p,q,h); b=hue2rgb(p,q,h-1/3);
+  }
+  return [Math.round(r*255), Math.round(g*255), Math.round(b*255)];
+}
+function continuousColor(t){
+  t = Math.max(0, Math.min(1, t));
+  const hue = (1-t)*240/360; // 240°(azul) -> 0°(vermelho)
+  return hslToRgb(hue, 0.72, 0.5);
+}
+function hexToRgb(hex){
+  const h = (hex||'#cccccc').replace('#','');
+  return [parseInt(h.substring(0,2),16)||0, parseInt(h.substring(2,4),16)||0, parseInt(h.substring(4,6),16)||0];
+}
+
+// desenha a grade num <canvas> em baixa resolução (1 px = 1 célula) — ampliado via CSS na exibição
+function renderRasterToCanvas(gridResult, paramKey){
+  const {cols, rows, grid} = gridResult;
+  const canvas = document.createElement('canvas');
+  canvas.width = cols; canvas.height = rows;
+  const ctx = canvas.getContext('2d');
+  const imgData = ctx.createImageData(cols, rows);
+
+  let minV=Infinity, maxV=-Infinity;
+  if(paramKey!=='material'){
+    grid.forEach(row=>row.forEach(cell=>{ if(cell.valid){ if(cell.num<minV) minV=cell.num; if(cell.num>maxV) maxV=cell.num; } }));
+    if(!isFinite(minV)){ minV=0; maxV=1; }
+    if(maxV-minV<1e-6) maxV=minV+1;
+  }
+
+  for(let r=0;r<rows;r++){
+    for(let c=0;c<cols;c++){
+      const cell = grid[r][c];
+      const idx = (r*cols+c)*4;
+      let rgb=[0,0,0], alpha=0;
+      if(cell.valid){
+        alpha=255;
+        if(paramKey==='material') rgb = hexToRgb(SOIL_FILL[cell.tipo]||SOIL_FILL.outro);
+        else rgb = continuousColor((cell.num-minV)/(maxV-minV));
+      }
+      imgData.data[idx]=rgb[0]; imgData.data[idx+1]=rgb[1]; imgData.data[idx+2]=rgb[2]; imgData.data[idx+3]=alpha;
+    }
+  }
+  ctx.putImageData(imgData, 0, 0);
+  return {canvas, minV, maxV};
+}
+
+function renderRasterLegend(paramDef, minV, maxV, gridResult){
+  const el = document.getElementById('raster-legend');
+  if(paramDef.key==='material'){
+    const tiposPresentes = new Set();
+    gridResult.grid.forEach(row=>row.forEach(c=>{ if(c.valid) tiposPresentes.add(c.tipo); }));
+    if(!tiposPresentes.size){ el.innerHTML='<p class="hint">Nenhuma célula válida nessa cota (toda a área ficou acima do terreno, ou fora do casco convexo).</p>'; return; }
+    el.innerHTML = '<div class="tag-list">'+Array.from(tiposPresentes).map(t=>{
+      const label = (TIPOS_SOLO.find(x=>x[0]===t)||[t,t])[1];
+      return `<span class="tag-chip" style="background:${SOIL_FILL[t]||SOIL_FILL.outro};border-color:rgba(0,0,0,.2)">${esc(label)}</span>`;
+    }).join('')+'</div>';
+    return;
+  }
+  const stops = Array.from({length:11},(_,i)=>{ const [r,g,b]=continuousColor(i/10); return `rgb(${r},${g},${b})`; }).join(',');
+  el.innerHTML = `
+    <div style="display:flex;align-items:center;gap:8px;">
+      <span style="font-family:var(--mono);font-size:10px;">${minV.toFixed(1)}${paramDef.unidade?' '+paramDef.unidade:''}</span>
+      <div style="flex:1;height:14px;border-radius:4px;background:linear-gradient(to right, ${stops});border:1px solid rgba(0,0,0,.15)"></div>
+      <span style="font-family:var(--mono);font-size:10px;">${maxV.toFixed(1)}${paramDef.unidade?' '+paramDef.unidade:''}</span>
+    </div>
+    <div style="font-size:10px;color:var(--mu);margin-top:3px;">${esc(paramDef.label)}</div>`;
+}
+
+function buildRasterParamButtons(){
+  const wrap = document.getElementById('raster-param-toggle');
+  wrap.innerHTML = '';
+  RASTER_PARAMS.forEach(p=>{
+    const btn = document.createElement('button');
+    btn.type='button';
+    btn.className = 'loc-mode-btn'+(p.key===currentRasterParam?' active':'');
+    btn.textContent = p.label;
+    btn.dataset.key = p.key;
+    btn.addEventListener('click', ()=>{
+      currentRasterParam = p.key;
+      document.querySelectorAll('#raster-param-toggle .loc-mode-btn').forEach(b=>b.classList.toggle('active', b.dataset.key===currentRasterParam));
+      document.getElementById('raster-elev-wrap').style.display = p.needsElev ? '' : 'none';
+    });
+    wrap.appendChild(btn);
+  });
+}
+
+function generateRaster(){
+  const block = interpBlocks.find(b=>b.id===currentRasterBlockId); if(!block) return;
+  const paramDef = RASTER_PARAMS.find(p=>p.key===currentRasterParam);
+  let elev = null;
+  if(paramDef.needsElev){
+    elev = parseFloat(document.getElementById('raster-elev-input').value);
+    if(!isFinite(elev)){ toast('Informe a cota da fatia'); return; }
+  }
+  const gridResult = computeRasterGrid(block, currentRasterParam, elev);
+  const {canvas, minV, maxV} = renderRasterToCanvas(gridResult, currentRasterParam);
+  currentRasterCanvas = canvas;
+
+  const dispW = Math.min(680, Math.max(200, gridResult.cols*7));
+  const scale = dispW/gridResult.cols;
+  canvas.style.width = dispW+'px';
+  canvas.style.height = (gridResult.rows*scale)+'px';
+  canvas.style.imageRendering = 'pixelated';
+  canvas.style.border = '1px solid var(--bdr)';
+  canvas.style.borderRadius = '8px';
+  canvas.style.display = 'block';
+  const area = document.getElementById('raster-canvas-area');
+  area.innerHTML=''; area.appendChild(canvas);
+
+  renderRasterLegend(paramDef, minV, maxV, gridResult);
+  document.getElementById('raster-hint').textContent =
+    'Grade '+gridResult.cols+'×'+gridResult.rows+' células (~'+gridResult.cellSize.toFixed(1)+' m/célula). '+
+    'Áreas transparentes: fora do casco convexo dos furos'+(paramDef.needsElev ? ', ou acima do terreno naquele ponto.' : '.');
+}
+
+function openRasterView(blockId){
+  currentRasterBlockId = blockId;
+  currentRasterParam = 'cota';
+  currentRasterCanvas = null;
+  buildRasterParamButtons();
+  document.getElementById('raster-elev-wrap').style.display='none';
+  document.getElementById('raster-elev-input').value='';
+  document.getElementById('raster-canvas-area').innerHTML='';
+  document.getElementById('raster-legend').innerHTML='';
+  document.getElementById('raster-hint').textContent='';
+  document.getElementById('raster-view-overlay').classList.add('open');
+  document.body.style.overflow='hidden';
+  generateRaster();
+}
+function closeRasterView(){
+  document.getElementById('raster-view-overlay').classList.remove('open');
+  document.body.style.overflow='';
+  currentRasterBlockId=null; currentRasterCanvas=null;
+}
+document.getElementById('raster-view-overlay').addEventListener('click', e=>{ if(e.target.id==='raster-view-overlay') closeRasterView(); });
+document.getElementById('raster-gerar-btn').addEventListener('click', generateRaster);
+document.getElementById('raster-elev-sugestao').addEventListener('click', ()=>{
+  const block = interpBlocks.find(b=>b.id===currentRasterBlockId); if(!block) return;
+  const srcFuros = block.furoIds.map(id=>furos.find(f=>f.id===id)).filter(Boolean);
+  const cotas = srcFuros.map(f=>parseFloat(f.ident.cota)).filter(c=>isFinite(c));
+  if(!cotas.length){ toast('Nenhum furo do bloco tem cota cadastrada'); return; }
+  const avg = cotas.reduce((a,b)=>a+b,0)/cotas.length;
+  document.getElementById('raster-elev-input').value = (avg-3).toFixed(1);
+});
+document.getElementById('raster-save-btn').addEventListener('click', ()=>{
+  if(!currentRasterCanvas){ toast('Gere o raster antes de salvar'); return; }
+  const block = interpBlocks.find(b=>b.id===currentRasterBlockId);
+  const paramDef = RASTER_PARAMS.find(p=>p.key===currentRasterParam);
+  const scaleUp = 6;
+  const big = document.createElement('canvas');
+  big.width = currentRasterCanvas.width*scaleUp;
+  big.height = currentRasterCanvas.height*scaleUp;
+  const bctx = big.getContext('2d');
+  bctx.imageSmoothingEnabled = false;
+  bctx.drawImage(currentRasterCanvas, 0, 0, big.width, big.height);
+  const url = big.toDataURL('image/png');
+  const nomeBloco = block ? block.nome.replace(/[^a-z0-9]+/gi,'_') : 'bloco';
+  const filename = `raster_${nomeBloco}_${paramDef.key}.png`;
+  const a = document.createElement('a');
+  a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click(); a.remove();
+  toast('Imagem salva: '+filename);
+});
 
 /* ══════════════════ ABAS ══════════════════ */
 document.querySelectorAll('.sb-tab').forEach(tab=>{

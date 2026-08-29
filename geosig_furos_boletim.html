@@ -1,0 +1,1674 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>GEO·SIG — Banco de Boletins de Sondagem</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<link rel="stylesheet" href="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.css"/>
+<style>
+:root{
+  --bg:#ede7db;--surf:#e8e2d6;--card:#faf8f3;--bdr:#bdb8ae;--bdr-s:#9a9080;
+  --tx:#282420;--mu:#8a8680;--mono:'Courier New',monospace;
+  --r:3px;--r-lg:6px;
+  --green:#2d6b4a;--amber:#c8860b;--blue:#2a5a8c;--red:#b43025;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;overflow:hidden}
+body{font-family:system-ui,sans-serif;font-size:13px;background:var(--bg);color:var(--tx)}
+button{font-family:inherit;cursor:pointer}
+input,select,textarea{font-family:inherit;font-size:12px}
+
+#topbar{height:44px;display:flex;align-items:center;gap:6px;padding:0 12px;
+  background:var(--card);border-bottom:2px solid var(--bdr-s);flex-shrink:0;user-select:none;
+  position:relative;z-index:500;flex-wrap:nowrap;overflow-x:auto}
+.logo{font-family:var(--mono);font-size:11px;letter-spacing:2px;text-transform:uppercase;
+  color:var(--green);display:flex;align-items:center;gap:8px;margin-right:6px;flex-shrink:0}
+.logo::before{content:'';width:18px;height:2px;background:var(--green)}
+.tbtn{height:28px;padding:0 11px;border-radius:var(--r);border:1px solid var(--bdr);
+  background:var(--surf);font-family:var(--mono);font-size:10px;font-weight:700;
+  letter-spacing:.4px;color:var(--mu);transition:all .12s;display:inline-flex;align-items:center;
+  gap:5px;white-space:nowrap;flex-shrink:0}
+.tbtn:hover{background:var(--bdr);color:var(--tx)}
+.tbtn.on{background:var(--green);color:#fff;border-color:var(--green)}
+.tbtn.warn{border-color:var(--red);color:var(--red)}
+.tbtn.warn:hover{background:var(--red);color:#fff}
+.sep{width:1px;height:22px;background:var(--bdr);margin:0 2px;flex-shrink:0}
+.tsel{height:28px;border-radius:var(--r);border:1px solid var(--bdr);background:#fff;
+  font-size:11px;padding:0 6px;color:var(--tx);flex-shrink:0}
+#file-input{display:none}
+#search-box{height:28px;border-radius:var(--r);border:1px solid var(--bdr);background:#fff;
+  font-size:11px;padding:0 8px;width:150px;flex-shrink:0}
+
+#ws{display:flex;height:calc(100vh - 44px)}
+
+#sidebar{width:260px;flex-shrink:0;background:var(--card);border-right:1px solid var(--bdr);
+  display:flex;flex-direction:column;overflow:hidden}
+.sb-tabs{display:flex;border-bottom:1px solid var(--bdr);flex-shrink:0}
+.sb-tab{flex:1;padding:9px 4px;text-align:center;font-family:var(--mono);font-size:10px;
+  font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:var(--mu);
+  border-bottom:2px solid transparent;background:var(--surf)}
+.sb-tab.on{color:var(--green);border-bottom-color:var(--green);background:var(--card)}
+.sb-count{display:block;margin-top:8px;padding:6px 10px;font-size:10px;color:var(--mu);
+  font-family:var(--mono);border-bottom:1px solid var(--bdr)}
+.sb-list{flex:1;overflow-y:auto;padding:6px}
+.sb-empty{padding:20px 10px;text-align:center;color:var(--mu);font-size:11px;line-height:1.5}
+.item{background:#fff;border:1px solid var(--bdr);border-radius:var(--r);padding:7px 9px;
+  margin-bottom:6px;cursor:pointer;transition:border-color .12s}
+.item:hover{border-color:var(--green)}
+.item.sel{border-color:var(--green);background:#f2f7f4}
+.item-title{font-weight:700;font-size:12px}
+.item-sub{font-size:10px;color:var(--mu);margin-top:2px;font-family:var(--mono)}
+
+#map{flex:1;background:#dfe6e0}
+
+#panel{width:380px;flex-shrink:0;background:var(--card);border-left:1px solid var(--bdr);
+  display:flex;flex-direction:column;overflow-y:auto}
+#panel.hidden{display:none}
+.p-hdr{padding:10px 14px;border-bottom:1px solid var(--bdr);display:flex;
+  justify-content:space-between;align-items:center;background:var(--surf);position:sticky;top:0;z-index:5}
+.p-hdr b{font-family:var(--mono);font-size:11px;letter-spacing:.5px;text-transform:uppercase;color:var(--tx)}
+.p-close{border:none;background:none;font-size:16px;color:var(--mu);line-height:1;padding:2px 6px}
+.p-body{padding:12px 14px;display:flex;flex-direction:column;gap:10px}
+.sec-title{font-family:var(--mono);font-size:9px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;
+  color:var(--green);padding-top:6px;border-top:1px solid var(--bdr);margin-top:4px}
+.sec-title:first-child{border-top:none;margin-top:0;padding-top:0}
+.f-row{display:flex;flex-direction:column;gap:3px}
+.f-row.two{flex-direction:row;gap:8px}
+.f-row.two>div{flex:1;display:flex;flex-direction:column;gap:3px}
+.f-row.three{flex-direction:row;gap:6px}
+.f-row.three>div{flex:1;display:flex;flex-direction:column;gap:3px}
+label{font-size:9px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--mu)}
+.f-input{width:100%;padding:6px 8px;background:#fff;border:1px solid var(--bdr);border-radius:var(--r);
+  font-size:12px;color:var(--tx)}
+.f-input:focus{outline:none;border-color:var(--green)}
+textarea.f-input{resize:vertical;min-height:44px}
+.utm-box{background:var(--surf);border:1px solid var(--bdr);border-radius:var(--r);padding:8px;
+  font-family:var(--mono);font-size:11px;color:var(--tx);display:flex;justify-content:space-between}
+table.dt{width:100%;border-collapse:collapse;font-size:11px}
+table.dt th{text-align:left;font-size:9px;color:var(--mu);text-transform:uppercase;padding:3px 4px;
+  border-bottom:1px solid var(--bdr)}
+table.dt td{padding:2px}
+table.dt input{width:100%;padding:4px 5px;border:1px solid var(--bdr);border-radius:2px;font-size:11px}
+table.dt input[type=color]{padding:1px;height:24px}
+.row-del{border:none;background:none;color:var(--red);font-size:14px;cursor:pointer}
+.mini-btn{border:1px solid var(--bdr);background:#fff;border-radius:var(--r);padding:5px 10px;
+  font-size:10px;font-weight:700;letter-spacing:.4px;color:var(--tx)}
+.mini-btn:hover{border-color:var(--green);color:var(--green)}
+.mini-btn.primary{background:var(--green);color:#fff;border-color:var(--green)}
+.mini-btn.danger{background:#fff;color:var(--red);border-color:var(--red)}
+.mini-btn.danger:hover{background:var(--red);color:#fff}
+.btn-row{display:flex;gap:6px;flex-wrap:wrap}
+hr{border:none;border-top:1px solid var(--bdr);margin:2px 0}
+
+#hint-toast{position:absolute;bottom:14px;left:50%;transform:translateX(-50%);
+  background:var(--tx);color:#fff;padding:8px 16px;border-radius:20px;font-size:11px;
+  z-index:900;pointer-events:none;opacity:0;transition:opacity .2s;font-family:var(--mono)}
+#hint-toast.show{opacity:1}
+
+.leaflet-div-icon{background:none;border:none}
+.furo-pin{width:16px;height:16px;border-radius:50%;background:var(--amber);
+  border:2px solid #fff;box-shadow:0 1px 3px rgba(0,0,0,.4)}
+.furo-pin.selpin{background:var(--green)}
+
+.perfil-wrap{display:flex;gap:10px;align-items:flex-start;background:#fff;border:1px solid var(--bdr);
+  border-radius:var(--r);padding:8px;overflow-x:auto}
+
+/* ══════════════════════════════════════════════════════════════
+   BOLETIM DE SONDAGEM — NBR 6484 (módulo unificado)
+   ══════════════════════════════════════════════════════════════ */
+:root{
+  --bo-card:#faf8f5; --bo-border:#d6d0c8; --bo-surface:#e8e4dd;
+  --bo-accent:#b85c1a; --bo-accent2:#1a7a52; --bo-accent3:#c0392b;
+  --bo-text:#1e1a16; --bo-muted:#7a7168;
+  --bo-mono:'Courier New',monospace; --bo-sans:system-ui,sans-serif;
+  --pxm:44px;
+}
+.btn-primary,.btn-ghost{
+  font-family:var(--bo-sans);font-weight:700;font-size:12.5px;letter-spacing:.2px;
+  padding:9px 16px;border-radius:8px;cursor:pointer;border:1.5px solid var(--bo-accent);
+  transition:transform .12s,opacity .12s;
+}
+.btn-primary{background:var(--bo-accent);color:#fff;}
+.btn-primary:hover{transform:translateY(-1px);opacity:.92;}
+.btn-ghost{background:transparent;color:var(--bo-accent);}
+.btn-ghost:hover{background:rgba(184,92,26,0.08);}
+
+/* ── Popup / Editor completo do boletim ── */
+.popup-overlay{
+  display:none;position:fixed;inset:0;background:rgba(30,26,22,0.5);
+  z-index:2000;align-items:center;justify-content:center;padding:20px;backdrop-filter:blur(3px);
+}
+.popup-overlay.open{display:flex;}
+.editor-box{
+  background:var(--bo-card);border:1px solid var(--bo-border);border-radius:16px;
+  max-width:920px;width:100%;max-height:88vh;overflow:hidden;
+  display:flex;flex-direction:column;box-shadow:0 24px 60px rgba(0,0,0,0.3);
+  color:var(--bo-text);
+}
+.popup-header{
+  display:flex;align-items:center;justify-content:space-between;gap:12px;
+  padding:16px 20px;border-bottom:1px solid var(--bo-border);flex-shrink:0;
+}
+.popup-header h3{font-size:15px;font-weight:800;font-family:var(--bo-sans);}
+.popup-close{
+  background:var(--bo-surface);border:1px solid var(--bo-border);border-radius:50%;
+  width:28px;height:28px;font-size:13px;cursor:pointer;color:var(--bo-muted);
+  display:flex;align-items:center;justify-content:center;flex-shrink:0;
+}
+.popup-close:hover{background:var(--bo-border);color:var(--bo-text);}
+.popup-body{padding:0 20px;overflow-y:auto;flex:1;}
+.popup-footer{
+  display:flex;justify-content:flex-end;gap:10px;padding:14px 20px;
+  border-top:1px solid var(--bo-border);flex-shrink:0;
+}
+
+.edit-tabs{display:flex;gap:6px;flex-wrap:wrap;padding:14px 0 10px;position:sticky;top:0;background:var(--bo-card);z-index:2;}
+.edit-tab{
+  font-family:var(--bo-mono);font-size:10px;letter-spacing:1px;text-transform:uppercase;
+  padding:7px 11px;border-radius:6px;border:1px solid var(--bo-border);background:var(--bo-surface);
+  color:var(--bo-muted);cursor:pointer;
+}
+.edit-tab.active{background:var(--bo-accent);border-color:var(--bo-accent);color:#fff;}
+.edit-panel{display:none;padding-bottom:20px;}
+.edit-panel.active{display:block;}
+
+.fieldset-title{
+  font-family:var(--bo-mono);font-size:9.5px;letter-spacing:1.6px;text-transform:uppercase;
+  color:var(--bo-muted);margin:16px 0 9px;
+}
+.fieldset-title:first-child{margin-top:2px;}
+
+.input-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:11px 13px;}
+@media (max-width:680px){.input-grid{grid-template-columns:repeat(2,1fr);}}
+.field{display:flex;flex-direction:column;gap:4px;}
+.field.full{grid-column:1/-1;}
+.field label{font-family:var(--bo-mono);font-size:9px;letter-spacing:.8px;text-transform:uppercase;color:var(--bo-muted);}
+.field input,.field select{
+  font-family:var(--bo-sans);font-size:12.5px;padding:7px 9px;border-radius:6px;
+  border:1px solid var(--bo-border);background:#fff;color:var(--bo-text);
+}
+.field input:focus,.field select:focus{outline:none;border-color:var(--bo-accent);}
+
+table.edit-tbl{width:100%;border-collapse:collapse;font-size:12px;margin-bottom:8px;}
+table.edit-tbl th{
+  font-family:var(--bo-mono);font-size:9px;letter-spacing:.5px;text-transform:uppercase;
+  color:var(--bo-muted);text-align:left;padding:5px;border-bottom:1px solid var(--bo-border);
+}
+table.edit-tbl td{padding:4px 5px;border-bottom:1px solid var(--bo-border);}
+table.edit-tbl input,table.edit-tbl select{
+  width:100%;font-family:var(--bo-sans);font-size:12px;padding:5px 6px;border-radius:5px;
+  border:1px solid var(--bo-border);background:#fff;color:var(--bo-text);
+}
+table.edit-tbl input:focus,table.edit-tbl select:focus{outline:none;border-color:var(--bo-accent);}
+.n-preview{font-family:var(--bo-mono);font-size:10.5px;color:var(--bo-accent2);white-space:nowrap;}
+.row-remove{background:transparent;border:none;color:var(--bo-accent3);cursor:pointer;font-size:14px;line-height:1;}
+.add-row-btn{
+  font-family:var(--bo-mono);font-size:10px;letter-spacing:.5px;color:var(--bo-accent);
+  background:transparent;border:1px dashed var(--bo-accent);border-radius:6px;padding:6px 11px;cursor:pointer;
+}
+.add-row-btn:hover{background:rgba(184,92,26,0.08);}
+.hint{font-size:11px;color:var(--bo-muted);margin:-2px 0 9px;line-height:1.5;}
+
+.loc-toggle{display:flex;align-items:center;gap:6px;margin-bottom:9px;}
+.loc-mode-btn{
+  font-family:var(--bo-mono);font-size:9.5px;letter-spacing:.6px;text-transform:uppercase;
+  padding:6px 10px;border-radius:6px;border:1px solid var(--bo-border);background:var(--bo-surface);
+  color:var(--bo-muted);cursor:pointer;
+}
+.loc-mode-btn.active{background:var(--bo-accent);border-color:var(--bo-accent);color:#fff;}
+.loc-pick-btn{
+  margin-left:auto;font-size:13px;padding:6px 10px;border-radius:6px;border:1px solid var(--bo-accent);
+  background:#fff;color:var(--bo-accent);cursor:pointer;display:inline-flex;align-items:center;gap:5px;
+  font-family:var(--bo-sans);font-weight:700;font-size:11px;
+}
+.loc-pick-btn:hover{background:var(--bo-accent);color:#fff;}
+
+/* ── Boletim renderizado (preview + impressão) ── */
+.boletim-preview-wrap{overflow-x:auto;margin-top:6px;border-radius:10px;}
+.boletim-card{background:var(--bo-card);border:1px solid var(--bo-border);border-radius:12px;overflow:hidden;color:var(--bo-text);font-family:var(--bo-sans);}
+.boletim-topbar{
+  background:var(--bo-text);color:#fff;padding:13px 18px;display:flex;justify-content:space-between;
+  align-items:center;flex-wrap:wrap;gap:8px;
+}
+.boletim-topbar .bnum{font-family:var(--bo-mono);font-size:16px;font-weight:700;letter-spacing:1px;}
+.boletim-topbar .bnorm{font-family:var(--bo-mono);font-size:10px;color:#d6d0c8;letter-spacing:.5px;}
+
+.info-tbl{width:100%;border-collapse:collapse;font-size:11px;}
+.info-tbl td{padding:8px 14px;border-bottom:1px solid var(--bo-border);border-right:1px solid var(--bo-border);vertical-align:top;}
+.info-tbl td:last-child{border-right:none;}
+.info-tbl .lbl{font-family:var(--bo-mono);font-size:8.5px;letter-spacing:.7px;text-transform:uppercase;color:var(--bo-muted);display:block;margin-bottom:2px;}
+.info-tbl .val{font-weight:700;}
+
+.boletim-body{padding:18px 18px 6px;overflow-x:auto;}
+.track-wrap{display:flex;gap:0;min-width:780px;}
+.track{position:relative;flex-shrink:0;}
+.track-head{
+  font-family:var(--bo-mono);font-size:8.5px;letter-spacing:.5px;text-transform:uppercase;color:var(--bo-muted);
+  text-align:center;padding-bottom:7px;border-bottom:2px solid var(--bo-border);margin-bottom:2px;height:28px;
+}
+.col-ruler{width:42px;}
+.col-golpes{width:120px;border-left:1px solid var(--bo-border);}
+.col-grafico{width:180px;border-left:1px solid var(--bo-border);}
+.col-perfil{width:52px;border-left:1px solid var(--bo-border);}
+.col-descricao{width:270px;border-left:1px solid var(--bo-border);}
+.col-na{width:52px;border-left:1px solid var(--bo-border);}
+
+.ruler-tick{position:absolute;left:0;right:0;font-family:var(--bo-mono);font-size:9.5px;color:var(--bo-muted);border-top:1px solid var(--bo-border);padding-left:4px;}
+.ruler-tick b{color:var(--bo-text);}
+
+.golpe-row{position:absolute;left:0;right:0;border-top:1px dashed var(--bo-border);display:flex;align-items:stretch;padding:2px 4px;}
+.golpe-fracs{display:flex;flex-direction:column;justify-content:center;gap:1px;font-family:var(--bo-mono);font-size:9.5px;color:var(--bo-muted);width:38px;}
+.golpe-fracs small{font-size:7.5px;}
+.golpe-n{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;flex:1;font-family:var(--bo-mono);}
+.golpe-n b{font-size:12px;}
+.golpe-n .n-ini{color:var(--bo-accent3);}
+.golpe-n .n-fin{color:var(--bo-accent2);font-size:14px;}
+
+.perfil-block{position:absolute;left:2px;right:2px;border:1px solid rgba(0,0,0,0.18);display:flex;flex-direction:column;align-items:center;padding-top:3px;overflow:hidden;}
+.perfil-idx{
+  background:var(--bo-text);color:#fff;font-family:var(--bo-mono);font-size:8px;width:15px;height:15px;
+  border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;
+}
+.soil-argila{background:repeating-linear-gradient(45deg,#a9825b,#a9825b 5px,#c79c72 5px,#c79c72 10px);}
+.soil-areia{background:#f0d98c;background-image:radial-gradient(#b8974a 1.3px,transparent 1.3px);background-size:9px 9px;background-color:#f3e2ab;}
+.soil-silte{background:repeating-linear-gradient(0deg,#b9b2a0,#b9b2a0 3px,#d3cdbe 3px,#d3cdbe 7px);}
+.soil-aterro{background:repeating-linear-gradient(45deg,#cdb06a,#cdb06a 4px,transparent 4px,transparent 8px),repeating-linear-gradient(-45deg,#cdb06a,#cdb06a 4px,transparent 4px,transparent 8px),#e6d6a4;}
+.soil-rocha{background:#8d8d8d;}
+.soil-outro{background:#d7d2c6;}
+
+.desc-block{position:absolute;left:0;right:0;padding:4px 7px;border-top:1px dashed var(--bo-border);overflow:hidden;}
+.desc-block .desc-prof{font-family:var(--bo-mono);font-size:9px;color:var(--bo-accent);font-weight:700;}
+.desc-block .desc-txt{font-size:10.5px;line-height:1.32;color:var(--bo-text);}
+
+.na-mark{position:absolute;left:2px;right:2px;text-align:center;font-family:var(--bo-mono);font-size:8.5px;color:#2a6fb0;transform:translateY(-50%);}
+.na-mark .tri{font-size:11px;line-height:1;}
+
+.boletim-footer{padding:14px 18px 18px;border-top:1px solid var(--bo-border);font-size:11px;color:var(--bo-muted);}
+.legend-row{display:flex;flex-wrap:wrap;gap:12px;margin-bottom:10px;}
+.legend-chip{display:flex;align-items:center;gap:6px;}
+.legend-swatch{width:14px;height:14px;border-radius:3px;border:1px solid rgba(0,0,0,0.18);flex-shrink:0;}
+.warn-box{
+  background:rgba(184,92,26,0.08);border-left:3px solid var(--bo-accent);border-radius:0 7px 7px 0;
+  padding:9px 11px;font-size:11px;color:var(--bo-text);
+}
+
+</style>
+</head>
+<body>
+
+<div id="topbar">
+  <div class="logo">GEO·SIG</div>
+  <button class="tbtn" id="btn-add-furo">＋ Furo SPT</button>
+  <button class="tbtn" id="btn-add-poly">＋ Polígono</button>
+  <button class="tbtn" id="btn-add-line">＋ Linha</button>
+  <div class="sep"></div>
+  <input id="search-box" placeholder="Buscar furo / obra…">
+  <div class="sep"></div>
+  <button class="tbtn" id="btn-import">⇪ Importar</button>
+  <button class="tbtn" id="btn-export-shp">⇩ Shapefile</button>
+  <button class="tbtn" id="btn-export-gj">⇩ GeoJSON</button>
+  <button class="tbtn" id="btn-export-csv">⇩ CSV</button>
+  <div class="sep"></div>
+  <select class="tsel" id="sel-crs" title="Zona UTM usada apenas para exibição/CSV"></select>
+  <select class="tsel" id="sel-base"><option value="osm">Mapa (OSM)</option><option value="sat">Satélite</option></select>
+  <div class="sep"></div>
+  <button class="tbtn" id="btn-load-sample" title="Carrega 9 furos de exemplo dispostos em malha 3×3, cobrindo uma área de 100×100 m">🧪 Exemplo (100×100m)</button>
+  <button class="tbtn warn" id="btn-clear" style="margin-left:auto">🗑 Limpar tudo</button>
+  <input type="file" id="file-input" accept=".zip,.geojson,.json">
+</div>
+
+<div id="ws">
+  <div id="sidebar">
+    <div class="sb-tabs">
+      <div class="sb-tab on" data-tab="furos">Boletins</div>
+      <div class="sb-tab" data-tab="shapes">Áreas / Linhas</div>
+    </div>
+    <span class="sb-count" id="sb-count"></span>
+    <div class="sb-list" id="list-furos"></div>
+    <div class="sb-list" id="list-shapes" style="display:none"></div>
+  </div>
+
+  <div id="map"></div>
+
+  <div id="panel" class="hidden"></div>
+</div>
+
+<div id="hint-toast"></div>
+<!-- ══ EDITOR COMPLETO DO BOLETIM — NBR 6484 ══ -->
+<div class="popup-overlay" id="bo-editor-overlay">
+  <div class="editor-box">
+    <div class="popup-header">
+      <h3>Editor do Boletim de Sondagem — NBR 6484</h3>
+      <button class="popup-close" onclick="cancelBoletimEditor()">✕</button>
+    </div>
+    <div class="popup-body">
+      <div class="edit-tabs">
+        <button class="edit-tab active" data-tab="ident" onclick="setBoletimTab('ident')">1 · Identificação</button>
+        <button class="edit-tab" data-tab="agua" onclick="setBoletimTab('agua')">2 · Nível d'Água</button>
+        <button class="edit-tab" data-tab="camadas" onclick="setBoletimTab('camadas')">3 · Camadas de Solo</button>
+        <button class="edit-tab" data-tab="golpes" onclick="setBoletimTab('golpes')">4 · Golpes SPT</button>
+      </div>
+
+      <!-- PAINEL 1 — IDENTIFICAÇÃO -->
+      <div class="edit-panel active" id="bo-panel-ident">
+        <div class="fieldset-title">Dados gerais</div>
+        <div class="input-grid">
+          <div class="field"><label>Cliente</label><input id="bo-f-cliente" type="text" placeholder="Ex: Vision Engenharia"></div>
+          <div class="field"><label>Obra</label><input id="bo-f-obra" type="text" placeholder="Ex: SE CAC3"></div>
+          <div class="field"><label>Local</label><input id="bo-f-local" type="text" placeholder="Ex: Cachoeirinha - RS"></div>
+          <div class="field"><label>Sondagem N°</label><input id="bo-f-sondagem-num" type="text" placeholder="Ex: SPT-01"></div>
+          <div class="field"><label>Início</label><input id="bo-f-data-inicio" type="text" placeholder="dd/mm/aa"></div>
+          <div class="field"><label>Término</label><input id="bo-f-data-fim" type="text" placeholder="dd/mm/aa"></div>
+          <div class="field"><label>Cota (m)</label><input id="bo-f-cota" type="text" placeholder="Ex: 4,50"></div>
+          <div class="field"><label>Datum</label><input id="bo-f-datum" type="text" placeholder="Ex: SIRGAS2000"></div>
+          <div class="field"><label>Coord. N</label><input id="bo-f-coord-n" type="text"></div>
+          <div class="field"><label>Coord. E</label><input id="bo-f-coord-e" type="text"></div>
+          <div class="field"><label>Responsável técnico</label><input id="bo-f-responsavel" type="text"></div>
+          <div class="field"><label>Sondador</label><input id="bo-f-sondador" type="text"></div>
+          <div class="field"><label>Desenhista</label><input id="bo-f-desenhista" type="text"></div>
+        </div>
+        <button class="add-row-btn" type="button" id="bo-fill-utm" style="margin-top:8px">📍 Preencher Coord. N/E (registro do boletim) com a posição atual do furo</button>
+
+        <div class="fieldset-title">Localização do furo (posição real no mapa)</div>
+        <div class="loc-toggle">
+          <button type="button" class="loc-mode-btn active" data-mode="latlng">Lat / Long</button>
+          <button type="button" class="loc-mode-btn" data-mode="utm">UTM</button>
+          <button type="button" class="loc-pick-btn" id="bo-pick-map" title="Clicar no mapa para definir a localização">🗺️ Marcar no mapa</button>
+        </div>
+        <div class="input-grid" id="bo-loc-latlng">
+          <div class="field"><label>Latitude (graus decimais)</label><input id="bo-f-lat" type="number" step="0.000001" placeholder="Ex: -23.550520"></div>
+          <div class="field"><label>Longitude (graus decimais)</label><input id="bo-f-lng" type="number" step="0.000001" placeholder="Ex: -46.633308"></div>
+        </div>
+        <div class="input-grid" id="bo-loc-utm" style="display:none">
+          <div class="field"><label>E (m)</label><input id="bo-f-utm-e-in" type="number" step="0.01"></div>
+          <div class="field"><label>N (m)</label><input id="bo-f-utm-n-in" type="number" step="0.01"></div>
+          <div class="field"><label>Zona UTM</label><select id="bo-f-utm-zone-in"></select></div>
+          <div class="field"><label>Datum</label>
+            <select id="bo-f-utm-datum-in">
+              <option value="SIRGAS2000">SIRGAS2000</option>
+              <option value="WGS84">WGS84</option>
+              <option value="SAD69">SAD69</option>
+              <option value="CORREGO_ALEGRE">Córrego Alegre</option>
+            </select>
+          </div>
+        </div>
+        <p class="hint">Digite as coordenadas de qualquer um dos dois jeitos, ou clique em <b>🗺️ Marcar no mapa</b> para posicionar o furo clicando diretamente no mapa. Datums históricos (SAD69, Córrego Alegre) usam transformação aproximada — confirme em um SIG antes de uso em projeto executivo.</p>
+
+        <div class="fieldset-title">Amostrador bipartido (padrão NBR 6484)</div>
+        <div class="input-grid">
+          <div class="field"><label>Ø interno (mm)</label><input id="bo-f-am-diam-int" type="number" step="0.1" value="34.9"></div>
+          <div class="field"><label>Ø externo (mm)</label><input id="bo-f-am-diam-ext" type="number" step="0.1" value="50.8"></div>
+          <div class="field"><label>Peso do martelo (kg)</label><input id="bo-f-am-peso" type="number" step="1" value="65"></div>
+          <div class="field"><label>Altura de queda (cm)</label><input id="bo-f-am-altura" type="number" step="1" value="75"></div>
+        </div>
+
+        <div class="fieldset-title">Execução (dados de campo)</div>
+        <div class="input-grid">
+          <div class="field"><label>Método</label><input id="bo-f-metodo" type="text" placeholder="SPT (NBR 6484)"></div>
+          <div class="field"><label>Equipamento</label><input id="bo-f-equip" type="text"></div>
+          <div class="field"><label>Revestimento / diâmetro</label><input id="bo-f-revest" type="text"></div>
+          <div class="field full"><label>Arquivo original (nome/link)</label><input id="bo-f-arq" type="text"></div>
+        </div>
+      </div>
+
+      <!-- PAINEL 2 — NÍVEL D'ÁGUA -->
+      <div class="edit-panel" id="bo-panel-agua">
+        <div class="fieldset-title">Leituras do nível d'água</div>
+        <p class="hint">Registre profundidade (m) e data de cada leitura de N.A.</p>
+        <table class="edit-tbl">
+          <thead><tr><th style="width:40%;">Profundidade (m)</th><th style="width:40%;">Data</th><th></th></tr></thead>
+          <tbody id="bo-tbody-agua"></tbody>
+        </table>
+        <button class="add-row-btn" type="button" onclick="boAddAguaRow()">+ Leitura de N.A.</button>
+      </div>
+
+      <!-- PAINEL 3 — CAMADAS DE SOLO -->
+      <div class="edit-panel" id="bo-panel-camadas">
+        <div class="fieldset-title">Perfil geológico — camadas</div>
+        <p class="hint">Informe a profundidade final de cada camada (m), o tipo predominante (define a textura do perfil) e a descrição do material. Insira em ordem crescente de profundidade.</p>
+        <table class="edit-tbl">
+          <thead><tr><th style="width:16%;">Prof. final (m)</th><th style="width:20%;">Tipo</th><th>Descrição do material</th><th></th></tr></thead>
+          <tbody id="bo-tbody-camadas"></tbody>
+        </table>
+        <button class="add-row-btn" type="button" onclick="boAddCamadaRow()">+ Camada</button>
+      </div>
+
+      <!-- PAINEL 4 — GOLPES SPT -->
+      <div class="edit-panel" id="bo-panel-golpes">
+        <div class="fieldset-title">Golpes de penetração (a cada 1,00 m)</div>
+        <p class="hint">Insira os 3 golpes sequenciais de 15 cm (NBR 6484). N-SPT (N final) = golpe2 + golpe3; N inicial = golpe1 + golpe2.</p>
+        <table class="edit-tbl">
+          <thead><tr>
+            <th style="width:14%;">Prof. (m)</th>
+            <th style="width:12%;">Golpe 1 /15cm</th>
+            <th style="width:12%;">Golpe 2 /15cm</th>
+            <th style="width:12%;">Golpe 3 /15cm</th>
+            <th style="width:20%;">N (ini / fin)</th>
+            <th></th>
+          </tr></thead>
+          <tbody id="bo-tbody-golpes"></tbody>
+        </table>
+        <button class="add-row-btn" type="button" onclick="boAddGolpeRow()">+ Profundidade</button>
+      </div>
+    </div>
+    <div class="popup-footer">
+      <button class="btn-ghost" type="button" onclick="cancelBoletimEditor()">Cancelar</button>
+      <button class="btn-primary" type="button" onclick="saveBoletimEditor()">💾 Salvar Boletim</button>
+    </div>
+  </div>
+</div>
+
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.js"></script>
+<script src="https://unpkg.com/proj4@2.9.2/dist/proj4.js"></script>
+<script src="https://unpkg.com/shpjs@4.0.4/dist/shp.js"></script>
+<script src="https://unpkg.com/shp-write@0.3.2/shpwrite.js"></script>
+<script>
+/* ══════════════════ ESTADO ══════════════════ */
+let furos = [];
+let shapes = [];
+let markers = {};
+let shapeLayers = {};
+let selected = null;
+let crsZone = 23;
+let searchTerm = '';
+let editingFuroId = null;
+
+/* ══════════════════════════════════════════════════════════════
+   MODELO DE DADOS UNIFICADO — mesmos campos do módulo de
+   Boletim de Sondagem (NBR 6484): ident, agua, camadas, golpes.
+   Campos extras de execução de campo (método, equipamento,
+   revestimento, arquivo de referência) ficam fora de "ident"
+   pois não fazem parte do boletim impresso em si.
+   ══════════════════════════════════════════════════════════════ */
+function blankFuro(lat,lng){
+  return {
+    id:newFuroId(), lat, lng,
+    ident:{
+      cliente:'', obra:'', local:'', sondagemNum:'F-'+(furos.length+1).toString().padStart(2,'0'),
+      dataInicio:'', dataFim:'', cota:'', datum:'SIRGAS2000', coordN:'', coordE:'',
+      responsavel:'', sondador:'', desenhista:'',
+      amDiamInt:'34.9', amDiamExt:'50.8', amPeso:'65', amAltura:'75'
+    },
+    agua:[{data:'', prof:''}],
+    camadas:[{profFinal:1, tipo:'argila', descricao:''}],
+    golpes:[{prof:1, g1:'', g2:'', g3:''}],
+    metodo:'SPT (NBR 6484)', equipamento:'', revestimento:'', arquivo_ref:'',
+    obs:''
+  };
+}
+
+/* ══════════════════ TIPOS DE SOLO (textura do perfil) ══════════════════ */
+const TIPOS_SOLO = [
+  ['argila', 'Argila / Argila-arenosa'],
+  ['areia', 'Areia / Areia-siltosa'],
+  ['silte', 'Silte'],
+  ['aterro', 'Aterro'],
+  ['rocha', 'Rocha / Impenetrável'],
+  ['outro', 'Outro'],
+];
+function tipoOptionsHtml(sel) {
+  return TIPOS_SOLO.map(([k, lbl]) => `<option value="${k}" ${k === sel ? 'selected' : ''}>${lbl}</option>`).join('');
+}
+function inferTipoSolo(desc){
+  const d = (desc||'').toLowerCase();
+  if(d.includes('areia')) return 'areia';
+  if(d.includes('argila')) return 'argila';
+  if(d.includes('silte')) return 'silte';
+  if(d.includes('aterro')) return 'aterro';
+  if(d.includes('rocha')||d.includes('matacão')||d.includes('matacao')||d.includes('impenetr')) return 'rocha';
+  return 'outro';
+}
+
+/* ══════════════════════════════════════════════════════════════
+   CAMPANHA DE EXEMPLO — 9 furos SPT em malha 3×3 (espaçamento
+   50 m), cobrindo uma área de 100×100 m. Perfil geotécnico
+   plausível para fins de demonstração: aterro → argila mole/média
+   → argila rija → areia média/compacta → impenetrável/rocha em
+   profundidades variáveis (heterogeneidade típica de campo).
+   Coordenadas de referência: canto SO em -23.550520, -46.633308.
+   ══════════════════════════════════════════════════════════════ */
+const SAMPLE_CAMPAIGN = [
+  {
+    num:'SP-01', lat:-23.55052, lng:-46.633308, cota:'742.3', na:1.8, dataInicio:'10/03/25',
+    camadas:[
+        {profFinal:1.0, tipo:'aterro', descricao:'Aterro compactado, areno-argiloso, cor marrom escuro, com fragmentos de material orgânico'},
+        {profFinal:2.7, tipo:'argila', descricao:'Argila-arenosa, mole a média, consistência mole, cor cinza escuro, pouco plástica'},
+        {profFinal:5.9, tipo:'argila', descricao:'Argila-arenosa, média a rija, consistência rija, cor marrom avermelhado, pouco plástica'},
+        {profFinal:8.1, tipo:'areia', descricao:'Areia média a grossa, compacidade média a compacta, cor cinza esbranquiçado, pouco siltosa'},
+        {profFinal:12.0, tipo:'rocha', descricao:'Impenetrável a percussão — provável topo rochoso'}
+    ],
+    golpes:[{prof:1, g1:2, g2:3, g3:3}, {prof:2, g1:1, g2:1, g3:2}, {prof:3, g1:2, g2:3, g3:4}, {prof:4, g1:3, g2:5, g3:5}, {prof:5, g1:5, g2:6, g3:8}, {prof:6, g1:4, g2:7, g3:8}, {prof:7, g1:9, g2:11, g3:13}, {prof:8, g1:9, g2:14, g3:17}, {prof:9, g1:13, g2:23, g3:27}, {prof:10, g1:14, g2:23, g3:27}, {prof:11, g1:13, g2:23, g3:27}, {prof:12, g1:17, g2:23, g3:27}]
+  },
+  {
+    num:'SP-02', lat:-23.55052, lng:-46.632818, cota:'741.9', na:1.6, dataInicio:'10/03/25',
+    camadas:[
+        {profFinal:0.9, tipo:'aterro', descricao:'Aterro compactado, areno-argiloso, cor marrom escuro, com fragmentos de material orgânico'},
+        {profFinal:2.8, tipo:'argila', descricao:'Argila-arenosa, mole a média, consistência mole, cor cinza escuro, pouco plástica'},
+        {profFinal:6.0, tipo:'argila', descricao:'Argila-arenosa, média a rija, consistência rija, cor marrom avermelhado, pouco plástica'},
+        {profFinal:8.4, tipo:'areia', descricao:'Areia média a grossa, compacidade média a compacta, cor cinza esbranquiçado, pouco siltosa'},
+        {profFinal:13.0, tipo:'rocha', descricao:'Impenetrável a percussão — provável topo rochoso'}
+    ],
+    golpes:[{prof:1, g1:1, g2:1, g3:1}, {prof:2, g1:1, g2:1, g3:2}, {prof:3, g1:3, g2:4, g3:5}, {prof:4, g1:3, g2:5, g3:6}, {prof:5, g1:4, g2:6, g3:8}, {prof:6, g1:6, g2:8, g3:10}, {prof:7, g1:7, g2:10, g3:11}, {prof:8, g1:10, g2:13, g3:16}, {prof:9, g1:14, g2:22, g3:26}, {prof:10, g1:13, g2:23, g3:27}, {prof:11, g1:17, g2:23, g3:27}, {prof:12, g1:15, g2:23, g3:27}, {prof:13, g1:16, g2:23, g3:27}]
+  },
+  {
+    num:'SP-03', lat:-23.55052, lng:-46.632328, cota:'741.5', na:2.4, dataInicio:'10/03/25',
+    camadas:[
+        {profFinal:1.2, tipo:'aterro', descricao:'Aterro compactado, areno-argiloso, cor marrom escuro, com fragmentos de material orgânico'},
+        {profFinal:3.1, tipo:'argila', descricao:'Argila-arenosa, mole a média, consistência mole, cor cinza escuro, pouco plástica'},
+        {profFinal:6.4, tipo:'argila', descricao:'Argila-arenosa, média a rija, consistência rija, cor marrom avermelhado, pouco plástica'},
+        {profFinal:8.8, tipo:'areia', descricao:'Areia média a grossa, compacidade média a compacta, cor cinza esbranquiçado, pouco siltosa'},
+        {profFinal:9.0, tipo:'areia', descricao:'Areia muito compacta a impenetrável a percussão, cor cinza, indícios de alteração de rocha'}
+    ],
+    golpes:[{prof:1, g1:2, g2:3, g3:3}, {prof:2, g1:1, g2:2, g3:2}, {prof:3, g1:2, g2:3, g3:4}, {prof:4, g1:4, g2:5, g3:5}, {prof:5, g1:4, g2:6, g3:6}, {prof:6, g1:6, g2:7, g3:9}, {prof:7, g1:6, g2:9, g3:11}, {prof:8, g1:9, g2:12, g3:14}, {prof:9, g1:9, g2:14, g3:17}]
+  },
+  {
+    num:'SP-04', lat:-23.550071, lng:-46.633308, cota:'741.55', na:2.0, dataInicio:'11/03/25',
+    camadas:[
+        {profFinal:0.9, tipo:'aterro', descricao:'Aterro compactado, areno-argiloso, cor marrom escuro, com fragmentos de material orgânico'},
+        {profFinal:2.6, tipo:'argila', descricao:'Argila-arenosa, mole a média, consistência mole, cor cinza escuro, pouco plástica'},
+        {profFinal:5.4, tipo:'argila', descricao:'Argila-arenosa, média a rija, consistência rija, cor marrom avermelhado, pouco plástica'},
+        {profFinal:8.1, tipo:'areia', descricao:'Areia média a grossa, compacidade média a compacta, cor cinza esbranquiçado, pouco siltosa'},
+        {profFinal:13.0, tipo:'rocha', descricao:'Impenetrável a percussão — provável topo rochoso'}
+    ],
+    golpes:[{prof:1, g1:1, g2:1, g3:1}, {prof:2, g1:2, g2:2, g3:2}, {prof:3, g1:3, g2:4, g3:4}, {prof:4, g1:5, g2:6, g3:7}, {prof:5, g1:6, g2:8, g3:9}, {prof:6, g1:5, g2:8, g3:10}, {prof:7, g1:9, g2:12, g3:13}, {prof:8, g1:9, g2:15, g3:18}, {prof:9, g1:13, g2:22, g3:25}, {prof:10, g1:15, g2:23, g3:27}, {prof:11, g1:14, g2:23, g3:27}, {prof:12, g1:15, g2:23, g3:27}, {prof:13, g1:16, g2:23, g3:27}]
+  },
+  {
+    num:'SP-05', lat:-23.550071, lng:-46.632818, cota:'741.15', na:1.9, dataInicio:'11/03/25',
+    camadas:[
+        {profFinal:1.3, tipo:'aterro', descricao:'Aterro compactado, areno-argiloso, cor marrom escuro, com fragmentos de material orgânico'},
+        {profFinal:3.3, tipo:'argila', descricao:'Argila-arenosa, mole a média, consistência mole, cor cinza escuro, pouco plástica'},
+        {profFinal:6.4, tipo:'argila', descricao:'Argila-arenosa, média a rija, consistência rija, cor marrom avermelhado, pouco plástica'},
+        {profFinal:9.0, tipo:'areia', descricao:'Areia média a grossa, compacidade média a compacta, cor cinza esbranquiçado, pouco siltosa'},
+        {profFinal:14.0, tipo:'rocha', descricao:'Impenetrável a percussão — provável topo rochoso'}
+    ],
+    golpes:[{prof:1, g1:2, g2:3, g3:3}, {prof:2, g1:1, g2:2, g3:3}, {prof:3, g1:2, g2:3, g3:4}, {prof:4, g1:3, g2:5, g3:5}, {prof:5, g1:4, g2:6, g3:6}, {prof:6, g1:4, g2:7, g3:8}, {prof:7, g1:5, g2:8, g3:10}, {prof:8, g1:7, g2:12, g3:13}, {prof:9, g1:8, g2:14, g3:17}, {prof:10, g1:14, g2:22, g3:25}, {prof:11, g1:18, g2:23, g3:27}, {prof:12, g1:14, g2:23, g3:27}, {prof:13, g1:15, g2:23, g3:27}, {prof:14, g1:13, g2:23, g3:27}]
+  },
+  {
+    num:'SP-06', lat:-23.550071, lng:-46.632328, cota:'740.75', na:2.6, dataInicio:'11/03/25',
+    camadas:[
+        {profFinal:1.2, tipo:'aterro', descricao:'Aterro compactado, areno-argiloso, cor marrom escuro, com fragmentos de material orgânico'},
+        {profFinal:3.4, tipo:'argila', descricao:'Argila-arenosa, mole a média, consistência mole, cor cinza escuro, pouco plástica'},
+        {profFinal:6.5, tipo:'argila', descricao:'Argila-arenosa, média a rija, consistência rija, cor marrom avermelhado, pouco plástica'},
+        {profFinal:9.0, tipo:'areia', descricao:'Areia média a grossa, compacidade média a compacta, cor cinza esbranquiçado, pouco siltosa'},
+        {profFinal:10.0, tipo:'areia', descricao:'Areia muito compacta a impenetrável a percussão, cor cinza, indícios de alteração de rocha'}
+    ],
+    golpes:[{prof:1, g1:1, g2:2, g3:2}, {prof:2, g1:1, g2:1, g3:2}, {prof:3, g1:2, g2:3, g3:3}, {prof:4, g1:3, g2:4, g3:4}, {prof:5, g1:4, g2:6, g3:7}, {prof:6, g1:4, g2:7, g3:9}, {prof:7, g1:6, g2:8, g3:10}, {prof:8, g1:9, g2:12, g3:14}, {prof:9, g1:9, g2:14, g3:17}, {prof:10, g1:10, g2:14, g3:17}]
+  },
+  {
+    num:'SP-07', lat:-23.549622, lng:-46.633308, cota:'740.8', na:2.2, dataInicio:'12/03/25',
+    camadas:[
+        {profFinal:1.1, tipo:'aterro', descricao:'Aterro compactado, areno-argiloso, cor marrom escuro, com fragmentos de material orgânico'},
+        {profFinal:3.2, tipo:'argila', descricao:'Argila-arenosa, mole a média, consistência mole, cor cinza escuro, pouco plástica'},
+        {profFinal:6.2, tipo:'argila', descricao:'Argila-arenosa, média a rija, consistência rija, cor marrom avermelhado, pouco plástica'},
+        {profFinal:8.5, tipo:'areia', descricao:'Areia média a grossa, compacidade média a compacta, cor cinza esbranquiçado, pouco siltosa'},
+        {profFinal:11.0, tipo:'rocha', descricao:'Areia muito compacta a impenetrável a percussão, cor cinza, indícios de alteração de rocha'}
+    ],
+    golpes:[{prof:1, g1:2, g2:3, g3:4}, {prof:2, g1:2, g2:2, g3:3}, {prof:3, g1:2, g2:3, g3:4}, {prof:4, g1:3, g2:5, g3:5}, {prof:5, g1:3, g2:6, g3:7}, {prof:6, g1:4, g2:7, g3:8}, {prof:7, g1:7, g2:9, g3:11}, {prof:8, g1:9, g2:14, g3:16}, {prof:9, g1:18, g2:23, g3:26}, {prof:10, g1:15, g2:23, g3:27}, {prof:11, g1:14, g2:23, g3:27}]
+  },
+  {
+    num:'SP-08', lat:-23.549622, lng:-46.632818, cota:'740.4', na:2.1, dataInicio:'12/03/25',
+    camadas:[
+        {profFinal:0.9, tipo:'aterro', descricao:'Aterro compactado, areno-argiloso, cor marrom escuro, com fragmentos de material orgânico'},
+        {profFinal:2.6, tipo:'argila', descricao:'Argila-arenosa, mole a média, consistência mole, cor cinza escuro, pouco plástica'},
+        {profFinal:5.8, tipo:'argila', descricao:'Argila-arenosa, média a rija, consistência rija, cor marrom avermelhado, pouco plástica'},
+        {profFinal:8.5, tipo:'areia', descricao:'Areia média a grossa, compacidade média a compacta, cor cinza esbranquiçado, pouco siltosa'},
+        {profFinal:12.0, tipo:'rocha', descricao:'Impenetrável a percussão — provável topo rochoso'}
+    ],
+    golpes:[{prof:1, g1:1, g2:1, g3:2}, {prof:2, g1:1, g2:2, g3:3}, {prof:3, g1:3, g2:4, g3:4}, {prof:4, g1:4, g2:6, g3:7}, {prof:5, g1:5, g2:7, g3:9}, {prof:6, g1:5, g2:7, g3:8}, {prof:7, g1:8, g2:10, g3:12}, {prof:8, g1:9, g2:14, g3:16}, {prof:9, g1:17, g2:22, g3:25}, {prof:10, g1:14, g2:23, g3:27}, {prof:11, g1:14, g2:23, g3:27}, {prof:12, g1:17, g2:23, g3:27}]
+  },
+  {
+    num:'SP-09', lat:-23.549622, lng:-46.632328, cota:'740.0', na:2.8, dataInicio:'12/03/25',
+    camadas:[
+        {profFinal:0.9, tipo:'aterro', descricao:'Aterro compactado, areno-argiloso, cor marrom escuro, com fragmentos de material orgânico'},
+        {profFinal:3.0, tipo:'argila', descricao:'Argila-arenosa, mole a média, consistência mole, cor cinza escuro, pouco plástica'},
+        {profFinal:6.4, tipo:'argila', descricao:'Argila-arenosa, média a rija, consistência rija, cor marrom avermelhado, pouco plástica'},
+        {profFinal:8.0, tipo:'areia', descricao:'Areia média a compacta, cor cinza esbranquiçado, pouco siltosa'}
+    ],
+    golpes:[{prof:1, g1:1, g2:1, g3:1}, {prof:2, g1:1, g2:1, g3:2}, {prof:3, g1:2, g2:3, g3:4}, {prof:4, g1:4, g2:5, g3:6}, {prof:5, g1:5, g2:6, g3:7}, {prof:6, g1:5, g2:8, g3:9}, {prof:7, g1:6, g2:10, g3:11}, {prof:8, g1:10, g2:14, g3:17}]
+  },
+];
+
+function loadSampleCampaign(){
+  if(furos.length>0 && !confirm('Isso adiciona 9 furos de exemplo (malha 3×3, 100×100 m) aos furos já cadastrados. Continuar?')) return;
+  SAMPLE_CAMPAIGN.forEach(o=>{
+    const f = blankFuro(o.lat, o.lng);
+    f.ident.sondagemNum = o.num;
+    f.ident.obra = 'Campanha de Sondagens — Lote Exemplo 100×100 m';
+    f.ident.cliente = 'Construtora Exemplo Ltda.';
+    f.ident.local = 'São Paulo - SP';
+    f.ident.dataInicio = o.dataInicio;
+    f.ident.dataFim = o.dataInicio;
+    f.ident.cota = o.cota;
+    f.ident.datum = 'SIRGAS2000';
+    f.ident.responsavel = 'Eng. Marcos Villela Pereira';
+    f.ident.sondador = 'Equipe Sondasolo Ltda.';
+    f.ident.desenhista = 'Camila R.';
+    f.agua = [{data:o.dataInicio, prof:String(o.na)}];
+    f.camadas = o.camadas.map(c=>({...c}));
+    f.golpes = o.golpes.map(g=>({...g}));
+    f.metodo = 'SPT (NBR 6484)';
+    f.equipamento = 'Sonda rotativa/percussão sobre esteira';
+    f.revestimento = 'Ø 2 1/2" (63,5 mm)';
+    f.obs = 'Furo de exemplo gerado automaticamente para demonstração do GEO·SIG — não representa dados de campo reais.';
+    furos.push(f);
+    drawFuro(f);
+  });
+  renderFuroList();
+  fitAll();
+  scheduleSave();
+  toast('9 furos de exemplo carregados (malha 100×100 m)');
+}
+document.getElementById('btn-load-sample').addEventListener('click', loadSampleCampaign);
+
+/* ══════════════════ MAPA ══════════════════ */
+const map = L.map('map', {zoomControl:true}).setView([-15.6, -50.5], 4);
+const osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
+  maxZoom:19, attribution:'© OpenStreetMap'}).addTo(map);
+const sat = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',{
+  maxZoom:19, attribution:'© Esri'});
+
+document.getElementById('sel-base').addEventListener('change', e=>{
+  if(e.target.value==='sat'){map.removeLayer(osm);sat.addTo(map);}
+  else{map.removeLayer(sat);osm.addTo(map);}
+});
+
+const drawnItems = new L.FeatureGroup().addTo(map);
+
+const selCrs = document.getElementById('sel-crs');
+for(let z=17; z<=25; z++){
+  const o=document.createElement('option'); o.value=z; o.textContent='SIRGAS2000 / UTM '+z+'S';
+  if(z===23) o.selected=true;
+  selCrs.appendChild(o);
+}
+selCrs.addEventListener('change', ()=>{ crsZone = parseInt(selCrs.value); renderFuroList(); if(selected&&selected.kind==='furo') openFuroPanel(selected.id); });
+
+// zona UTM própria do editor de localização do furo (independente da zona de exibição global)
+const boZoneSel = document.getElementById('bo-f-utm-zone-in');
+for(let z=17; z<=25; z++){
+  const o=document.createElement('option'); o.value=z; o.textContent='UTM '+z+'S';
+  if(z===23) o.selected=true;
+  boZoneSel.appendChild(o);
+}
+
+function utmDef(zone){ return `+proj=utm +zone=${zone} +south +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs`; }
+function toUTM(lat,lng,zone){ const [e,n]=proj4('EPSG:4326', utmDef(zone), [lng,lat]); return {e,n}; }
+
+// ── Datums para entrada manual de coordenadas no editor do furo ──
+// SIRGAS2000/WGS84 são tratados como equivalentes na prática (GRS80≈WGS84).
+// SAD69 e Córrego Alegre usam parâmetros de transformação aproximados (towgs84)
+// comumente usados para o território brasileiro — suficientes para localizar um
+// furo num mapa, mas não substituem uma conversão oficial em SIG para projeto executivo.
+const DATUM_ELLPS = {
+  SIRGAS2000: '+ellps=GRS80 +towgs84=0,0,0,0,0,0,0',
+  WGS84: '+ellps=WGS84 +towgs84=0,0,0,0,0,0,0',
+  SAD69: '+ellps=aust_SA +towgs84=-67.35,3.88,-38.22,0,0,0,0',
+  CORREGO_ALEGRE: '+ellps=intl +towgs84=-206.048,168.279,-3.283,0,0,0,0'
+};
+function utmDefDatum(zone, datum){
+  return `+proj=utm +zone=${zone} +south ${DATUM_ELLPS[datum]||DATUM_ELLPS.SIRGAS2000} +units=m +no_defs`;
+}
+function utmToLatLng(e,n,zone,datum){
+  const [lng,lat] = proj4(utmDefDatum(zone,datum), 'EPSG:4326', [e,n]);
+  return {lat,lng};
+}
+function toast(msg){ const t=document.getElementById('hint-toast'); t.textContent=msg; t.classList.add('show');
+  clearTimeout(toast._t); toast._t=setTimeout(()=>t.classList.remove('show'),2200); }
+
+document.getElementById('search-box').addEventListener('input', e=>{ searchTerm=e.target.value.toLowerCase(); renderFuroList(); });
+
+/* ══════════════════ PERSISTÊNCIA ══════════════════ */
+let saveTimer=null;
+function scheduleSave(){ clearTimeout(saveTimer); saveTimer=setTimeout(saveAll, 500); }
+async function saveAll(){
+  try{
+    await window.storage.set('geosig:furos', JSON.stringify(furos));
+    await window.storage.set('geosig:shapes', JSON.stringify(shapes));
+  }catch(e){ console.error('erro ao salvar', e); }
+}
+async function loadAll(){
+  try{ const rf = await window.storage.get('geosig:furos'); if(rf) furos = JSON.parse(rf.value); }catch(e){}
+  try{ const rs = await window.storage.get('geosig:shapes'); if(rs) shapes = JSON.parse(rs.value); }catch(e){}
+  // migração de furos salvos no formato antigo (pré-unificação com o Boletim NBR 6484)
+  furos.forEach(f=>{
+    if(!f.ident){
+      f.ident = {
+        cliente:f.cliente||'', obra:f.obra||'', local:'', sondagemNum:f.name||('F-'+(furos.indexOf(f)+1)),
+        dataInicio:f.data_exec||'', dataFim:'', cota:f.cota_boca||'', datum:'SIRGAS2000',
+        coordN:'', coordE:'', responsavel:f.responsavel||'', sondador:'', desenhista:'',
+        amDiamInt:'34.9', amDiamExt:'50.8', amPeso:'65', amAltura:'75'
+      };
+      f.agua = (f.na||[{data:'',prof:''}]).map(r=>({data:r.data||'', prof:r.prof!==undefined?r.prof:''}));
+      f.camadas = (f.camadas||[]).map(c=>({
+        profFinal: (c.profFinal!==undefined? +c.profFinal : +c.prof_fim) || 0,
+        tipo: c.tipo || inferTipoSolo(c.descricao),
+        descricao: c.descricao||''
+      }));
+      f.golpes = (f.golpes||[]).map(g=>({
+        prof: +g.prof||0,
+        g1: g.g1!==undefined? g.g1 : (g.n1||''),
+        g2: g.g2!==undefined? g.g2 : (g.n2||''),
+        g3: g.g3!==undefined? g.g3 : (g.n3||'')
+      }));
+      f.metodo = f.metodo || 'SPT (NBR 6484)';
+      f.equipamento = f.equipamento||''; f.revestimento = f.revestimento||''; f.arquivo_ref = f.arquivo_ref||'';
+      f.obs = f.obs||'';
+      delete f.name; delete f.cliente; delete f.obra; delete f.data_exec; delete f.cota_boca; delete f.responsavel; delete f.na;
+    }
+    if(!f.camadas.length) f.camadas=[{profFinal:1,tipo:'argila',descricao:''}];
+    if(!f.golpes.length) f.golpes=[{prof:1,g1:'',g2:'',g3:''}];
+    if(!f.agua.length) f.agua=[{data:'',prof:''}];
+  });
+  furos.forEach(f=>drawFuro(f));
+  shapes.forEach(s=>drawShape(s));
+  renderFuroList(); renderShapeList();
+  fitAll();
+}
+
+/* ══════════════════ FUROS / BOLETINS ══════════════════ */
+function newFuroId(){ return 'F'+Date.now().toString(36)+Math.random().toString(36).slice(2,5); }
+
+function profFinal(f){
+  const ps = [...f.camadas.map(c=>+c.profFinal||0), ...f.golpes.map(g=>+g.prof||0)];
+  return ps.length? Math.max(...ps) : 0;
+}
+
+function drawFuro(f){
+  const icon = L.divIcon({className:'leaflet-div-icon', html:`<div class="furo-pin" id="pin-${f.id}"></div>`, iconSize:[16,16], iconAnchor:[8,8]});
+  const m = L.marker([f.lat,f.lng], {icon, draggable:true}).addTo(map);
+  m.on('click', ()=>selectFuro(f.id));
+  m.on('dragend', ()=>{ const p=m.getLatLng(); f.lat=p.lat; f.lng=p.lng; scheduleSave(); renderFuroList(); if(selected&&selected.id===f.id) openFuroPanel(f.id); });
+  markers[f.id]=m;
+}
+
+function deleteFuro(id){
+  const f=furos.find(x=>x.id===id); if(!f) return;
+  if(markers[id]){ map.removeLayer(markers[id]); delete markers[id]; }
+  furos = furos.filter(x=>x.id!==id);
+  if(selected&&selected.id===id) closePanel();
+  renderFuroList(); scheduleSave();
+}
+
+function renderFuroList(){
+  const el = document.getElementById('list-furos');
+  document.getElementById('sb-count').textContent = furos.length+' boletim(ns) de sondagem cadastrado(s)';
+  let list = furos;
+  if(searchTerm) list = furos.filter(f=> (f.ident.sondagemNum+' '+f.ident.obra+' '+f.ident.cliente).toLowerCase().includes(searchTerm));
+  if(furos.length===0){ el.innerHTML='<div class="sb-empty">Nenhum furo cadastrado.<br>Use "＋ Furo SPT" e clique no mapa,<br>ou importe um shapefile.</div>'; return; }
+  if(list.length===0){ el.innerHTML='<div class="sb-empty">Nenhum resultado para "'+esc(searchTerm)+'".</div>'; return; }
+  el.innerHTML='';
+  list.forEach(f=>{
+    const u = toUTM(f.lat,f.lng,crsZone);
+    const div = document.createElement('div');
+    div.className='item'+(selected&&selected.kind==='furo'&&selected.id===f.id?' sel':'');
+    div.innerHTML = `<div class="item-title">${esc(f.ident.sondagemNum)}</div>
+      <div class="item-sub">${esc(f.ident.obra||'sem obra')} · até ${profFinal(f).toFixed(1)}m</div>
+      <div class="item-sub">E ${u.e.toFixed(1)} · N ${u.n.toFixed(1)}</div>`;
+    div.onclick=()=>{ selectFuro(f.id); map.setView([f.lat,f.lng], Math.max(map.getZoom(),15)); };
+    el.appendChild(div);
+  });
+}
+
+function selectFuro(id){
+  selected = {kind:'furo', id};
+  Object.entries(markers).forEach(([mid,m])=>{
+    const pin=document.getElementById('pin-'+mid);
+    if(pin) pin.classList.toggle('selpin', mid===id);
+  });
+  renderFuroList();
+  openFuroPanel(id);
+}
+
+/* ══════════════════════════════════════════════════════════════
+   RENDERIZAÇÃO DO BOLETIM GRÁFICO — portado do módulo
+   "Boletim de Sondagem — SPT" (padrão NBR 6484), agora operando
+   sobre o registro do furo do GEO·SIG (f.ident / f.agua /
+   f.camadas / f.golpes) em vez de um estado de página isolado.
+   ══════════════════════════════════════════════════════════════ */
+const PXM = 44; // px por metro de profundidade no boletim — deve casar com a lógica de impressão
+
+function prepareBoletimState(f){
+  let profAnterior = 0;
+  const camadas = [...f.camadas]
+    .map(c=>({...c, profFinal:+c.profFinal||0}))
+    .sort((a,b)=>a.profFinal-b.profFinal)
+    .map(c=>{ const cc={...c, profInicial:profAnterior}; profAnterior=c.profFinal; return cc; });
+  const golpes = [...f.golpes]
+    .map(g=>{ const g1=+g.g1||0, g2=+g.g2||0, g3=+g.g3||0; return {...g, prof:+g.prof||0, g1, g2, g3, ni:g1+g2, nf:g2+g3}; })
+    .sort((a,b)=>a.prof-b.prof);
+  const agua = f.agua.filter(a=>a.prof!==''&&a.prof!==undefined&&a.prof!==null).map(a=>({...a, prof:+a.prof||0}));
+  return {ident:f.ident, agua, camadas, golpes};
+}
+
+function renderFuroBoletimHtml(state){
+  const { ident, agua, camadas, golpes } = state;
+
+  const maxDepthRaw = Math.max(
+    1,
+    camadas.length ? camadas[camadas.length - 1].profFinal : 0,
+    golpes.length ? golpes[golpes.length - 1].prof : 0,
+    agua.length ? Math.max(...agua.map(a => a.prof)) : 0
+  );
+  const maxDepth = Math.ceil(maxDepthRaw);
+  const totalH = maxDepth * PXM;
+
+  // ── Régua de profundidade ──
+  let rulerHtml = '';
+  for (let d = 0; d <= maxDepth; d++) {
+    rulerHtml += `<div class="ruler-tick" style="top:${d * PXM}px;"><b>${String(d).padStart(2, '0')}</b></div>`;
+  }
+
+  // ── Coluna de golpes ──
+  let golpesHtml = '';
+  golpes.forEach(g => {
+    const top = Math.max(0, (g.prof - 1)) * PXM;
+    golpesHtml += `
+      <div class="golpe-row" style="top:${top}px;height:${PXM}px;">
+        <div class="golpe-fracs">
+          <span>${esc(g.g1)}<small>/15</small></span>
+          <span>${esc(g.g2)}<small>/15</small></span>
+          <span>${esc(g.g3)}<small>/15</small></span>
+        </div>
+        <div class="golpe-n">
+          <b class="n-ini">${g.ni}</b>
+          <b class="n-fin">${g.nf}</b>
+        </div>
+      </div>`;
+  });
+
+  // ── Gráfico SPT (SVG) ──
+  const scaleMax = 40;
+  const gridVals = [10, 20, 30, 40];
+  let gridHtml = '';
+  gridVals.forEach(v => {
+    const x = (v / scaleMax) * 100;
+    gridHtml += `<line x1="${x}" y1="0" x2="${x}" y2="${totalH}" stroke="rgba(0,0,0,0.09)" stroke-width="0.6"/>`;
+    gridHtml += `<text x="${x}" y="10" font-size="7" fill="#7a7168" text-anchor="middle">${v}</text>`;
+  });
+  const pts = golpes.map(g => ({ x: g.prof * PXM, ni: g.ni, nf: g.nf }));
+  const toX = v => Math.min(100, (Math.max(0, v) / scaleMax) * 100);
+  const iniPoly = pts.map(p => `${toX(p.ni)},${p.x}`).join(' ');
+  const finPoly = pts.map(p => `${toX(p.nf)},${p.x}`).join(' ');
+  let markersHtml = '';
+  pts.forEach(p => {
+    markersHtml += `<circle cx="${toX(p.nf)}" cy="${p.x}" r="1.8" fill="#1a7a52"/>`;
+    markersHtml += `<circle cx="${toX(p.ni)}" cy="${p.x}" r="1.5" fill="#c0392b"/>`;
+  });
+  const chartSvg = `
+    <svg viewBox="0 0 100 ${totalH}" width="100%" height="${totalH}" preserveAspectRatio="none" style="display:block;">
+      ${gridHtml}
+      ${pts.length > 1 ? `<polyline points="${iniPoly}" fill="none" stroke="#c0392b" stroke-width="1.2" stroke-dasharray="3,2"/>` : ''}
+      ${pts.length > 1 ? `<polyline points="${finPoly}" fill="none" stroke="#1a7a52" stroke-width="1.6"/>` : ''}
+      ${markersHtml}
+    </svg>`;
+
+  // ── Versão do gráfico p/ IMPRESSÃO — dividida em faixas de 1 m (ver printFuroBoletim) ──
+  function xAtY(yTarget, key) {
+    if (!pts.length) return 0;
+    if (yTarget <= pts[0].x) return toX(pts[0][key]);
+    if (yTarget >= pts[pts.length - 1].x) return toX(pts[pts.length - 1][key]);
+    for (let i = 0; i < pts.length - 1; i++) {
+      const a = pts[i], b = pts[i + 1];
+      if (yTarget >= a.x && yTarget <= b.x) {
+        const t = (b.x - a.x) > 1e-6 ? (yTarget - a.x) / (b.x - a.x) : 0;
+        return toX(a[key]) + t * (toX(b[key]) - toX(a[key]));
+      }
+    }
+    return toX(pts[pts.length - 1][key]);
+  }
+  let chartBandsHtml = '';
+  for (let k = 0; k < maxDepth; k++) {
+    const y0 = k * PXM, y1 = (k + 1) * PXM;
+    const isLast = k === maxDepth - 1;
+    const inBand = pts.filter(p => p.x > y0 - 1e-6 && (isLast ? p.x <= y1 + 1e-6 : p.x < y1 - 1e-6));
+    let iniPts = [], finPts = [];
+    if (pts.length > 1) {
+      iniPts.push([xAtY(y0, 'ni'), 0]); finPts.push([xAtY(y0, 'nf'), 0]);
+      inBand.forEach(p => { iniPts.push([toX(p.ni), p.x - y0]); finPts.push([toX(p.nf), p.x - y0]); });
+      iniPts.push([xAtY(y1, 'ni'), y1 - y0]); finPts.push([xAtY(y1, 'nf'), y1 - y0]);
+    }
+    let bandGrid = '';
+    gridVals.forEach(v => {
+      const x = (v / scaleMax) * 100;
+      bandGrid += `<line x1="${x}" y1="0" x2="${x}" y2="${PXM}" stroke="rgba(0,0,0,0.09)" stroke-width="0.6"/>`;
+      if (k === 0) bandGrid += `<text x="${x}" y="10" font-size="7" fill="#7a7168" text-anchor="middle">${v}</text>`;
+    });
+    let bandMarkers = '';
+    inBand.forEach(p => {
+      bandMarkers += `<circle cx="${toX(p.nf)}" cy="${(p.x - y0).toFixed(2)}" r="1.8" fill="#1a7a52"/>`;
+      bandMarkers += `<circle cx="${toX(p.ni)}" cy="${(p.x - y0).toFixed(2)}" r="1.5" fill="#c0392b"/>`;
+    });
+    const iniPolyBand = iniPts.map(([x, y]) => `${x.toFixed(2)},${y.toFixed(2)}`).join(' ');
+    const finPolyBand = finPts.map(([x, y]) => `${x.toFixed(2)},${y.toFixed(2)}`).join(' ');
+    chartBandsHtml += `
+      <div style="position:absolute;left:0;right:0;top:${y0}px;height:${PXM}px;">
+        <svg viewBox="0 0 100 ${PXM}" width="100%" height="${PXM}" preserveAspectRatio="none" style="display:block;">
+          ${bandGrid}
+          ${pts.length > 1 ? `<polyline points="${iniPolyBand}" fill="none" stroke="#c0392b" stroke-width="1.2" stroke-dasharray="3,2"/>` : ''}
+          ${pts.length > 1 ? `<polyline points="${finPolyBand}" fill="none" stroke="#1a7a52" stroke-width="1.6"/>` : ''}
+          ${bandMarkers}
+        </svg>
+      </div>`;
+  }
+
+  // ── Coluna de perfil geológico ──
+  let perfilHtml = '';
+  let descHtml = '';
+  camadas.forEach((c, i) => {
+    const top = c.profInicial * PXM;
+    const h = (c.profFinal - c.profInicial) * PXM;
+    perfilHtml += `
+      <div class="perfil-block soil-${c.tipo}" style="top:${top}px;height:${h}px;">
+        <div class="perfil-idx">${String(i).padStart(2, '0')}</div>
+      </div>`;
+    descHtml += `
+      <div class="desc-block" style="top:${top}px;height:${h}px;">
+        <div class="desc-prof">até ${c.profFinal.toFixed(2)} m</div>
+        <div class="desc-txt">${esc(c.descricao) || '<i>sem descrição</i>'}</div>
+      </div>`;
+  });
+
+  // ── Coluna N.A. ──
+  let naHtml = '';
+  agua.forEach(a => {
+    naHtml += `
+      <div class="na-mark" style="top:${a.prof * PXM}px;" title="N.A. em ${a.prof} m${a.data ? ' — ' + escAttr(a.data) : ''}">
+        <div class="tri">▽</div>
+        <div>${a.prof.toFixed(2)}</div>
+      </div>`;
+  });
+
+  // ── Legenda de tipos de solo presentes ──
+  const tiposPresentes = [...new Set(camadas.map(c => c.tipo))];
+  const legendHtml = tiposPresentes.map(t => {
+    const label = (TIPOS_SOLO.find(x => x[0] === t) || [t, t])[1];
+    return `<div class="legend-chip"><span class="legend-swatch soil-${t}"></span>${esc(label)}</div>`;
+  }).join('');
+
+  const aguaLegend = agua.length
+    ? agua.map(a => `${a.prof.toFixed(2)} m${a.data ? ' em ' + esc(a.data) : ''}`).join(' &nbsp;·&nbsp; ')
+    : 'não informado';
+
+  return `
+    <div class="boletim-card">
+      <div class="boletim-topbar">
+        <div>
+          <div class="bnum">${esc(ident.sondagemNum)||'—'}</div>
+          <div class="bnorm">SONDAGEM À PERCUSSÃO COM SPT</div>
+        </div>
+        <div class="bnorm">NBR 6484:2020</div>
+      </div>
+
+      <table class="info-tbl">
+        <tr>
+          <td><span class="lbl">Cliente</span><span class="val">${esc(ident.cliente)||'—'}</span></td>
+          <td><span class="lbl">Obra</span><span class="val">${esc(ident.obra)||'—'}</span></td>
+          <td><span class="lbl">Local</span><span class="val">${esc(ident.local)||'—'}</span></td>
+          <td><span class="lbl">Cota</span><span class="val">${esc(ident.cota)||'—'}</span></td>
+        </tr>
+        <tr>
+          <td><span class="lbl">Início</span><span class="val">${esc(ident.dataInicio)||'—'}</span></td>
+          <td><span class="lbl">Término</span><span class="val">${esc(ident.dataFim)||'—'}</span></td>
+          <td><span class="lbl">Datum</span><span class="val">${esc(ident.datum)||'—'}</span></td>
+          <td><span class="lbl">Coord. N / E</span><span class="val">${esc(ident.coordN)||'—'} / ${esc(ident.coordE)||'—'}</span></td>
+        </tr>
+        <tr>
+          <td><span class="lbl">Responsável técnico</span><span class="val">${esc(ident.responsavel)||'—'}</span></td>
+          <td><span class="lbl">Sondador</span><span class="val">${esc(ident.sondador)||'—'}</span></td>
+          <td><span class="lbl">Desenhista</span><span class="val">${esc(ident.desenhista)||'—'}</span></td>
+          <td><span class="lbl">N.A. leituras</span><span class="val" style="font-weight:400;font-size:11px;">${aguaLegend}</span></td>
+        </tr>
+      </table>
+
+      <div class="boletim-body">
+        <div class="track-wrap">
+          <div class="track col-ruler">
+            <div class="track-head">Prof.<br>(m)</div>
+            <div style="position:relative;height:${totalH}px;">${rulerHtml}</div>
+          </div>
+          <div class="track col-golpes">
+            <div class="track-head">Golpes /15cm<br>N (ini / fin)</div>
+            <div style="position:relative;height:${totalH}px;">${golpesHtml}</div>
+          </div>
+          <div class="track col-grafico">
+            <div class="track-head">Gráfico SPT<br>(0–40 golpes)</div>
+            <div class="chart-screen" style="position:relative;height:${totalH}px;">${chartSvg}</div>
+            <div class="chart-print" style="position:relative;height:${totalH}px;display:none;">${chartBandsHtml}</div>
+          </div>
+          <div class="track col-perfil">
+            <div class="track-head">Perfil<br>Geológico</div>
+            <div style="position:relative;height:${totalH}px;">${perfilHtml}</div>
+          </div>
+          <div class="track col-descricao">
+            <div class="track-head">Descrição do Material</div>
+            <div style="position:relative;height:${totalH}px;">${descHtml}</div>
+          </div>
+          <div class="track col-na">
+            <div class="track-head">N.A.</div>
+            <div style="position:relative;height:${totalH}px;">${naHtml}</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="boletim-footer">
+        <div class="legend-row">${legendHtml}</div>
+        <div class="legend-row" style="font-family:var(--bo-mono);font-size:10px;">
+          <span>Amostrador: Ø int. ${esc(ident.amDiamInt)} mm</span>
+          <span>Ø ext. ${esc(ident.amDiamExt)} mm</span>
+          <span>Peso ${esc(ident.amPeso)} kg</span>
+          <span>Altura de queda ${esc(ident.amAltura)} cm</span>
+        </div>
+        <div class="legend-row" style="font-family:var(--bo-mono);font-size:9.5px;color:#7a7168;">
+          <span style="color:#c0392b;">— · —</span> N inicial (golpe 1+2, 30cm iniciais) &nbsp;&nbsp;
+          <span style="color:#1a7a52;">──</span> N final / N-SPT (golpe 2+3, 30cm finais)
+        </div>
+        <div class="warn-box">
+          ⚠ Boletim gerado a partir de dados inseridos manualmente pelo usuário no GEO·SIG. Representação gráfica de apoio — não substitui o relatório de sondagem original assinado pelo responsável técnico (ART/CREA) nem dispensa a verificação da NBR 6484:2020.
+        </div>
+      </div>
+    </div>`;
+}
+
+/* ══════════════════════════════════════════════════════════════
+   PAINEL LATERAL DO FURO
+   ══════════════════════════════════════════════════════════════ */
+function openFuroPanel(id){
+  const f = furos.find(x=>x.id===id); if(!f) return;
+  const u = toUTM(f.lat,f.lng,crsZone);
+  const panel = document.getElementById('panel');
+  panel.classList.remove('hidden');
+  const boletimHtml = renderFuroBoletimHtml(prepareBoletimState(f));
+
+  panel.innerHTML = `
+    <div class="p-hdr"><b>Boletim de Sondagem</b><button class="p-close" onclick="closePanel()">✕</button></div>
+    <div class="p-body">
+
+      <div class="sec-title">Identificação rápida</div>
+      <div class="f-row two">
+        <div><label>Sondagem N°</label><input class="f-input" id="pf-num" value="${escAttr(f.ident.sondagemNum)}"></div>
+        <div><label>Data de execução</label><input class="f-input" id="pf-data" value="${escAttr(f.ident.dataInicio)}" placeholder="dd/mm/aa"></div>
+      </div>
+      <div class="f-row"><label>Obra / Projeto</label><input class="f-input" id="pf-obra" value="${escAttr(f.ident.obra)}"></div>
+      <div class="f-row"><label>Cliente</label><input class="f-input" id="pf-cliente" value="${escAttr(f.ident.cliente)}"></div>
+      <div class="f-row two">
+        <div><label>Responsável técnico</label><input class="f-input" id="pf-resp" value="${escAttr(f.ident.responsavel)}"></div>
+        <div><label>Cota da boca (m)</label><input class="f-input" id="pf-cota" value="${escAttr(f.ident.cota)}"></div>
+      </div>
+
+      <div class="sec-title">Execução (dados de campo)</div>
+      <div class="f-row two">
+        <div><label>Método</label><input class="f-input" id="pf-metodo" value="${escAttr(f.metodo)}"></div>
+        <div><label>Equipamento</label><input class="f-input" id="pf-equip" value="${escAttr(f.equipamento)}"></div>
+      </div>
+      <div class="f-row two">
+        <div><label>Revestimento / diâmetro</label><input class="f-input" id="pf-revest" value="${escAttr(f.revestimento)}"></div>
+        <div><label>Arquivo original (nome/link)</label><input class="f-input" id="pf-arq" value="${escAttr(f.arquivo_ref)}"></div>
+      </div>
+
+      <div class="sec-title">Localização</div>
+      <div class="utm-box"><span>E ${u.e.toFixed(2)}</span><span>N ${u.n.toFixed(2)}</span><span>UTM ${crsZone}S</span></div>
+      <div class="utm-box"><span>${f.lat.toFixed(6)}</span><span>${f.lng.toFixed(6)}</span><span>lat/long</span></div>
+
+      <div class="sec-title">Observações</div>
+      <textarea class="f-input" id="pf-obs">${esc(f.obs)}</textarea>
+
+      <div class="btn-row" style="margin-top:6px">
+        <button class="mini-btn primary" id="pf-save">Salvar dados rápidos</button>
+        <button class="mini-btn" id="pf-edit-full">✏️ Editor completo (NA · camadas · golpes)</button>
+        <button class="mini-btn" id="pf-print">🖨 Imprimir boletim NBR 6484</button>
+        <button class="mini-btn danger" id="pf-del">Excluir furo</button>
+      </div>
+
+      <div class="sec-title">Boletim — pré-visualização</div>
+      <div class="boletim-preview-wrap" id="furo-boletim-preview">${boletimHtml}</div>
+    </div>`;
+
+  document.getElementById('pf-save').onclick=()=>{
+    f.ident.sondagemNum = document.getElementById('pf-num').value.trim() || f.ident.sondagemNum;
+    f.ident.dataInicio = document.getElementById('pf-data').value;
+    f.ident.obra = document.getElementById('pf-obra').value;
+    f.ident.cliente = document.getElementById('pf-cliente').value;
+    f.ident.responsavel = document.getElementById('pf-resp').value;
+    f.ident.cota = document.getElementById('pf-cota').value;
+    f.metodo = document.getElementById('pf-metodo').value;
+    f.equipamento = document.getElementById('pf-equip').value;
+    f.revestimento = document.getElementById('pf-revest').value;
+    f.arquivo_ref = document.getElementById('pf-arq').value;
+    f.obs = document.getElementById('pf-obs').value;
+    scheduleSave(); renderFuroList(); toast('Dados salvos');
+  };
+  document.getElementById('pf-edit-full').onclick=()=> openBoletimEditor(f.id);
+  document.getElementById('pf-print').onclick=()=> printFuroBoletim(f);
+  document.getElementById('pf-del').onclick=()=>{ if(confirm('Excluir furo "'+f.ident.sondagemNum+'"?')) deleteFuro(id); };
+}
+
+/* ══════════════════════════════════════════════════════════════
+   EDITOR COMPLETO DO BOLETIM (modal) — NA / Camadas / Golpes /
+   Identificação completa / Amostrador / Execução
+   ══════════════════════════════════════════════════════════════ */
+function setBoletimTab(tab){
+  document.querySelectorAll('#bo-editor-overlay .edit-tab').forEach(b=>b.classList.toggle('active', b.dataset.tab===tab));
+  document.querySelectorAll('#bo-editor-overlay .edit-panel').forEach(p=>p.classList.toggle('active', p.id==='bo-panel-'+tab));
+}
+document.querySelectorAll('#bo-editor-overlay .edit-tab').forEach(btn=>{
+  btn.addEventListener('click', ()=> setBoletimTab(btn.dataset.tab));
+});
+
+/* ── Modo de entrada de localização (Lat/Long × UTM) dentro do editor ── */
+function setLocMode(loc){
+  document.querySelectorAll('.loc-mode-btn').forEach(b=>b.classList.toggle('active', b.dataset.mode===loc));
+  document.getElementById('bo-loc-latlng').style.display = loc==='latlng' ? '' : 'none';
+  document.getElementById('bo-loc-utm').style.display = loc==='utm' ? '' : 'none';
+}
+document.querySelectorAll('.loc-mode-btn').forEach(btn=>{
+  btn.addEventListener('click', ()=> setLocMode(btn.dataset.mode));
+});
+
+function boAddAguaRow(prof='', data=''){
+  const tr=document.createElement('tr');
+  tr.innerHTML=`<td><input type="number" step="0.1" class="c-prof" value="${escAttr(prof)}"></td>
+    <td><input type="text" class="c-data" placeholder="dd/mm/aa" value="${escAttr(data)}"></td>
+    <td><button class="row-remove" title="Remover">✕</button></td>`;
+  tr.querySelector('.row-remove').addEventListener('click', ()=>tr.remove());
+  document.getElementById('bo-tbody-agua').appendChild(tr);
+}
+function boAddCamadaRow(profFinal='', tipo='argila', desc=''){
+  const tr=document.createElement('tr');
+  tr.innerHTML=`<td><input type="number" step="0.1" class="c-proffinal" value="${escAttr(profFinal)}"></td>
+    <td><select class="c-tipo">${tipoOptionsHtml(tipo)}</select></td>
+    <td><input type="text" class="c-descricao" placeholder="Ex: Argila-arenosa, média, rija, marrom" value="${escAttr(desc)}"></td>
+    <td><button class="row-remove" title="Remover">✕</button></td>`;
+  tr.querySelector('.row-remove').addEventListener('click', ()=>tr.remove());
+  document.getElementById('bo-tbody-camadas').appendChild(tr);
+}
+function boAddGolpeRow(prof='', g1='', g2='', g3=''){
+  const tr=document.createElement('tr');
+  tr.innerHTML=`<td><input type="number" step="0.1" class="c-prof" value="${escAttr(prof)}"></td>
+    <td><input type="number" step="1" min="0" class="c-g1" value="${escAttr(g1)}"></td>
+    <td><input type="number" step="1" min="0" class="c-g2" value="${escAttr(g2)}"></td>
+    <td><input type="number" step="1" min="0" class="c-g3" value="${escAttr(g3)}"></td>
+    <td><span class="n-preview">— / —</span></td>
+    <td><button class="row-remove" title="Remover">✕</button></td>`;
+  const upd=()=>{
+    const gg1=parseFloat(tr.querySelector('.c-g1').value)||0;
+    const gg2=parseFloat(tr.querySelector('.c-g2').value)||0;
+    const gg3=parseFloat(tr.querySelector('.c-g3').value)||0;
+    tr.querySelector('.n-preview').textContent=`${gg1+gg2} / ${gg2+gg3}`;
+  };
+  tr.querySelectorAll('.c-g1,.c-g2,.c-g3').forEach(inp=>inp.addEventListener('input',upd));
+  tr.querySelector('.row-remove').addEventListener('click', ()=>tr.remove());
+  document.getElementById('bo-tbody-golpes').appendChild(tr);
+  upd();
+}
+
+function openBoletimEditor(id){
+  const f = furos.find(x=>x.id===id); if(!f) return;
+  editingFuroId = id;
+  const set=(elId,v)=>{ const el=document.getElementById(elId); if(el) el.value=(v===undefined||v===null)?'':v; };
+  set('bo-f-cliente', f.ident.cliente);
+  set('bo-f-obra', f.ident.obra);
+  set('bo-f-local', f.ident.local);
+  set('bo-f-sondagem-num', f.ident.sondagemNum);
+  set('bo-f-data-inicio', f.ident.dataInicio);
+  set('bo-f-data-fim', f.ident.dataFim);
+  set('bo-f-cota', f.ident.cota);
+  set('bo-f-datum', f.ident.datum);
+  set('bo-f-coord-n', f.ident.coordN);
+  set('bo-f-coord-e', f.ident.coordE);
+  set('bo-f-responsavel', f.ident.responsavel);
+  set('bo-f-sondador', f.ident.sondador);
+  set('bo-f-desenhista', f.ident.desenhista);
+  set('bo-f-am-diam-int', f.ident.amDiamInt||'34.9');
+  set('bo-f-am-diam-ext', f.ident.amDiamExt||'50.8');
+  set('bo-f-am-peso', f.ident.amPeso||'65');
+  set('bo-f-am-altura', f.ident.amAltura||'75');
+  set('bo-f-metodo', f.metodo);
+  set('bo-f-equip', f.equipamento);
+  set('bo-f-revest', f.revestimento);
+  set('bo-f-arq', f.arquivo_ref);
+
+  set('bo-f-lat', f.lat.toFixed(6));
+  set('bo-f-lng', f.lng.toFixed(6));
+  const uAtual = toUTM(f.lat, f.lng, crsZone);
+  set('bo-f-utm-e-in', uAtual.e.toFixed(2));
+  set('bo-f-utm-n-in', uAtual.n.toFixed(2));
+  document.getElementById('bo-f-utm-zone-in').value = crsZone;
+  document.getElementById('bo-f-utm-datum-in').value = 'SIRGAS2000';
+  setLocMode('latlng');
+
+  document.getElementById('bo-tbody-agua').innerHTML='';
+  (f.agua.length?f.agua:[{prof:'',data:''}]).forEach(a=>boAddAguaRow(a.prof,a.data));
+  document.getElementById('bo-tbody-camadas').innerHTML='';
+  (f.camadas.length?f.camadas:[{profFinal:1,tipo:'argila',descricao:''}]).forEach(c=>boAddCamadaRow(c.profFinal,c.tipo,c.descricao));
+  document.getElementById('bo-tbody-golpes').innerHTML='';
+  (f.golpes.length?f.golpes:[{prof:1,g1:'',g2:'',g3:''}]).forEach(g=>boAddGolpeRow(g.prof,g.g1,g.g2,g.g3));
+
+  setBoletimTab('ident');
+  document.getElementById('bo-editor-overlay').classList.add('open');
+  document.body.style.overflow='hidden';
+}
+function closeBoletimEditor(){
+  document.getElementById('bo-editor-overlay').classList.remove('open');
+  document.body.style.overflow='';
+  editingFuroId=null;
+}
+function cancelBoletimEditor(){
+  const f = furos.find(x=>x.id===editingFuroId);
+  if(f && f._isNewUnsaved){
+    // furo criado automaticamente ao abrir o editor (＋ Furo SPT) e nunca confirmado — descarta
+    deleteFuro(f.id);
+    closeBoletimEditor();
+  } else {
+    closeBoletimEditor();
+  }
+}
+document.getElementById('bo-editor-overlay').addEventListener('click', e=>{ if(e.target.id==='bo-editor-overlay') cancelBoletimEditor(); });
+document.addEventListener('keydown', e=>{ if(e.key==='Escape' && document.getElementById('bo-editor-overlay').classList.contains('open')) cancelBoletimEditor(); });
+document.getElementById('bo-fill-utm').addEventListener('click', ()=>{
+  const f = furos.find(x=>x.id===editingFuroId); if(!f) return;
+  const u = toUTM(f.lat,f.lng,crsZone);
+  document.getElementById('bo-f-coord-e').value = u.e.toFixed(2);
+  document.getElementById('bo-f-coord-n').value = u.n.toFixed(2);
+});
+
+function saveBoletimEditor(){
+  const f = furos.find(x=>x.id===editingFuroId); if(!f) return;
+  const val = elId=>{ const e=document.getElementById(elId); return e?e.value:''; };
+
+  const camadas = Array.from(document.getElementById('bo-tbody-camadas').children).map(tr=>({
+    profFinal: parseFloat(tr.querySelector('.c-proffinal').value)||0,
+    tipo: tr.querySelector('.c-tipo').value,
+    descricao: tr.querySelector('.c-descricao').value||''
+  })).sort((a,b)=>a.profFinal-b.profFinal);
+  const golpes = Array.from(document.getElementById('bo-tbody-golpes').children).map(tr=>({
+    prof: parseFloat(tr.querySelector('.c-prof').value)||0,
+    g1: tr.querySelector('.c-g1').value||'',
+    g2: tr.querySelector('.c-g2').value||'',
+    g3: tr.querySelector('.c-g3').value||''
+  })).sort((a,b)=>a.prof-b.prof);
+
+  if(!camadas.length && !golpes.length){
+    alert('Insira ao menos uma camada de solo ou uma profundidade de golpes antes de salvar.');
+    return;
+  }
+
+  f.ident = {
+    cliente: val('bo-f-cliente'), obra: val('bo-f-obra'), local: val('bo-f-local'),
+    sondagemNum: val('bo-f-sondagem-num').trim() || f.ident.sondagemNum,
+    dataInicio: val('bo-f-data-inicio'), dataFim: val('bo-f-data-fim'),
+    cota: val('bo-f-cota'), datum: val('bo-f-datum'),
+    coordN: val('bo-f-coord-n'), coordE: val('bo-f-coord-e'),
+    responsavel: val('bo-f-responsavel'), sondador: val('bo-f-sondador'), desenhista: val('bo-f-desenhista'),
+    amDiamInt: val('bo-f-am-diam-int')||'34.9', amDiamExt: val('bo-f-am-diam-ext')||'50.8',
+    amPeso: val('bo-f-am-peso')||'65', amAltura: val('bo-f-am-altura')||'75'
+  };
+  f.metodo = val('bo-f-metodo');
+  f.equipamento = val('bo-f-equip');
+  f.revestimento = val('bo-f-revest');
+  f.arquivo_ref = val('bo-f-arq');
+  f.agua = Array.from(document.getElementById('bo-tbody-agua').children).map(tr=>({
+    prof: parseFloat(tr.querySelector('.c-prof').value)||0,
+    data: tr.querySelector('.c-data').value||''
+  }));
+  f.camadas = camadas.length? camadas : [{profFinal:1,tipo:'argila',descricao:''}];
+  f.golpes = golpes.length? golpes : [{prof:1,g1:'',g2:'',g3:''}];
+
+  // resolve a localização real do furo a partir do modo ativo (Lat/Long ou UTM)
+  const locMode = document.querySelector('.loc-mode-btn.active');
+  const modo = locMode ? locMode.dataset.mode : 'latlng';
+  let novoLat = f.lat, novoLng = f.lng;
+  if(modo==='utm'){
+    const eVal = parseFloat(val('bo-f-utm-e-in'));
+    const nVal = parseFloat(val('bo-f-utm-n-in'));
+    const zoneVal = parseInt(val('bo-f-utm-zone-in'));
+    const datumVal = val('bo-f-utm-datum-in') || 'SIRGAS2000';
+    if(isFinite(eVal) && isFinite(nVal) && isFinite(zoneVal)){
+      const conv = utmToLatLng(eVal, nVal, zoneVal, datumVal);
+      if(isFinite(conv.lat) && isFinite(conv.lng)){ novoLat=conv.lat; novoLng=conv.lng; }
+    }
+  } else {
+    const latVal = parseFloat(val('bo-f-lat'));
+    const lngVal = parseFloat(val('bo-f-lng'));
+    if(isFinite(latVal) && isFinite(lngVal)){ novoLat=latVal; novoLng=lngVal; }
+  }
+  f.lat = novoLat; f.lng = novoLng;
+  if(markers[f.id]) markers[f.id].setLatLng([f.lat, f.lng]);
+
+  delete f._isNewUnsaved;
+  closeBoletimEditor();
+  scheduleSave();
+  renderFuroList();
+  selectFuro(f.id);
+  toast('Boletim salvo');
+}
+
+/* ══════════════════════════════════════════════════════════════
+   IMPRESSÃO — documento standalone com o boletim NBR 6484
+   completo (perfil texturizado + gráfico paginado)
+   ══════════════════════════════════════════════════════════════ */
+const BOLETIM_PRINT_CSS = document.getElementById('bo-editor-overlay') ? '' : ''; // placeholder, substituído abaixo
+function buildBoletimPrintCss(){
+  // reaproveita os tokens/estilos já carregados na página (--bo-*) via captura do <style> global
+  const styleEl = document.querySelector('style');
+  const base = styleEl ? styleEl.textContent : '';
+  return base + `
+  @media print {
+    body{ padding:0; }
+    .no-print{ display:none !important; }
+    .boletim-card{ border:none; border-radius:0; }
+    .boletim-body{ overflow-x:visible; padding:10px 4px; }
+    .track-wrap{ display:table; table-layout:fixed; width:100%; min-width:0; }
+    .track{ display:table-cell; vertical-align:top; position:relative; }
+    .chart-screen{ display:none !important; }
+    .chart-print{ display:block !important; }
+    .golpe-row,.desc-block,.perfil-block,.ruler-tick,.na-mark,.chart-print > div{ break-inside:avoid; page-break-inside:avoid; }
+    .soil-argila,.soil-areia,.soil-silte,.soil-aterro,.soil-rocha,.soil-outro,.boletim-topbar,.perfil-idx{
+      -webkit-print-color-adjust:exact; print-color-adjust:exact; color-adjust:exact;
+    }
+  }`;
+}
+
+function printFuroBoletim(f){
+  const boletimHtml = renderFuroBoletimHtml(prepareBoletimState(f));
+  const css = buildBoletimPrintCss();
+  const win = window.open('', '_blank');
+  win.document.write(`<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8"><title>Boletim ${escXml(f.ident.sondagemNum)}</title>
+  <style>${css}
+    body{background:#fff;padding:26px 20px 60px;max-width:1100px;margin:0 auto;}
+    .print-header{margin-bottom:16px;}
+    .print-tag{font-family:var(--bo-mono);font-size:10px;color:var(--bo-accent);letter-spacing:2px;text-transform:uppercase;}
+    .print-title{font-size:21px;font-weight:800;margin:4px 0 2px;font-family:var(--bo-sans);color:var(--bo-text);}
+    .print-sub{color:var(--bo-muted);font-size:12px;font-family:var(--bo-sans);}
+    .print-btn{margin-top:16px;padding:9px 18px;border-radius:8px;border:1.5px solid #b85c1a;background:#b85c1a;color:#fff;font-weight:700;cursor:pointer;font-family:system-ui,sans-serif;}
+  </style>
+  </head><body>
+  <div class="print-header no-print">
+    <div class="print-tag">GEO·SIG — GEOTECNIA DE CAMPO</div>
+    <div class="print-title">Boletim de Sondagem</div>
+    <div class="print-sub">Sondagem à percussão com SPT — conforme NBR 6484:2020</div>
+  </div>
+  ${boletimHtml}
+  <button class="print-btn no-print" onclick="window.print()">🖨 Imprimir / Salvar PDF</button>
+  </body></html>`);
+  win.document.close();
+}
+
+/* ══════════════════ ÁREAS / LINHAS ══════════════════ */
+function newShapeId(){ return 'S'+Date.now().toString(36)+Math.random().toString(36).slice(2,5); }
+
+function drawShape(s){
+  let layer;
+  if(s.geomType==='Polygon' || s.geomType==='MultiPolygon'){
+    const latlngs = (s.geomType==='Polygon'?[s.coords]:s.coords).map(poly=>poly[0].map(c=>[c[1],c[0]]));
+    layer = L.polygon(latlngs, {color:s.color||'#2a5a8c'});
+  } else {
+    const latlngs = s.coords.map(c=>[c[1],c[0]]);
+    layer = L.polyline(latlngs, {color:s.color||'#2a5a8c'});
+  }
+  layer.addTo(map);
+  layer.on('click', ()=>selectShape(s.id));
+  shapeLayers[s.id]=layer;
+}
+
+function selectShape(id){ selected={kind:'shape', id}; renderShapeList(); openShapePanel(id); }
+
+function openShapePanel(id){
+  const s = shapes.find(x=>x.id===id); if(!s) return;
+  const panel = document.getElementById('panel');
+  panel.classList.remove('hidden');
+  panel.innerHTML = `
+    <div class="p-hdr"><b>${s.geomType.includes('Polygon')?'Área':'Linha'}</b><button class="p-close" onclick="closePanel()">✕</button></div>
+    <div class="p-body">
+      <div class="f-row"><label>Nome</label><input class="f-input" id="ps-name" value="${escAttr(s.name)}"></div>
+      <div class="f-row"><label>Tipo</label>
+        <select class="f-input" id="ps-type">
+          ${['Talude','Aterro','Área de estudo','Seção geológica','Outro'].map(t=>`<option ${s.type===t?'selected':''}>${t}</option>`).join('')}
+        </select></div>
+      <div class="f-row"><label>Cor</label><input class="f-input" type="color" id="ps-color" value="${s.color||'#2a5a8c'}" style="height:32px;padding:2px"></div>
+      <div class="btn-row">
+        <button class="mini-btn primary" id="ps-save">Salvar</button>
+        <button class="mini-btn danger" id="ps-del">Excluir</button>
+      </div>
+    </div>`;
+  document.getElementById('ps-save').onclick=()=>{
+    s.name=document.getElementById('ps-name').value.trim()||s.name;
+    s.type=document.getElementById('ps-type').value;
+    s.color=document.getElementById('ps-color').value;
+    map.removeLayer(shapeLayers[s.id]); drawShape(s);
+    scheduleSave(); renderShapeList(); toast('Área salva');
+  };
+  document.getElementById('ps-del').onclick=()=>{
+    if(confirm('Excluir "'+s.name+'"?')){
+      map.removeLayer(shapeLayers[s.id]); delete shapeLayers[s.id];
+      shapes=shapes.filter(x=>x.id!==s.id); closePanel(); renderShapeList(); scheduleSave();
+    }
+  };
+}
+
+function renderShapeList(){
+  const el = document.getElementById('list-shapes');
+  if(shapes.length===0){ el.innerHTML='<div class="sb-empty">Nenhuma área/linha.<br>Use "＋ Polígono" ou "＋ Linha".</div>'; return; }
+  el.innerHTML='';
+  shapes.forEach(s=>{
+    const div=document.createElement('div');
+    div.className='item'+(selected&&selected.kind==='shape'&&selected.id===s.id?' sel':'');
+    div.innerHTML=`<div class="item-title">${esc(s.name)}</div><div class="item-sub">${esc(s.type)} · ${s.geomType}</div>`;
+    div.onclick=()=>selectShape(s.id);
+    el.appendChild(div);
+  });
+}
+
+function closePanel(){ selected=null; document.getElementById('panel').classList.add('hidden');
+  Object.entries(markers).forEach(([id,m])=>{const p=document.getElementById('pin-'+id); if(p) p.classList.remove('selpin');});
+  renderFuroList(); renderShapeList(); }
+
+/* ══════════════════ CRIAÇÃO DE FURO ══════════════════ */
+// Clicar em "＋ Furo SPT" cria o furo (posicionado no centro do mapa por
+// enquanto) e abre direto o editor completo. Se o usuário cancelar sem
+// salvar, o furo provisório é descartado (ver cancelBoletimEditor).
+function openNewFuroEditor(){
+  const c = map.getCenter ? map.getCenter() : {lat:-15.6, lng:-50.5};
+  const f = blankFuro(c.lat, c.lng);
+  f._isNewUnsaved = true;
+  furos.push(f); drawFuro(f); renderFuroList();
+  openBoletimEditor(f.id);
+}
+document.getElementById('btn-add-furo').onclick = () => openNewFuroEditor();
+
+// "🗺️ Marcar no mapa" — dentro do editor, deixa o usuário clicar no mapa
+// para preencher lat/long. O overlay só fica oculto (não recriado), então
+// nada do que já foi digitado nas abas se perde.
+let pickingFuroLoc = false;
+document.getElementById('bo-pick-map').addEventListener('click', ()=>{
+  if(!editingFuroId) return;
+  pickingFuroLoc = true;
+  document.getElementById('bo-editor-overlay').classList.remove('open');
+  document.body.style.overflow='';
+  toast('Clique no mapa para definir a localização do furo');
+  map.getContainer().style.cursor='crosshair';
+});
+map.on('click', e=>{
+  if(!pickingFuroLoc) return;
+  pickingFuroLoc = false;
+  map.getContainer().style.cursor='';
+  setLocMode('latlng');
+  const setv=(id,v)=>{ const el=document.getElementById(id); if(el) el.value=v; };
+  setv('bo-f-lat', e.latlng.lat.toFixed(6));
+  setv('bo-f-lng', e.latlng.lng.toFixed(6));
+  const u = toUTM(e.latlng.lat, e.latlng.lng, crsZone);
+  setv('bo-f-utm-e-in', u.e.toFixed(2));
+  setv('bo-f-utm-n-in', u.n.toFixed(2));
+  setv('bo-f-utm-zone-in', crsZone);
+  setv('bo-f-utm-datum-in', 'SIRGAS2000');
+  document.getElementById('bo-editor-overlay').classList.add('open');
+  document.body.style.overflow='hidden';
+});
+
+/* ══════════════════ MODOS DE DESENHO (áreas/linhas) ══════════════════ */
+document.getElementById('btn-add-poly').onclick=()=>{ new L.Draw.Polygon(map,{shapeOptions:{color:'#2a5a8c'}}).enable(); };
+document.getElementById('btn-add-line').onclick=()=>{ new L.Draw.Polyline(map,{shapeOptions:{color:'#2a5a8c'}}).enable(); };
+
+map.on(L.Draw.Event.CREATED, e=>{
+  const layer = e.layer;
+  const gj = layer.toGeoJSON().geometry;
+  const s = {id:newShapeId(), name:(gj.type.includes('Polygon')?'Área ':'Linha ')+(shapes.length+1),
+    type:gj.type.includes('Polygon')?'Área de estudo':'Seção geológica', color:'#2a5a8c',
+    geomType:gj.type, coords:gj.coordinates};
+  shapes.push(s); drawShape(s); renderShapeList(); selectShape(s.id); scheduleSave();
+});
+
+/* ══════════════════ ABAS ══════════════════ */
+document.querySelectorAll('.sb-tab').forEach(tab=>{
+  tab.addEventListener('click', ()=>{
+    document.querySelectorAll('.sb-tab').forEach(t=>t.classList.remove('on'));
+    tab.classList.add('on');
+    document.getElementById('list-furos').style.display = tab.dataset.tab==='furos'?'block':'none';
+    document.getElementById('list-shapes').style.display = tab.dataset.tab==='shapes'?'block':'none';
+  });
+});
+
+/* ══════════════════ IMPORTAR ══════════════════ */
+document.getElementById('btn-import').onclick=()=> document.getElementById('file-input').click();
+document.getElementById('file-input').addEventListener('change', async e=>{
+  const file = e.target.files[0]; if(!file) return;
+  try{
+    let geojson;
+    if(file.name.toLowerCase().endsWith('.zip')){
+      const buf = await file.arrayBuffer();
+      geojson = await shp(buf);
+    } else {
+      const txt = await file.text();
+      geojson = JSON.parse(txt);
+    }
+    const collections = Array.isArray(geojson) ? geojson : [geojson];
+    let nPts=0, nShp=0;
+    collections.forEach(fc=>{
+      (fc.features||[]).forEach(feat=>{
+        importFeature(feat);
+        if(feat.geometry.type==='Point') nPts++; else nShp++;
+      });
+    });
+    renderFuroList(); renderShapeList(); fitAll(); scheduleSave();
+    toast(`Importado: ${nPts} furo(s), ${nShp} área/linha(s)`);
+  }catch(err){ console.error(err); alert('Não foi possível ler o arquivo. Verifique se é um .zip de shapefile válido (com .shp, .shx, .dbf) ou um GeoJSON.'); }
+  e.target.value='';
+});
+
+function findProp(props, keys){
+  if(!props) return '';
+  const lower = {}; Object.keys(props).forEach(k=>lower[k.toLowerCase()]=props[k]);
+  for(const k of keys){ if(lower[k]!==undefined && lower[k]!==null) return lower[k]; }
+  return '';
+}
+
+function importFeature(feat){
+  const g = feat.geometry, p = feat.properties||{};
+  if(!g) return;
+  if(g.type==='Point'){
+    const [lng,lat] = g.coordinates;
+    const f = blankFuro(lat,lng);
+    f.ident.sondagemNum = String(findProp(p,['name','nome','id','furo','ponto','sondagem']) || f.ident.sondagemNum);
+    f.ident.obra = String(findProp(p,['obra','projeto','project']) || '');
+    f.ident.cliente = String(findProp(p,['cliente','client']) || '');
+    f.ident.cota = String(findProp(p,['cota','cota_boca','elevation','z','elev']) || '');
+    f.ident.responsavel = String(findProp(p,['responsavel','responsible']) || '');
+    const naVal = findProp(p,['na','nivel_agua','nivel_dagua','water_level']);
+    if(naVal) f.agua=[{data:'', prof:String(naVal)}];
+    const nsptResumo = findProp(p,['nspt','n_spt','n']);
+    if(nsptResumo) f.golpes=[{prof:'', g1:'', g2:'', g3:String(nsptResumo)}];
+    f.obs = Object.keys(p).length? ('Importado — atributos originais: '+JSON.stringify(p)) : '';
+    furos.push(f); drawFuro(f);
+  } else if(g.type==='Polygon'||g.type==='MultiPolygon'||g.type==='LineString'||g.type==='MultiLineString'){
+    const name = findProp(p,['name','nome','id']) || ('Importado '+(shapes.length+1));
+    const s = {id:newShapeId(), name:String(name), type:'Outro', color:'#2a5a8c',
+      geomType:g.type, coords:g.coordinates};
+    shapes.push(s); drawShape(s);
+  }
+}
+
+/* ══════════════════ EXPORTAR ══════════════════ */
+function buildGeoJSON(){
+  const features = [];
+  furos.forEach(f=>{
+    const camadasTxt = f.camadas.map(c=>`até ${c.profFinal}m: ${c.descricao} [${c.tipo}]`).join(' | ');
+    const golpesTxt = f.golpes.map(g=>`${g.prof}m G1=${g.g1} G2=${g.g2} G3=${g.g3}`).join(' | ');
+    const naTxt = f.agua.map(r=>`${r.data||'-'}: ${r.prof}m`).join(' | ');
+    features.push({type:'Feature', geometry:{type:'Point', coordinates:[f.lng,f.lat]},
+      properties:{id:f.id, nome:f.ident.sondagemNum, obra:f.ident.obra, cliente:f.ident.cliente, local:f.ident.local,
+        data_inicio:f.ident.dataInicio, data_fim:f.ident.dataFim, cota:f.ident.cota, datum:f.ident.datum,
+        coord_n:f.ident.coordN, coord_e:f.ident.coordE, responsavel:f.ident.responsavel,
+        sondador:f.ident.sondador, desenhista:f.ident.desenhista,
+        amostrador_diam_int:f.ident.amDiamInt, amostrador_diam_ext:f.ident.amDiamExt,
+        amostrador_peso:f.ident.amPeso, amostrador_altura:f.ident.amAltura,
+        metodo:f.metodo, equipamento:f.equipamento, revestimento:f.revestimento, arquivo_ref:f.arquivo_ref,
+        nivel_agua:naTxt, prof_final:profFinal(f), camadas:camadasTxt, golpes_spt:golpesTxt, obs:f.obs}});
+  });
+  shapes.forEach(s=>{
+    features.push({type:'Feature', geometry:{type:s.geomType, coordinates:s.coords},
+      properties:{id:s.id, nome:s.name, tipo:s.type}});
+  });
+  return {type:'FeatureCollection', features};
+}
+
+function download(filename, content, mime){
+  const blob = new Blob([content], {type:mime});
+  const a = document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=filename;
+  document.body.appendChild(a); a.click(); a.remove();
+}
+
+document.getElementById('btn-export-gj').onclick=()=>{
+  if(furos.length===0 && shapes.length===0){ toast('Nada para exportar'); return; }
+  download('geosig_export.geojson', JSON.stringify(buildGeoJSON(), null, 2), 'application/geo+json');
+};
+
+document.getElementById('btn-export-shp').onclick=()=>{
+  if(furos.length===0 && shapes.length===0){ toast('Nada para exportar'); return; }
+  const gj = buildGeoJSON();
+  shpwrite.download(gj, {types:{point:'furos_spt', polygon:'areas', polyline:'linhas'}});
+  toast('Shapefile (WGS84) gerado — reprojete no seu SIG se necessário');
+};
+
+document.getElementById('btn-export-csv').onclick=()=>{
+  if(furos.length===0){ toast('Nenhum furo para exportar'); return; }
+  let csv = 'id;nome;obra;cliente;local;data_inicio;data_fim;lat;lng;utm_e;utm_n;zona_utm;cota;datum;responsavel;sondador;desenhista;metodo;equipamento;nivel_agua;prof_final;camadas;golpes_spt;obs\n';
+  furos.forEach(f=>{
+    const u = toUTM(f.lat,f.lng,crsZone);
+    const camadasTxt = f.camadas.map(c=>`${c.profFinal}m:${c.descricao}[${c.tipo}]`).join(' | ').replace(/;/g,',');
+    const golpesTxt = f.golpes.map(g=>`${g.prof}m(${g.g1}/${g.g2}/${g.g3})`).join(' | ').replace(/;/g,',');
+    const naTxt = f.agua.map(r=>`${r.data||'-'}:${r.prof}m`).join(' | ').replace(/;/g,',');
+    csv += [f.id,f.ident.sondagemNum,f.ident.obra,f.ident.cliente,f.ident.local,f.ident.dataInicio,f.ident.dataFim,
+      f.lat.toFixed(6),f.lng.toFixed(6),u.e.toFixed(2),u.n.toFixed(2),crsZone+'S',f.ident.cota,f.ident.datum,
+      f.ident.responsavel,f.ident.sondador,f.ident.desenhista,f.metodo,f.equipamento,naTxt,profFinal(f).toFixed(1),
+      camadasTxt,golpesTxt,(f.obs||'').replace(/;/g,',').replace(/\n/g,' ')].join(';')+'\n';
+  });
+  download('geosig_boletins_sondagem.csv', csv, 'text/csv;charset=utf-8');
+};
+
+document.getElementById('btn-clear').onclick=()=>{
+  if(!confirm('Isso apaga todos os furos e áreas salvos neste banco de dados. Continuar?')) return;
+  Object.values(markers).forEach(m=>map.removeLayer(m));
+  Object.values(shapeLayers).forEach(l=>map.removeLayer(l));
+  furos=[]; shapes=[]; markers={}; shapeLayers={};
+  closePanel(); renderFuroList(); renderShapeList(); scheduleSave();
+};
+
+/* ══════════════════ HELPERS ══════════════════ */
+function fitAll(){
+  const group = [];
+  Object.values(markers).forEach(m=>group.push(m));
+  Object.values(shapeLayers).forEach(l=>group.push(l));
+  if(group.length){ const fg = L.featureGroup(group); map.fitBounds(fg.getBounds().pad(0.2)); }
+}
+function esc(s){ return (s===undefined||s===null?'':String(s)).replace(/[&<>]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])); }
+function escAttr(s){ return esc(s).replace(/"/g,'&quot;'); }
+function escXml(s){ return esc(s); }
+function truncate(s,n){ s=String(s); return s.length>n? s.slice(0,n-1)+'…' : s; }
+
+/* ══════════════════ INIT ══════════════════ */
+window.closePanel = closePanel;
+loadAll();
+</script>
+</body>
+</html>

@@ -358,12 +358,14 @@ table.edit-tbl input:focus,table.edit-tbl select:focus{outline:none;border-color
       <div class="sb-tab" data-tab="shapes">Áreas / Linhas</div>
       <div class="sb-tab" data-tab="interp">Interpolação</div>
       <div class="sb-tab" data-tab="profiles">Perfis</div>
+      <div class="sb-tab" data-tab="rasters">Rasters</div>
     </div>
     <span class="sb-count" id="sb-count"></span>
     <div class="sb-list" id="list-furos"></div>
     <div class="sb-list" id="list-shapes" style="display:none"></div>
     <div class="sb-list" id="list-interp" style="display:none"></div>
     <div class="sb-list" id="list-profiles" style="display:none"></div>
+    <div class="sb-list" id="list-rasters" style="display:none"></div>
   </div>
 
   <div id="map"></div>
@@ -519,6 +521,7 @@ table.edit-tbl input:focus,table.edit-tbl select:focus{outline:none;border-color
     <div class="popup-footer">
       <input class="f-input" id="profile-name-input" placeholder="Nome do perfil" style="margin-right:auto;max-width:260px">
       <button class="mini-btn danger" id="profile-delete-btn" type="button" style="display:none" onclick="deleteProfile()">Excluir perfil</button>
+      <button class="btn-ghost" id="profile-edit-toggle-btn" type="button" onclick="toggleProfileEditMode()">✏️ Editar camadas</button>
       <button class="btn-ghost" type="button" onclick="printProfileView()">🖨 Imprimir</button>
       <button class="btn-ghost" type="button" onclick="closeProfileView()">Fechar</button>
       <button class="btn-primary" type="button" onclick="saveProfile()">💾 Salvar perfil</button>
@@ -551,6 +554,7 @@ table.edit-tbl input:focus,table.edit-tbl select:focus{outline:none;border-color
     </div>
     <div class="popup-footer">
       <button class="btn-ghost" type="button" onclick="closeRasterView()">Fechar</button>
+      <button class="btn-primary" type="button" id="raster-addmap-btn">📍 Adicionar ao mapa</button>
       <button class="btn-primary" type="button" id="raster-save-btn">💾 Salvar imagem (PNG)</button>
       <button class="btn-primary" type="button" id="raster-save-tif-btn">🌍 Salvar GeoTIFF</button>
     </div>
@@ -1023,6 +1027,7 @@ async function saveAll(){
     await window.storage.set('geosig:shapes', JSON.stringify(shapes));
     await window.storage.set('geosig:interp', JSON.stringify(interpBlocks));
     await window.storage.set('geosig:profiles', JSON.stringify(profiles));
+    await window.storage.set('geosig:rasterLayers', JSON.stringify(rasterLayers));
   }catch(e){ console.error('erro ao salvar', e); }
 }
 async function loadAll(){
@@ -1030,6 +1035,7 @@ async function loadAll(){
   try{ const rs = await window.storage.get('geosig:shapes'); if(rs) shapes = JSON.parse(rs.value); }catch(e){}
   try{ const ri = await window.storage.get('geosig:interp'); if(ri) interpBlocks = JSON.parse(ri.value); }catch(e){}
   try{ const rp = await window.storage.get('geosig:profiles'); if(rp) profiles = JSON.parse(rp.value); }catch(e){}
+  try{ const rr = await window.storage.get('geosig:rasterLayers'); if(rr) rasterLayers = JSON.parse(rr.value); }catch(e){}
   // migração de furos salvos no formato antigo (pré-unificação com o Boletim NBR 6484)
   furos.forEach(f=>{
     if(!f.ident){
@@ -1064,7 +1070,8 @@ async function loadAll(){
   shapes.forEach(s=>drawShape(s));
   interpBlocks.forEach(b=>drawInterpBlock(b));
   profiles.forEach(p=>drawProfileLine(p));
-  renderFuroList(); renderShapeList(); renderInterpList(); renderProfileList();
+  rasterLayers.forEach(r=>drawRasterLayer(r));
+  renderFuroList(); renderShapeList(); renderInterpList(); renderProfileList(); renderRasterLayersList();
   fitAll();
 }
 
@@ -2051,6 +2058,156 @@ function pickBlockTemplateFuro(block){
   return best;
 }
 
+// só é seguro usar um molde fixo (estrutura constante) quando TODOS os furos do bloco têm
+// exatamente a mesma sequência de tipos de camada — senão, casar "camada 1 com camada 1"
+// mistura profundidade de um furo com a descrição de outro furo estruturalmente diferente
+// (ex.: um furo com uma camada extra no topo desloca todos os índices seguintes)
+function blockHasUniformStratigraphy(block){
+  const srcFuros = block.furoIds.map(id=>furos.find(f=>f.id===id)).filter(Boolean);
+  if(srcFuros.length<2) return true;
+  const seqs = srcFuros.map(f=> f.camadas.map(c=>c.tipo).join('>'));
+  return new Set(seqs).size===1;
+}
+
+/* ══════════════════════════════════════════════════════════════
+   CONCORDÂNCIA SUAVE ENTRE FUROS COM ESTRATIGRAFIA DIFERENTE
+   ══════════════════════════════════════════════════════════════
+   Quando dois furos vizinhos têm sequências de camada diferentes
+   (ex.: um tem uma camada extra que o outro não tem), em vez de
+   trocar a estrutura inteira de uma vez no meio do perfil (parede
+   vertical), alinha-se as sequências de tipo dos dois furos
+   (like o algoritmo de LCS/diff) para achar quais camadas
+   correspondem entre si. Camadas correspondentes interpolam a
+   profundidade suavemente entre os dois furos; camadas que só
+   existem num dos furos "afinam" (a espessura encolhe) até
+   desaparecer conforme o ponto se afasta daquele furo — o mesmo
+   raciocínio que um geólogo usa pra desenhar concordância à mão
+   entre duas sondagens que não batem perfeitamente.
+   ══════════════════════════════════════════════════════════════ */
+
+// alinha duas sequências de tipo (maior subsequência comum) — retorna uma lista ordenada de
+// eventos: {type:'match', ia, ib} (camada presente nos dois) | {type:'onlyA', ia} | {type:'onlyB', ib}
+function alignCamadaSequences(seqA, seqB){
+  const n=seqA.length, m=seqB.length;
+  const dp = Array.from({length:n+1}, ()=> new Array(m+1).fill(0));
+  for(let i=1;i<=n;i++){
+    for(let j=1;j<=m;j++){
+      dp[i][j] = (seqA[i-1]===seqB[j-1]) ? dp[i-1][j-1]+1 : Math.max(dp[i-1][j], dp[i][j-1]);
+    }
+  }
+  const events = [];
+  let i=n, j=m;
+  while(i>0 && j>0){
+    if(seqA[i-1]===seqB[j-1]){ events.unshift({type:'match', ia:i-1, ib:j-1}); i--; j--; }
+    else if(dp[i-1][j] >= dp[i][j-1]){ events.unshift({type:'onlyA', ia:i-1}); i--; }
+    else { events.unshift({type:'onlyB', ib:j-1}); j--; }
+  }
+  while(i>0){ events.unshift({type:'onlyA', ia:i-1}); i--; }
+  while(j>0){ events.unshift({type:'onlyB', ib:j-1}); j--; }
+  return events;
+}
+
+function withProfInicial(camadas){
+  let prev=0;
+  return camadas.map(c=>{ const cc={...c, profInicial:prev}; prev=c.profFinal; return cc; });
+}
+
+// mescla as camadas de dois furos numa única sequência de camadas suave, com peso t
+// (t=0 → idêntico ao furo A; t=1 → idêntico ao furo B; intermediário → concordância suave)
+function blendCamadas(furoA, furoB, t){
+  t = Math.max(0, Math.min(1, t));
+  const seqA = furoA.camadas.map(c=>c.tipo);
+  const seqB = furoB.camadas.map(c=>c.tipo);
+  const events = alignCamadaSequences(seqA, seqB);
+  const cA = withProfInicial(furoA.camadas);
+  const cB = withProfInicial(furoB.camadas);
+
+  const resultado = [];
+  let profAcumulada = 0;
+  events.forEach(ev=>{
+    let tipo, descricao, espessura;
+    if(ev.type==='match'){
+      const layerA = cA[ev.ia], layerB = cB[ev.ib];
+      const espA = layerA.profFinal - layerA.profInicial;
+      const espB = layerB.profFinal - layerB.profInicial;
+      espessura = espA*(1-t) + espB*t;
+      tipo = layerA.tipo;
+      descricao = t<0.5 ? layerA.descricao : layerB.descricao;
+    } else if(ev.type==='onlyA'){
+      const layerA = cA[ev.ia];
+      espessura = (layerA.profFinal-layerA.profInicial) * (1-t); // encolhe até sumir conforme t→1
+      tipo = layerA.tipo; descricao = layerA.descricao;
+    } else {
+      const layerB = cB[ev.ib];
+      espessura = (layerB.profFinal-layerB.profInicial) * t; // cresce do zero conforme t→1
+      tipo = layerB.tipo; descricao = layerB.descricao;
+    }
+    if(espessura>0.01){
+      profAcumulada += espessura;
+      resultado.push({profFinal: Math.round(profAcumulada*100)/100, tipo, descricao});
+    }
+  });
+  return resultado.length ? resultado : [{profFinal:0.1, tipo:'outro', descricao:''}];
+}
+
+/* ── concordância suave AO LONGO DA LINHA DO PERFIL ──
+   Em vez de escolher os "2 furos mais próximos por distância bruta" (que perto de um furo do
+   meio do traçado pode instabilizar entre olhar pra trás ou pra frente de forma não-monotônica,
+   criando um efeito vai-e-volta na transição), projeta-se cada furo do bloco na PRÓPRIA LINHA do
+   perfil e ordena-se pela posição ao longo do traçado. Cada trecho da linha (entre um furo e o
+   próximo, na ordem em que a linha realmente passa por eles) sempre mistura exatamente esses
+   dois — nunca um terceiro furo "mais adiante" — e o peso varia de forma estritamente monotônica
+   conforme se anda no sentido do traçado: a concordância começa num furo e termina no seguinte. */
+function projectFurosOntoLine(block, localPts){
+  const srcFuros = block.furoIds.map(id=>furos.find(f=>f.id===id)).filter(Boolean);
+  return srcFuros.map(f=>{
+    const fxy = localXY(f.lat, f.lng, block.refLat, block.refLng);
+    let best = null;
+    for(let i=1;i<localPts.length;i++){
+      const a=localPts[i-1], b=localPts[i];
+      const abx=b.x-a.x, aby=b.y-a.y;
+      const len2 = abx*abx+aby*aby || 1e-9;
+      let t = ((fxy.x-a.x)*abx+(fxy.y-a.y)*aby)/len2;
+      t = Math.max(0, Math.min(1,t));
+      const px=a.x+t*abx, py=a.y+t*aby;
+      const d = Math.hypot(fxy.x-px, fxy.y-py);
+      const distAlong = a.cum + t*(b.cum-a.cum);
+      if(!best || d<best.d) best = {d, distAlong};
+    }
+    return { furo:f, distAlong: best ? best.distAlong : 0, offset: best ? best.d : 0 };
+  }).sort((a,b)=>a.distAlong-b.distAlong);
+}
+
+// dado o furo ordenado ao longo da linha e a distância (ao longo da linha) da amostra atual,
+// mistura só os 2 furos do trecho em que a amostra cai — t cresce monotonicamente de A pra B
+function computeBlendedCamadasAlongLine(orderedFuros, sampleDistAlong, block){
+  if(orderedFuros.length===0) return [];
+  if(orderedFuros.length===1) return orderedFuros[0].furo.camadas.map(c=>({...c}));
+  if(sampleDistAlong <= orderedFuros[0].distAlong) return orderedFuros[0].furo.camadas.map(c=>({...c}));
+  const last = orderedFuros[orderedFuros.length-1];
+  if(sampleDistAlong >= last.distAlong) return last.furo.camadas.map(c=>({...c}));
+
+  let i=0;
+  while(i<orderedFuros.length-2 && sampleDistAlong > orderedFuros[i+1].distAlong) i++;
+  const A = orderedFuros[i], B = orderedFuros[i+1];
+
+  const span = B.distAlong - A.distAlong;
+  let t;
+  if(span<=1e-6){
+    t = 0.5;
+  } else {
+    const power = block.power||2;
+    const dA = Math.max(0.01, sampleDistAlong - A.distAlong);
+    const dB = Math.max(0.01, B.distAlong - sampleDistAlong);
+    const wA = 1/Math.pow(dA, power);
+    const wB = 1/Math.pow(dB, power);
+    t = wB/(wA+wB);
+  }
+  // A e B são fixos pra este trecho inteiro da linha (nunca trocam de papel ao longo da
+  // amostragem), então t varia de forma estritamente monotônica sem precisar de reordenação
+  return blendCamadas(A.furo, B.furo, t);
+}
+
 function computeInterpolatedFuro(block, lat, lng, forcedTemplateFuro){
   const srcFuros = block.furoIds.map(id=>furos.find(f=>f.id===id)).filter(Boolean);
   if(srcFuros.length<2) return null;
@@ -2320,12 +2477,16 @@ function generateGeotechProfile(blockId, latlngs){
   const totalLength = localPts[localPts.length-1].cum;
   if(totalLength<1){ toast('Linha muito curta para gerar um perfil (mín. 1 m)'); return; }
 
-  // molde FIXO pro perfil inteiro (furo com mais camadas, desempate pelo mais central do bloco) —
-  // evita que o molde troque de amostra pra amostra e crie um "degrau" onde a estrutura de
-  // camadas muda de repente; as profundidades continuam variando suavemente por IDW
-  const profileTemplate = pickBlockTemplateFuro(block);
+  // molde FIXO pro perfil inteiro só quando é seguro (todos os furos do bloco têm a mesma
+  // sequência de tipos de camada) — evita o "degrau" de estrutura sem misturar profundidade
+  // de um furo com a descrição de outro furo estruturalmente diferente. Quando os furos
+  // divergem em estrutura, usa concordância suave (alinhamento de camadas) trecho a trecho,
+  // seguindo a ordem em que a linha do perfil passa pelos furos (nunca "olhando pra trás").
+  const estruturaUniforme = blockHasUniformStratigraphy(block);
+  const profileTemplate = estruturaUniforme ? pickBlockTemplateFuro(block) : null;
+  const orderedFuros = estruturaUniforme ? null : projectFurosOntoLine(block, localPts);
 
-  const N = Math.min(60, Math.max(12, Math.round(totalLength/3)));
+  const N = Math.min(220, Math.max(24, Math.round(totalLength/0.5)));
   const samples = [];
   for(let i=0;i<=N;i++){
     const d = totalLength*i/N;
@@ -2334,7 +2495,8 @@ function generateGeotechProfile(blockId, latlngs){
     const interp = computeInterpolatedFuro(block, lat, lng, profileTemplate);
     const cota = interp && interp.ident.cota!=='' && interp.ident.cota!=null && isFinite(parseFloat(interp.ident.cota))
       ? parseFloat(interp.ident.cota) : null;
-    samples.push({ dist:d, lat, lng, camadas: interp ? interp.camadas : [], cota });
+    const camadasAmostra = (!estruturaUniforme && orderedFuros) ? computeBlendedCamadasAlongLine(orderedFuros, d, block) : (interp ? interp.camadas : []);
+    samples.push({ dist:d, lat, lng, camadas: camadasAmostra, cota });
   }
   // cota média do bloco, usada como fallback se alguma amostra ficar sem cota interpolável
   const cotasValidas = samples.map(s=>s.cota).filter(c=>c!=null);
@@ -2371,6 +2533,7 @@ function generateGeotechProfile(blockId, latlngs){
     samples,
     nearFuros,
     blockAvgCota,
+    estruturaUniforme,
     createdAt: Date.now()
   };
   drawProfileLine(profile);
@@ -2387,20 +2550,61 @@ function drawProfileLine(profile){
   profileLineLayers[profile.id] = layer;
 }
 
-function renderProfileHtml(profile){
+// padrões SVG replicando exatamente as texturas CSS .soil-* usadas no boletim de sondagem
+// (mesma simbologia nos dois lugares) — compartilhado entre a visualização normal e o modo
+// de edição do perfil
+const SOIL_PATTERNS_SVG = `
+    <pattern id="soilpat-argila" patternUnits="userSpaceOnUse" width="10" height="10" patternTransform="rotate(45)">
+      <rect width="10" height="10" fill="#c79c72"/><rect width="5" height="10" fill="#a9825b"/>
+    </pattern>
+    <pattern id="soilpat-areia" patternUnits="userSpaceOnUse" width="9" height="9">
+      <rect width="9" height="9" fill="#f3e2ab"/>
+      <circle cx="2.25" cy="2.25" r="1.3" fill="#b8974a"/><circle cx="6.75" cy="2.25" r="1.3" fill="#b8974a"/>
+      <circle cx="2.25" cy="6.75" r="1.3" fill="#b8974a"/><circle cx="6.75" cy="6.75" r="1.3" fill="#b8974a"/>
+      <circle cx="4.5" cy="4.5" r="1.3" fill="#b8974a"/>
+    </pattern>
+    <pattern id="soilpat-silte" patternUnits="userSpaceOnUse" width="7" height="7">
+      <rect width="7" height="7" fill="#d3cdbe"/><rect width="7" height="3" fill="#b9b2a0"/>
+    </pattern>
+    <pattern id="soilpat-aterro" patternUnits="userSpaceOnUse" width="8" height="8">
+      <rect width="8" height="8" fill="#e6d6a4"/>
+      <line x1="0" y1="8" x2="8" y2="0" stroke="#cdb06a" stroke-width="1.6"/>
+      <line x1="0" y1="0" x2="8" y2="8" stroke="#cdb06a" stroke-width="1.6"/>
+    </pattern>
+    <pattern id="soilpat-rocha" patternUnits="userSpaceOnUse" width="4" height="4"><rect width="4" height="4" fill="#8d8d8d"/></pattern>
+    <pattern id="soilpat-outro" patternUnits="userSpaceOnUse" width="4" height="4"><rect width="4" height="4" fill="#d7d2c6"/></pattern>
+`;
+function soilPatId(tipo){ return ['argila','areia','silte','aterro','rocha','outro'].includes(tipo) ? tipo : 'outro'; }
+
+/* ══════════════════════════════════════════════════════════════
+   EDIÇÃO INTERATIVA DAS CAMADAS DO PERFIL
+   ══════════════════════════════════════════════════════════════
+   Cada "fronteira" é o topo de uma camada: um polígono definido por
+   nós {x: distância ao longo do perfil, y: cota}, ordenados por x.
+   A camada i é a área entre a fronteira i (topo) e a fronteira i+1
+   (ou o fundo do gráfico, se for a última). Editar = criar, mover
+   ou remover nós dessas fronteiras. Isso substitui a interpolação
+   automática só para ESTE perfil — os furos e o bloco continuam
+   intactos.
+   ══════════════════════════════════════════════════════════════ */
+function computeProfileGeometry(profile){
   const samples = profile.samples;
   const totalLength = profile.totalLength;
   const blockAvgCota = profile.blockAvgCota!=null ? profile.blockAvgCota : 0;
   const cotaOf = s => (s.cota!=null ? s.cota : blockAvgCota);
 
-  // elevação (cota) do terreno em cada amostra + profundidade máxima de camadas por amostra
-  // define a extensão vertical do perfil topo-geotécnico: do ponto mais alto do terreno até
-  // o fundo da camada mais profunda no ponto mais baixo
-  const topElev = Math.max(...samples.map(s=> cotaOf(s)));
-  const bottomElev = Math.min(...samples.map(s=>{
-    const camadaBottom = s.camadas.length ? s.camadas[s.camadas.length-1].profFinal : 0;
-    return cotaOf(s) - camadaBottom;
-  }));
+  let topElev, bottomElev;
+  if(profile.boundaries && profile.boundaries.length){
+    const allY = profile.boundaries.flatMap(b=>b.nodes.map(n=>n.y));
+    topElev = Math.max(...allY, ...samples.map(cotaOf));
+    bottomElev = Math.min(...allY) - 1; // pequena folga abaixo da última fronteira editada
+  } else {
+    topElev = Math.max(...samples.map(s=> cotaOf(s)));
+    bottomElev = Math.min(...samples.map(s=>{
+      const camadaBottom = s.camadas.length ? s.camadas[s.camadas.length-1].profFinal : 0;
+      return cotaOf(s) - camadaBottom;
+    }));
+  }
   const elevRange = Math.max(1, topElev - bottomElev);
 
   const scaleX = totalLength>0 ? Math.min(14, 900/totalLength) : 10;
@@ -2410,32 +2614,585 @@ function renderProfileHtml(profile){
   const H = elevRange*scaleY;
   const marginL=52, marginT=20, marginB=34;
   const svgW = W+marginL+24, svgH = H+marginT+marginB;
-  const colW = samples.length>1 ? (W/(samples.length-1)) : W;
 
   const elevToY = elev => marginT + (topElev-elev)*scaleY;
+  const yToElev = y => topElev - (y-marginT)/scaleY;
+  const xToPixel = dist => marginL + dist*scaleX;
+  const pixelToX = px => (px-marginL)/scaleX;
 
-  let rects='';
-  samples.forEach(s=>{
-    let x = marginL + s.dist*scaleX - colW/2;
-    x = Math.max(marginL, Math.min(marginL+W-colW, x));
-    const cota = cotaOf(s);
-    let profAnt=0;
-    s.camadas.forEach(c=>{
-      const y = elevToY(cota-profAnt);
-      const h = Math.max(0.6, elevToY(cota-c.profFinal)-y);
-      const fill = SOIL_FILL[c.tipo] || SOIL_FILL.outro;
-      rects += `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${Math.max(1,colW+0.6).toFixed(1)}" height="${h.toFixed(1)}" fill="${fill}"><title>Cota ${(cota-profAnt).toFixed(1)}–${(cota-c.profFinal).toFixed(1)} m (prof. ${profAnt.toFixed(1)}–${c.profFinal.toFixed(1)} m): ${esc(c.descricao)}</title></rect>`;
-      profAnt = c.profFinal;
+  return { samples, totalLength, cotaOf, topElev, bottomElev, elevRange, scaleX, scaleY, W, H,
+    marginL, marginT, marginB, svgW, svgH, elevToY, yToElev, xToPixel, pixelToX };
+}
+
+// gera o conjunto inicial de fronteiras editáveis a partir da interpolação já calculada —
+// ponto de partida razoável pro usuário ajustar manualmente.
+// IMPORTANTE: cada NÓ carrega seu próprio tipo de material, lido diretamente da amostra real
+// mais próxima — nunca tentamos "casar" qual camada corresponde a qual entre amostras vizinhas
+// (isso se mostrou frágil demais quando há tipos repetidos, como várias camadas de argila ou de
+// silte: uma correspondência por sequência/ordem pode casar a ocorrência errada, misturando
+// material). Cada nó é sempre 100% fiel ao dado real naquele ponto; entre nós, a banda usa o
+// tipo do nó mais próximo (sem inventar transições). Quando uma amostra não tem a k-ésima
+// camada ali (já afinou até sumir), o nó colapsa na fronteira k-1 NAQUELE MESMO PONTO — nunca
+// num valor global inventado.
+function extractInitialBoundaries(profile, numNodes){
+  numNodes = numNodes || 28;
+  const n = Math.min(numNodes, profile.samples.length);
+  const idxs = [];
+  for(let i=0;i<n;i++) idxs.push(Math.round(i*(profile.samples.length-1)/(n-1)));
+  let chosenIdxs = Array.from(new Set(idxs)).sort((a,b)=>a-b);
+
+  // refina automaticamente onde a estrutura de camadas muda entre dois nós vizinhos (evita que
+  // uma camada nova "nasça" de repente num único nó isolado, virando uma lasca estreita em vez
+  // de crescer gradualmente) — insere as amostras finas reais que existem entre os dois nesse
+  // trecho específico, sem aumentar a densidade onde a estrutura já está estável
+  let refined = [chosenIdxs[0]];
+  for(let i=1;i<chosenIdxs.length;i++){
+    const prevIdx = chosenIdxs[i-1], curIdx = chosenIdxs[i];
+    const seqPrev = profile.samples[prevIdx].camadas.map(c=>c.tipo).join(',');
+    const seqCur = profile.samples[curIdx].camadas.map(c=>c.tipo).join(',');
+    if(seqPrev!==seqCur && curIdx-prevIdx>1){
+      // no máximo ~4 pontos extras por transição — refina o suficiente pra suavizar sem
+      // encher a edição de nós colados uns nos outros
+      const gap = curIdx-prevIdx;
+      const step = Math.max(1, Math.floor(gap/4));
+      for(let j=prevIdx+step; j<curIdx; j+=step) refined.push(j);
+    }
+    refined.push(curIdx);
+  }
+  chosenIdxs = Array.from(new Set(refined)).sort((a,b)=>a-b);
+  const chosen = chosenIdxs.map(i=>profile.samples[i]);
+
+  let K = 0;
+  chosen.forEach(s=>{ if(s.camadas.length>K) K=s.camadas.length; });
+  if(K===0) return [];
+
+  const blockAvgCota = profile.blockAvgCota!=null ? profile.blockAvgCota : 0;
+  const cotaOf = s => (s.cota!=null ? s.cota : blockAvgCota);
+
+  // cada "fronteira k" representa o TOPO da camada k — cota é a superfície menos a profundidade
+  // ACUMULADA ATÉ o início da camada k (profInicial), não até o fim dela (profFinal/fundo).
+  function topDepths(camadas){
+    let prof=0;
+    return camadas.map(c=>{ const topo=prof; prof=c.profFinal; return topo; });
+  }
+
+  const boundaries = [];
+  for(let k=0;k<K;k++){
+    const nodes = chosen.map((s,ni)=>{
+      const cota = cotaOf(s);
+      if(s.camadas.length>k){
+        const tds = topDepths(s.camadas);
+        return { x: Math.round(s.dist*100)/100, y: Math.round((cota-tds[k])*1000)/1000, tipo: s.camadas[k].tipo };
+      }
+      // essa amostra não tem a k-ésima camada — usa o FUNDO da última camada real dela (a
+      // profundidade máxima investigada ali), não o topo da fronteira anterior: colapsar no
+      // topo apagaria a espessura da última camada real por engano. Toda fronteira "além" do
+      // que essa amostra tem cai no mesmo ponto (fundo), ficando com espessura zero entre si.
+      const ultimaProfFinal = s.camadas.length ? s.camadas[s.camadas.length-1].profFinal : 0;
+      const y = cota - ultimaProfFinal;
+      const tipo = s.camadas.length ? s.camadas[s.camadas.length-1].tipo : 'outro';
+      return { x: Math.round(s.dist*100)/100, y: Math.round(y*1000)/1000, tipo };
+    });
+    boundaries.push({ nodes });
+  }
+  return boundaries;
+}
+
+// valor de cota (y) de uma fronteira numa distância x qualquer — interpolação linear entre nós
+function boundaryYAt(boundary, x){
+  const nodes = boundary.nodes;
+  if(!nodes.length) return 0;
+  if(x<=nodes[0].x) return nodes[0].y;
+  if(x>=nodes[nodes.length-1].x) return nodes[nodes.length-1].y;
+  for(let i=1;i<nodes.length;i++){
+    if(x<=nodes[i].x){
+      const a=nodes[i-1], b=nodes[i];
+      const t=(x-a.x)/((b.x-a.x)||1e-9);
+      return a.y + t*(b.y-a.y);
+    }
+  }
+  return nodes[nodes.length-1].y;
+}
+
+// tipo de material de uma fronteira numa distância x qualquer — não interpola (é categórico),
+// usa o nó mais próximo em X
+function boundaryTipoAt(boundary, x){
+  const nodes = boundary.nodes;
+  if(!nodes.length) return 'outro';
+  if(x<=nodes[0].x) return nodes[0].tipo;
+  if(x>=nodes[nodes.length-1].x) return nodes[nodes.length-1].tipo;
+  for(let i=1;i<nodes.length;i++){
+    if(x<=nodes[i].x){
+      const a=nodes[i-1], b=nodes[i];
+      return (x-a.x <= b.x-x) ? a.tipo : b.tipo;
+    }
+  }
+  return nodes[nodes.length-1].tipo;
+}
+
+// divide a faixa entre duas fronteiras em sub-trechos de tipo constante (o material da faixa
+// pode mudar ao longo do perfil, já que cada nó carrega seu próprio tipo) — retorna uma lista
+// de {d, tipo}, um <path> por sub-trecho de mesmo material
+function buildBandSegments(geom, topBoundary, bottomBoundary, bottomFlatElev){
+  const N = 60;
+  const xsSet = new Set();
+  for(let i=0;i<=N;i++) xsSet.add(Math.round(geom.totalLength*i/N*1000));
+  topBoundary.nodes.forEach(n=>xsSet.add(Math.round(n.x*1000)));
+  if(bottomBoundary) bottomBoundary.nodes.forEach(n=>xsSet.add(Math.round(n.x*1000)));
+  const xs = Array.from(xsSet).map(v=>v/1000).sort((a,b)=>a-b);
+
+  const runs = [];
+  xs.forEach(x=>{
+    const tipo = boundaryTipoAt(topBoundary, x);
+    if(runs.length===0 || runs[runs.length-1].tipo!==tipo){
+      if(runs.length) runs[runs.length-1].xs.push(x); // fecha o trecho anterior nesse mesmo x, sem buraco
+      runs.push({ tipo, xs: [x] });
+    } else {
+      runs[runs.length-1].xs.push(x);
+    }
+  });
+
+  return runs.filter(r=>r.xs.length>1).map(run=>{
+    // pequena sangria (em pixels) na borda de cima e de baixo de cada faixa: evita frestas
+    // sub-pixel entre faixas vizinhas quando cada uma é redesenhada de forma independente
+    // (ex.: durante o arrasto), já que arredondamentos de ponto flutuante podem divergir por
+    // uma fração de pixel na borda que deveria ser exatamente compartilhada
+    const BLEED = 0.4;
+    let d = '';
+    run.xs.forEach((x,i)=>{
+      const y = geom.elevToY(boundaryYAt(topBoundary, x)) - BLEED;
+      const px = geom.xToPixel(x);
+      d += (i===0?'M':'L') + px.toFixed(1)+','+y.toFixed(1)+' ';
+    });
+    for(let i=run.xs.length-1;i>=0;i--){
+      const x = run.xs[i];
+      const yElev = bottomBoundary ? boundaryYAt(bottomBoundary, x) : bottomFlatElev;
+      const y = geom.elevToY(yElev) + BLEED;
+      const px = geom.xToPixel(x);
+      d += 'L' + px.toFixed(1)+','+y.toFixed(1)+' ';
+    }
+    d += 'Z';
+    return { d, tipo: run.tipo };
+  });
+}
+
+let profileEditMode = false;
+let profileEditBoundaries = null;
+let profileEditDrag = null;
+let profileEditGeom = null;
+let profileEditSelected = null; // índice da camada (0..K-1) selecionada pra edição, ou null
+let profileEditZoom = 1; // fator de ampliação do gráfico de edição (1 = tamanho normal)
+
+function toggleProfileEditMode(){
+  if(!currentProfileView) return;
+  if(profileEditMode) exitProfileEditMode(true);
+  else enterProfileEditMode();
+}
+function enterProfileEditMode(){
+  if(!currentProfileView) return;
+  profileEditBoundaries = currentProfileView.boundaries
+    ? currentProfileView.boundaries.map(b=>({ nodes:b.nodes.map(n=>({...n})) }))
+    : extractInitialBoundaries(currentProfileView);
+  profileEditMode = true;
+  profileEditSelected = null;
+  profileEditZoom = 1;
+  document.getElementById('profile-edit-toggle-btn').textContent = '✕ Sair da edição';
+  renderProfileEditView();
+}
+function exitProfileEditMode(discard){
+  profileEditMode = false;
+  profileEditDrag = null;
+  profileEditBoundaries = null;
+  profileEditGeom = null;
+  profileEditSelected = null;
+  profileEditZoom = 1;
+  const btn = document.getElementById('profile-edit-toggle-btn');
+  if(btn) btn.textContent = '✏️ Editar camadas';
+  if(currentProfileView) document.getElementById('profile-view-body').innerHTML = renderProfileHtml(currentProfileView);
+}
+function commitProfileEdit(){
+  if(!currentProfileView || !profileEditBoundaries) return;
+  currentProfileView.boundaries = profileEditBoundaries.map(b=>({ nodes:b.nodes.map(n=>({...n})) }));
+  currentProfileView.manuallyEdited = true;
+  exitProfileEditMode(false);
+  toast('Camadas ajustadas manualmente — clique em "Salvar perfil" pra manter essa versão');
+}
+function resetProfileEdit(){
+  if(!currentProfileView) return;
+  delete currentProfileView.boundaries;
+  delete currentProfileView.manuallyEdited;
+  if(profileEditMode){
+    profileEditBoundaries = extractInitialBoundaries(currentProfileView);
+    profileEditSelected = null;
+    renderProfileEditView();
+  } else {
+    document.getElementById('profile-view-body').innerHTML = renderProfileHtml(currentProfileView);
+  }
+  toast('Interpolação automática restaurada');
+}
+function selectProfileEditLayer(bi){
+  profileEditSelected = (profileEditSelected===bi) ? null : bi;
+  renderProfileEditView();
+}
+function zoomProfileEdit(mult){
+  profileEditZoom = Math.max(0.5, Math.min(8, Math.round(profileEditZoom*mult*100)/100));
+  renderProfileEditView();
+}
+function resetProfileEditZoom(){
+  profileEditZoom = 1;
+  renderProfileEditView();
+}
+// aplica o zoom por cima da geometria "base" (calculada em tamanho normal) — reconstrói as
+// funções de conversão px<->dado com a escala ampliada, mantendo tudo consistente (arrasto,
+// clique pra criar nó etc. usam profileEditGeom, então basta ele já vir com o zoom aplicado)
+function scaleGeomForZoom(geom, zoom){
+  if(zoom===1) return geom;
+  const scaleX = geom.scaleX*zoom, scaleY = geom.scaleY*zoom;
+  const W = geom.W*zoom, H = geom.H*zoom;
+  const svgW = W+geom.marginL+24, svgH = H+geom.marginT+geom.marginB;
+  return {
+    ...geom, scaleX, scaleY, W, H, svgW, svgH,
+    elevToY: elev => geom.marginT + (geom.topElev-elev)*scaleY,
+    yToElev: y => geom.topElev - (y-geom.marginT)/scaleY,
+    xToPixel: dist => geom.marginL + dist*scaleX,
+    pixelToX: px => (px-geom.marginL)/scaleX,
+  };
+}
+
+function renderProfileEditView(){
+  const profile = currentProfileView;
+  const geomBase = computeProfileGeometry({...profile, boundaries: profileEditBoundaries});
+  const geom = scaleGeomForZoom(geomBase, profileEditZoom);
+  profileEditGeom = geom;
+
+  let bandsHtml = '';
+  profileEditBoundaries.forEach((b,i)=>{
+    const bottomBoundary = profileEditBoundaries[i+1] || null;
+    const bottomFlat = geom.bottomElev - 2;
+    const segs = buildBandSegments(geom, b, bottomBoundary, bottomFlat);
+    const selecionada = profileEditSelected===i;
+    segs.forEach((seg,si)=>{
+      const estilo = selecionada
+        ? 'cursor:pointer;filter:saturate(1.6) brightness(1.08);'
+        : 'cursor:pointer;';
+      bandsHtml += `<path class="edit-band" data-band="${i}" data-seg="${si}" d="${seg.d}" fill="${SOIL_FILL[soilPatId(seg.tipo)]}" stroke="${SOIL_FILL[soilPatId(seg.tipo)]}" stroke-width="1.2" style="${estilo}"></path>`;
+    });
+    if(selecionada){
+      // contorno de destaque em volta da camada selecionada, pra ficar óbvio qual está ativa
+      segs.forEach(seg=>{
+        bandsHtml += `<path d="${seg.d}" fill="none" stroke="#1a4e7a" stroke-width="2" opacity="0.55" style="pointer-events:none;"></path>`;
+      });
+    }
+  });
+
+  let linesHtml = '', nodesHtml = '';
+  if(profileEditSelected!=null){
+    // só desenha (e deixa interativa) a fronteira de CIMA e a de BAIXO da camada selecionada —
+    // as outras ficam de fora, pra não misturar vértices de camadas diferentes sem querer
+    [profileEditSelected, profileEditSelected+1].forEach(bi=>{
+      const b = profileEditBoundaries[bi];
+      if(!b) return;
+      const pts = b.nodes.map(n=> geom.xToPixel(n.x).toFixed(1)+','+geom.elevToY(n.y).toFixed(1)).join(' ');
+      linesHtml += `<polyline class="edit-boundary-line" data-boundary="${bi}" points="${pts}" fill="none" stroke="#1a4e7a" stroke-width="2.6" style="cursor:copy;"></polyline>`;
+      b.nodes.forEach((n,ni)=>{
+        const px=geom.xToPixel(n.x), py=geom.elevToY(n.y);
+        nodesHtml += `<circle class="edit-node" data-boundary="${bi}" data-node="${ni}" cx="${px.toFixed(1)}" cy="${py.toFixed(1)}" r="6" fill="#fff" stroke="#1a4e7a" stroke-width="2.4" style="cursor:grab;"></circle>`;
+      });
+    });
+  } else {
+    // sem seleção: mostra as linhas de fronteira apagadas, só de referência (não-interativas)
+    profileEditBoundaries.forEach(b=>{
+      const pts = b.nodes.map(n=> geom.xToPixel(n.x).toFixed(1)+','+geom.elevToY(n.y).toFixed(1)).join(' ');
+      linesHtml += `<polyline points="${pts}" fill="none" stroke="#282420" stroke-width="1" opacity="0.3" style="pointer-events:none;"></polyline>`;
+    });
+  }
+
+  const elevStep = niceAxisStep(geom.elevRange/8);
+  const startElev = Math.floor(geom.topElev/elevStep)*elevStep;
+  let elevAxis='';
+  for(let e=startElev; e>=geom.bottomElev-1e-6; e-=elevStep){
+    const y = geom.elevToY(e);
+    elevAxis += `<line x1="${geom.marginL-4}" y1="${y.toFixed(1)}" x2="${geom.marginL+geom.W}" y2="${y.toFixed(1)}" stroke="rgba(0,0,0,0.08)" stroke-width="1"/>`;
+    elevAxis += `<text x="${geom.marginL-8}" y="${(y+3).toFixed(1)}" font-size="9" text-anchor="end" fill="#666" font-family="monospace">${e.toFixed(0)}m</text>`;
+  }
+  const distStep = niceAxisStep(geom.totalLength/8);
+  let distAxis='';
+  for(let d=0; d<=geom.totalLength+1e-6; d+=distStep){
+    const x = geom.marginL+d*geom.scaleX;
+    distAxis += `<line x1="${x.toFixed(1)}" y1="${geom.marginT}" x2="${x.toFixed(1)}" y2="${(geom.marginT+geom.H).toFixed(1)}" stroke="rgba(0,0,0,0.06)" stroke-width="1"/>`;
+    distAxis += `<text x="${x.toFixed(1)}" y="${(geom.marginT+geom.H+14).toFixed(1)}" font-size="9" text-anchor="middle" fill="#666" font-family="monospace">${d}m</text>`;
+  }
+
+  const labelSelecionado = profileEditSelected!=null
+    ? Array.from(new Set(profileEditBoundaries[profileEditSelected].nodes.map(n=>n.tipo))).map(t=>(TIPOS_SOLO.find(x=>x[0]===t)||[t,t])[1]).join(' • ')
+    : '';
+  const banner = profileEditSelected==null
+    ? `✏️ <b>MODO DE EDIÇÃO</b> — clique numa camada (área colorida) do gráfico ou na lista abaixo pra selecioná-la; só depois disso os vértices dela ficam visíveis e editáveis.`
+    : `✏️ <b>EDITANDO: ${esc(labelSelecionado)}</b> — clique numa linha azul pra criar um nó ali, arraste um nó (círculo) pra movê-lo, dê duplo-clique num nó pra removê-lo (mínimo 2 por linha; os nós das pontas não podem ser removidos). Clique em outra camada pra trocar, ou nesta mesma pra desmarcar.`;
+
+  // lista de camadas — uma "pastilha" clicável por camada, mostrando o(s) material(is)
+  // presente(s) nela (uma camada pode ter mais de um material se houver uma lente/transição
+  // fina dentro dela). Alternativa ao clique direto no gráfico, útil quando os trechos ficam
+  // pequenos/difíceis de acertar com precisão — junto com o zoom, facilita mirar em faixas finas
+  const legendHtml = profileEditBoundaries.map((b,i)=>{
+    const tiposPresentes = Array.from(new Set(b.nodes.map(n=>n.tipo)));
+    const labels = tiposPresentes.map(t=>(TIPOS_SOLO.find(x=>x[0]===t)||[t,t])[1]).join(' • ');
+    const corPrincipal = SOIL_FILL[soilPatId(tiposPresentes[0])];
+    const ativa = profileEditSelected===i;
+    return `<button type="button" class="layer-chip" data-layer="${i}" style="display:inline-flex;align-items:center;gap:6px;padding:4px 10px;margin:2px;border-radius:14px;border:2px solid ${ativa?'#1a4e7a':'rgba(0,0,0,.15)'};background:${ativa?'rgba(26,78,122,.08)':'#fff'};cursor:pointer;font-size:11px;font-family:inherit;">
+      <span style="width:13px;height:13px;border-radius:3px;background:${corPrincipal};border:1px solid rgba(0,0,0,.3);flex-shrink:0;"></span>
+      Camada ${i+1} — ${esc(labels)}
+    </button>`;
+  }).join('');
+
+  document.getElementById('profile-view-body').innerHTML = `
+    <div class="interp-banner" style="background:rgba(26,78,122,.10);border-left-color:#1a4e7a;">
+      ${banner} As mudanças só valem pra este perfil — os furos e o bloco continuam intactos.
+    </div>
+    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin:10px 0 6px;">
+      <div style="display:flex;flex-wrap:wrap;">${legendHtml}</div>
+      <div class="btn-row" style="margin:0;flex-shrink:0;">
+        <button class="mini-btn" type="button" id="profile-edit-zoom-out" title="Diminuir zoom">➖</button>
+        <span style="font-size:11px;color:#666;min-width:40px;text-align:center;display:inline-block;">${Math.round(profileEditZoom*100)}%</span>
+        <button class="mini-btn" type="button" id="profile-edit-zoom-in" title="Aumentar zoom">➕</button>
+        <button class="mini-btn" type="button" id="profile-edit-zoom-reset">Redefinir zoom</button>
+      </div>
+    </div>
+    <div style="overflow:auto;max-height:70vh;border:1px solid var(--bdr);border-radius:8px;background:#faf8f3;">
+      <svg id="profile-edit-svg" viewBox="0 0 ${geom.svgW.toFixed(0)} ${geom.svgH.toFixed(0)}" width="${geom.svgW.toFixed(0)}" height="${geom.svgH.toFixed(0)}" style="display:block;touch-action:none;">
+        <defs>${SOIL_PATTERNS_SVG}</defs>
+        ${elevAxis}
+        ${distAxis}
+        ${bandsHtml}
+        ${linesHtml}
+        ${nodesHtml}
+        <rect x="${geom.marginL}" y="${geom.marginT}" width="${geom.W.toFixed(1)}" height="${geom.H.toFixed(1)}" fill="none" stroke="#282420" stroke-width="1.2"/>
+      </svg>
+    </div>
+    <div class="btn-row" style="margin-top:10px;">
+      <button class="btn-primary" type="button" id="profile-edit-commit">✅ Concluir edição</button>
+      <button class="btn-ghost" type="button" id="profile-edit-cancel">Cancelar edição</button>
+      <button class="mini-btn danger" type="button" id="profile-edit-reset">↺ Restaurar interpolação automática</button>
+    </div>
+  `;
+  document.getElementById('profile-edit-commit').onclick = commitProfileEdit;
+  document.getElementById('profile-edit-cancel').onclick = ()=> exitProfileEditMode(true);
+  document.getElementById('profile-edit-reset').onclick = resetProfileEdit;
+  document.getElementById('profile-edit-zoom-in').onclick = ()=> zoomProfileEdit(1.35);
+  document.getElementById('profile-edit-zoom-out').onclick = ()=> zoomProfileEdit(1/1.35);
+  document.getElementById('profile-edit-zoom-reset').onclick = resetProfileEditZoom;
+  document.querySelectorAll('.layer-chip').forEach(chip=>{
+    chip.addEventListener('click', ()=> selectProfileEditLayer(+chip.dataset.layer));
+  });
+  attachProfileEditHandlers();
+}
+
+function profileEditSvgPoint(svg, evt){
+  const rect = svg.getBoundingClientRect();
+  const vb = svg.viewBox.baseVal;
+  const wRatio = (rect.width>0) ? vb.width/rect.width : 1;
+  const hRatio = (rect.height>0) ? vb.height/rect.height : 1;
+  const clientX = (evt.touches && evt.touches[0]) ? evt.touches[0].clientX : evt.clientX;
+  const clientY = (evt.touches && evt.touches[0]) ? evt.touches[0].clientY : evt.clientY;
+  return { x: (clientX-rect.left)*wRatio, y: (clientY-rect.top)*hRatio };
+}
+
+function attachProfileEditHandlers(){
+  const svg = document.getElementById('profile-edit-svg');
+  if(!svg) return;
+
+  svg.querySelectorAll('.edit-band').forEach(path=>{
+    path.addEventListener('click', e=>{
+      e.stopPropagation();
+      selectProfileEditLayer(+path.dataset.band);
     });
   });
 
-  // linha do terreno — topografia interpolada ao longo do traçado
-  const terrainPts = samples.map(s=>{
-    const x = marginL + s.dist*scaleX;
-    const y = elevToY(cotaOf(s));
-    return `${x.toFixed(1)},${y.toFixed(1)}`;
-  }).join(' ');
-  const terrainLine = `<polyline points="${terrainPts}" fill="none" stroke="#3a5c2a" stroke-width="2.2"/>`;
+  svg.querySelectorAll('.edit-node').forEach(circle=>{
+    circle.addEventListener('mousedown', e=>{
+      e.preventDefault();
+      e.stopPropagation();
+      profileEditDrag = { bi:+circle.dataset.boundary, ni:+circle.dataset.node };
+    });
+    circle.addEventListener('dblclick', e=>{
+      e.preventDefault();
+      e.stopPropagation();
+      const bi=+circle.dataset.boundary, ni=+circle.dataset.node;
+      const nodes = profileEditBoundaries[bi].nodes;
+      if(nodes.length<=2){ toast('Uma linha precisa de pelo menos 2 nós'); return; }
+      if(ni===0 || ni===nodes.length-1){ toast('Não é possível remover o primeiro/último nó da linha'); return; }
+      nodes.splice(ni,1);
+      renderProfileEditView();
+    });
+  });
+
+  svg.querySelectorAll('.edit-boundary-line').forEach(line=>{
+    line.addEventListener('click', e=>{
+      e.stopPropagation();
+      const bi = +line.dataset.boundary;
+      const pt = profileEditSvgPoint(svg, e);
+      const x = Math.max(0, Math.min(profileEditGeom.totalLength, profileEditGeom.pixelToX(pt.x)));
+      let y = profileEditGeom.yToElev(pt.y);
+      const nodes = profileEditBoundaries[bi].nodes;
+
+      // trava o Y no mesmo raciocínio do arrasto — não deixa o novo nó nascer além da fronteira
+      // vizinha (rasgaria a textura da faixa ali)
+      const EPS = 0.01;
+      if(bi>0){
+        const yMax = boundaryYAt(profileEditBoundaries[bi-1], x) - EPS;
+        if(y>yMax) y = yMax;
+      }
+      if(bi<profileEditBoundaries.length-1){
+        const yMin = boundaryYAt(profileEditBoundaries[bi+1], x) + EPS;
+        if(y<yMin) y = yMin;
+      }
+
+      // herda o tipo que já estava sendo mostrado ali (o clique só adiciona um nó editável,
+      // não deveria mudar o material visível naquele ponto)
+      const tipo = boundaryTipoAt(profileEditBoundaries[bi], x);
+
+      let idx = nodes.findIndex(n=>n.x>x);
+      if(idx===-1) idx = nodes.length;
+      nodes.splice(idx, 0, { x: Math.round(x*100)/100, y: Math.round(y*1000)/1000, tipo });
+      renderProfileEditView();
+    });
+  });
+
+  const onMove = e=>{
+    if(!profileEditDrag) return;
+    const pt = profileEditSvgPoint(svg, e);
+    const x = profileEditGeom.pixelToX(pt.x);
+    let y = profileEditGeom.yToElev(pt.y);
+    const { bi, ni } = profileEditDrag;
+    const nodes = profileEditBoundaries[bi].nodes;
+    let clampedX;
+    if(ni===0) clampedX = 0;
+    else if(ni===nodes.length-1) clampedX = profileEditGeom.totalLength;
+    else clampedX = Math.max(nodes[ni-1].x+0.01, Math.min(nodes[ni+1].x-0.01, x));
+
+    // nunca deixa uma fronteira cruzar a vizinha (a de cima ou a de baixo) — se cruzasse, a
+    // faixa entre elas viraria um polígono se autointersectando (a "faixa branca" rasgando a
+    // textura, já que a área fica invertida ali)
+    const EPS = 0.01;
+    if(bi>0){
+      const yMax = boundaryYAt(profileEditBoundaries[bi-1], clampedX) - EPS;
+      if(y>yMax) y = yMax;
+    }
+    if(bi<profileEditBoundaries.length-1){
+      const yMin = boundaryYAt(profileEditBoundaries[bi+1], clampedX) + EPS;
+      if(y<yMin) y = yMin;
+    }
+
+    // preserva o tipo que o nó já tinha — só a posição muda no arrasto (substituir o objeto
+    // inteiro sem incluir o tipo o deixava "undefined", criando uma transição de material falsa
+    // bem naquele ponto, que aparecia como uma linha fina "rasgando" a textura)
+    nodes[ni] = { x: Math.round(clampedX*100)/100, y: Math.round(y*1000)/1000, tipo: nodes[ni].tipo };
+    updateProfileEditVisuals(bi);
+  };
+  svg.addEventListener('mousemove', onMove);
+  svg.addEventListener('touchmove', onMove);
+  const onUp = ()=>{ profileEditDrag = null; };
+  document.addEventListener('mouseup', onUp);
+  document.addEventListener('touchend', onUp);
+}
+
+// atualiza só a linha "bi" e as faixas vizinhas (sem reconstruir o SVG inteiro) — arrasto fluido.
+// as faixas são removidas e reinseridas (não só o "d" atualizado) porque o número de segmentos
+// de tipo pode mudar conforme os nós se movem
+function updateProfileEditVisuals(bi){
+  const geom = profileEditGeom;
+  const b = profileEditBoundaries[bi];
+  const svg = document.getElementById('profile-edit-svg');
+  if(!svg || !geom) return;
+
+  const line = svg.querySelector(`.edit-boundary-line[data-boundary="${bi}"]`);
+  if(line) line.setAttribute('points', b.nodes.map(n=> geom.xToPixel(n.x).toFixed(1)+','+geom.elevToY(n.y).toFixed(1)).join(' '));
+
+  b.nodes.forEach((n,ni)=>{
+    const c = svg.querySelector(`.edit-node[data-boundary="${bi}"][data-node="${ni}"]`);
+    if(c){ c.setAttribute('cx', geom.xToPixel(n.x).toFixed(1)); c.setAttribute('cy', geom.elevToY(n.y).toFixed(1)); }
+  });
+
+  function redrawBand(idx){
+    if(idx<0 || idx>=profileEditBoundaries.length) return;
+    const top = profileEditBoundaries[idx];
+    const bottom = profileEditBoundaries[idx+1] || null;
+    const segs = buildBandSegments(geom, top, bottom, geom.bottomElev-2);
+    svg.querySelectorAll(`.edit-band[data-band="${idx}"]`).forEach(el=>el.remove());
+    const firstLine = svg.querySelector('.edit-boundary-line');
+    segs.forEach((seg,si)=>{
+      const path = document.createElementNS('http://www.w3.org/2000/svg','path');
+      path.setAttribute('class','edit-band');
+      path.setAttribute('data-band', idx);
+      path.setAttribute('data-seg', si);
+      path.setAttribute('d', seg.d);
+      path.setAttribute('fill', SOIL_FILL[soilPatId(seg.tipo)]);
+      path.setAttribute('stroke', SOIL_FILL[soilPatId(seg.tipo)]);
+      path.setAttribute('stroke-width', '1.2');
+      if(firstLine) svg.insertBefore(path, firstLine);
+      else svg.appendChild(path);
+    });
+  }
+  // redesenha a de índice menor primeiro, pra manter a mesma ordem de empilhamento (z-order)
+  // da renderização original — evita que a faixa de baixo fique por cima da de cima
+  redrawBand(bi-1);
+  redrawBand(bi);
+}
+
+function renderProfileHtml(profile){
+  const geom = computeProfileGeometry(profile);
+  const { samples, totalLength, cotaOf, topElev, bottomElev, elevRange, scaleX, scaleY, W, H,
+    marginL, marginT, svgW, svgH, elevToY } = geom;
+
+  // recalcula a partir dos dados de fato (não só do flag salvo) — cobre também perfis salvos
+  // antes dessa checagem existir
+  const seqOf = s => s.camadas.map(c=>c.tipo).join('>');
+  const estruturaUniforme = profile.estruturaUniforme!==undefined
+    ? profile.estruturaUniforme
+    : samples.every(s => seqOf(s)===seqOf(samples[0]));
+
+  const temEdicaoManual = !!(profile.boundaries && profile.boundaries.length);
+
+  const soilPatterns = SOIL_PATTERNS_SVG;
+
+  let rects='';
+  let tiposPresentes = new Set();
+  if(temEdicaoManual){
+    profile.boundaries.forEach((b,i)=>{
+      const bottomBoundary = profile.boundaries[i+1] || null;
+      const segs = buildBandSegments(geom, b, bottomBoundary, bottomElev-2);
+      segs.forEach(seg=>{
+        tiposPresentes.add(seg.tipo);
+        rects += `<path d="${seg.d}" fill="${SOIL_FILL[soilPatId(seg.tipo)]}" stroke="${SOIL_FILL[soilPatId(seg.tipo)]}" stroke-width="1.2"><title>${esc((TIPOS_SOLO.find(x=>x[0]===seg.tipo)||[seg.tipo,seg.tipo])[1])} (ajustado manualmente)</title></path>`;
+      });
+    });
+  } else {
+    const colW = samples.length>1 ? (W/(samples.length-1)) : W;
+    samples.forEach(s=>{
+      let x = marginL + s.dist*scaleX - colW/2;
+      x = Math.max(marginL, Math.min(marginL+W-colW, x));
+      const cota = cotaOf(s);
+      let profAnt=0;
+      s.camadas.forEach(c=>{
+        tiposPresentes.add(c.tipo);
+        const y = elevToY(cota-profAnt);
+        const h = Math.max(0.6, elevToY(cota-c.profFinal)-y);
+        rects += `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${Math.max(1,colW+0.6).toFixed(1)}" height="${h.toFixed(1)}" fill="url(#soilpat-${soilPatId(c.tipo)})"><title>Cota ${(cota-profAnt).toFixed(1)}–${(cota-c.profFinal).toFixed(1)} m (prof. ${profAnt.toFixed(1)}–${c.profFinal.toFixed(1)} m): ${esc(c.descricao)}</title></rect>`;
+        profAnt = c.profFinal;
+      });
+    });
+  }
+
+  // linha do terreno — topografia interpolada (ou o topo da 1ª fronteira, se editado manualmente)
+  let terrainLine;
+  if(temEdicaoManual){
+    const pts=[];
+    for(let i=0;i<=60;i++){ const x=totalLength*i/60; pts.push(`${geom.xToPixel(x).toFixed(1)},${elevToY(boundaryYAt(profile.boundaries[0],x)).toFixed(1)}`); }
+    terrainLine = `<polyline points="${pts.join(' ')}" fill="none" stroke="#3a5c2a" stroke-width="2.2"/>`;
+  } else {
+    const terrainPts = samples.map(s=>`${(marginL + s.dist*scaleX).toFixed(1)},${elevToY(cotaOf(s)).toFixed(1)}`).join(' ');
+    terrainLine = `<polyline points="${terrainPts}" fill="none" stroke="#3a5c2a" stroke-width="2.2"/>`;
+  }
 
   const elevStep = niceAxisStep(elevRange/8);
   const startElev = Math.floor(topElev/elevStep)*elevStep;
@@ -2467,15 +3224,52 @@ function renderProfileHtml(profile){
     }
   });
 
-  const soilsPresent = [...new Set(samples.flatMap(s=>s.camadas.map(c=>c.tipo)))];
-  const legend = soilsPresent.map(t=>{
+  const legend = Array.from(tiposPresentes).map(t=>{
     const label = (TIPOS_SOLO.find(x=>x[0]===t)||[t,t])[1];
-    return `<span class="tag-chip" style="background:${SOIL_FILL[t]||SOIL_FILL.outro};border-color:rgba(0,0,0,.2)">${esc(label)}</span>`;
+    return `<span class="tag-chip soil-${soilPatId(t)}" style="border-color:rgba(0,0,0,.2)">${esc(label)}</span>`;
   }).join('');
   const terrainLegend = `<span class="tag-chip" style="border-color:#3a5c2a;color:#3a5c2a;">— linha do terreno (topografia interpolada)</span>`;
 
+  // descrição do material — mesmo texto e mesma ordem de camadas usados no boletim de sondagem;
+  // só é seguro mostrar como lista única quando a estrutura é constante (e não foi editada
+  // manualmente, já que edição manual não carrega descrição textual detalhada por camada)
+  let descList = '';
+  if(!temEdicaoManual && estruturaUniforme && samples.length){
+    const camadaRef = samples[0].camadas;
+    let profAntRef = 0;
+    descList = camadaRef.map(c=>{
+      const row = `<div style="display:flex;gap:10px;align-items:flex-start;padding:6px 2px;border-bottom:1px dashed #bdb8ae;">
+        <span class="soil-${soilPatId(c.tipo)}" style="width:28px;height:20px;border-radius:3px;border:1px solid rgba(0,0,0,.25);flex-shrink:0;margin-top:1px;"></span>
+        <div>
+          <div style="font-family:'Courier New',monospace;font-size:9.5px;color:#b85c1a;font-weight:700;">até ${c.profFinal.toFixed(2)} m (prof. ${profAntRef.toFixed(2)}–${c.profFinal.toFixed(2)} m)</div>
+          <div style="font-size:11.5px;">${esc(c.descricao)||'<i>sem descrição</i>'}</div>
+        </div>
+      </div>`;
+      profAntRef = c.profFinal;
+      return row;
+    }).join('');
+  }
+
   const block = interpBlocks.find(b=>b.id===profile.blockId);
   const fontesTxt = block ? block.furoIds.map(id=>{ const f=furos.find(x=>x.id===id); return f?f.ident.sondagemNum:'?'; }).join(', ') : '—';
+
+  const warnEstrutura = (!estruturaUniforme && !temEdicaoManual) ? `
+    <div class="warn-box" style="margin-top:8px;">
+      ⚠ Os furos de origem deste bloco têm sequências de camadas diferentes entre si (número e/ou ordem
+      de tipos de solo distintos). O perfil faz a <b>concordância suave</b> entre os furos vizinhos, seguindo
+      o sentido do traçado da linha: cada trecho mistura só os dois furos que a linha realmente passa entre
+      eles, começando num e terminando no seguinte. Camadas presentes nos dois furos interpolam a profundidade
+      suavemente; camadas que só existem num deles afinam gradualmente até desaparecer. Isso é uma estimativa
+      de concordância, não uma correlação geológica confirmada — passe o mouse sobre cada camada pra ver a
+      descrição exata usada naquele ponto, ou use "✏️ Editar camadas" pra ajustar manualmente.
+    </div>` : '';
+
+  const editBanner = temEdicaoManual ? `
+    <div class="interp-banner" style="background:rgba(26,78,122,.10);border-left-color:#1a4e7a;margin-top:8px;">
+      ✏️ <b>CAMADAS AJUSTADAS MANUALMENTE</b> — este perfil não está mais usando a interpolação automática;
+      as fronteiras de camada foram editadas à mão. Use "↺ Restaurar interpolação automática" no modo de
+      edição pra voltar ao cálculo por IDW.
+    </div>` : '';
 
   return `
     <div class="interp-banner">
@@ -2484,8 +3278,11 @@ function renderProfileHtml(profile){
       Eixo vertical em cota absoluta (m) — camadas referenciadas à topografia real de cada ponto, não à profundidade isolada.
       Representação de apoio — não substitui investigação de campo ao longo do traçado.
     </div>
+    ${editBanner}
+    ${warnEstrutura}
     <div style="overflow-x:auto;border:1px solid var(--bdr);border-radius:8px;background:#faf8f3;">
       <svg viewBox="0 0 ${svgW.toFixed(0)} ${svgH.toFixed(0)}" width="${svgW.toFixed(0)}" height="${svgH.toFixed(0)}" style="display:block;">
+        <defs>${soilPatterns}</defs>
         ${elevAxis}
         ${distAxis}
         ${rects}
@@ -2495,6 +3292,13 @@ function renderProfileHtml(profile){
       </svg>
     </div>
     <div class="tag-list" style="margin-top:10px">${terrainLegend}${legend}</div>
+    ${!temEdicaoManual ? (estruturaUniforme ? `
+    <div class="fieldset-title" style="margin-top:14px;">Descrição do material (perfil estratigráfico — estrutura constante ao longo do perfil)</div>
+    <div>${descList}</div>` : `
+    <div class="fieldset-title" style="margin-top:14px;">Descrição do material</div>
+    <p class="hint">A estrutura de camadas faz concordância suave ao longo deste perfil (furos de origem com estratigrafias diferentes) — passe o mouse sobre cada trecho do gráfico para ver a descrição exata naquele ponto.</p>`) : `
+    <div class="fieldset-title" style="margin-top:14px;">Descrição do material</div>
+    <p class="hint">Camadas ajustadas manualmente — as descrições textuais originais não se aplicam mais ponto a ponto; a legenda acima mostra os tipos de material presentes no perfil editado.</p>`}
     ${(profile.nearFuros&&profile.nearFuros.length) ? `<p class="hint">Linhas tracejadas pretas: furos reais a até 5 m do traçado. Linhas tracejadas roxas (🔮): furos interpolados já salvos a até 5 m do traçado. Os círculos marcam a cota real cadastrada de cada furo, para conferir contra a linha de terreno interpolada. Posições projetadas sobre a linha.</p>` : ''}
   `;
 }
@@ -2502,10 +3306,15 @@ function renderProfileHtml(profile){
 function showProfileView(profile, isSaved){
   currentProfileView = profile;
   currentProfileViewIsSaved = !!isSaved;
+  profileEditMode = false;
+  profileEditBoundaries = null;
+  profileEditDrag = null;
+  profileEditGeom = null;
   document.getElementById('profile-view-title').textContent = isSaved ? ('Perfil — '+profile.nome) : 'Perfil Geotécnico — prévia (não salvo)';
   document.getElementById('profile-name-input').value = profile.nome;
   document.getElementById('profile-view-body').innerHTML = renderProfileHtml(profile);
   document.getElementById('profile-delete-btn').style.display = isSaved ? 'inline-flex' : 'none';
+  document.getElementById('profile-edit-toggle-btn').textContent = '✏️ Editar camadas';
   document.getElementById('profile-view-overlay').classList.add('open');
   document.body.style.overflow = 'hidden';
 }
@@ -2518,6 +3327,10 @@ function closeProfileView(){
   document.body.style.overflow = '';
   currentProfileView = null;
   currentProfileViewIsSaved = false;
+  profileEditMode = false;
+  profileEditBoundaries = null;
+  profileEditDrag = null;
+  profileEditGeom = null;
 }
 document.getElementById('profile-view-overlay').addEventListener('click', e=>{ if(e.target.id==='profile-view-overlay') closeProfileView(); });
 
@@ -2555,9 +3368,21 @@ function printProfileView(){
     .tag-list{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px;}
     .tag-chip{border:1px solid rgba(0,0,0,.15);border-radius:12px;padding:3px 9px;font-size:10.5px;font-family:monospace;}
     .hint{font-size:11px;color:#7a7168;margin-top:8px;}
+    .fieldset-title{font-family:'Courier New',monospace;font-size:9.5px;letter-spacing:1.6px;text-transform:uppercase;color:#7a7168;margin:16px 0 9px;}
+    .soil-argila{background:repeating-linear-gradient(45deg,#a9825b,#a9825b 5px,#c79c72 5px,#c79c72 10px);}
+    .soil-areia{background:#f0d98c;background-image:radial-gradient(#b8974a 1.3px,transparent 1.3px);background-size:9px 9px;background-color:#f3e2ab;}
+    .soil-silte{background:repeating-linear-gradient(0deg,#b9b2a0,#b9b2a0 3px,#d3cdbe 3px,#d3cdbe 7px);}
+    .soil-aterro{background:repeating-linear-gradient(45deg,#cdb06a,#cdb06a 4px,transparent 4px,transparent 8px),repeating-linear-gradient(-45deg,#cdb06a,#cdb06a 4px,transparent 4px,transparent 8px),#e6d6a4;}
+    .soil-rocha{background:#8d8d8d;}
+    .soil-outro{background:#d7d2c6;}
     h1{font-size:19px;margin-bottom:4px;}
     .print-btn{margin-top:16px;padding:9px 18px;border-radius:8px;border:1.5px solid #1a4e7a;background:#1a4e7a;color:#fff;font-weight:700;cursor:pointer;}
-    @media print{ .no-print{display:none!important;} }
+    @media print{
+      .no-print{display:none!important;}
+      .soil-argila,.soil-areia,.soil-silte,.soil-aterro,.soil-rocha,.soil-outro{
+        -webkit-print-color-adjust:exact; print-color-adjust:exact; color-adjust:exact;
+      }
+    }
   </style></head><body>
   <h1 class="no-print">Perfil Geotécnico — ${escXml(currentProfileView.nome)}</h1>
   ${html}
@@ -2584,13 +3409,13 @@ function renderProfileList(){
    interpolação, dentro do casco convexo do bloco. O usuário escolhe
    qual grandeza vira o valor (cor) de cada célula do raster:
    - superfícies únicas (não precisam de cota): cota do terreno,
-     profundidade do N.A., profundidade até a rocha;
+     cota do N.A., profundidade até a rocha;
    - fatias numa cota específica (precisam de cota): material
      predominante e N-SPT interpolado naquela cota.
    ══════════════════════════════════════════════════════════════ */
 const RASTER_PARAMS = [
   {key:'cota',     label:'Cota do terreno',            needsElev:false, kind:'continuous', unidade:'m'},
-  {key:'na',       label:'Profundidade do N.A.',       needsElev:false, kind:'continuous', unidade:'m'},
+  {key:'na',       label:'Cota do N.A.',               needsElev:false, kind:'continuous', unidade:'m'},
   {key:'rocha',    label:'Profundidade até a rocha',   needsElev:false, kind:'continuous', unidade:'m'},
   {key:'material', label:'Material na cota informada', needsElev:true,  kind:'categorical', unidade:''},
   {key:'spt',      label:'N-SPT na cota informada',    needsElev:true,  kind:'continuous', unidade:'golpes'},
@@ -2599,6 +3424,96 @@ let currentRasterBlockId = null;
 let currentRasterParam = 'cota';
 let currentRasterCanvas = null;
 let currentRasterGridResult = null;
+// rasters "publicados" como camada no mapa — cada um pode ser mostrado/ocultado independente,
+// e fica salvo (a imagem em si, não a grade de valores) pra continuar aparecendo ao reabrir o app
+let rasterLayers = [];
+let rasterLeafletOverlays = {}; // id -> instância L.imageOverlay (só em memória, não salva)
+function newRasterLayerId(){ return 'RL'+Date.now().toString(36)+Math.random().toString(36).slice(2,5); }
+
+// converte os limites (em XY local) da grade do raster pros cantos SW/NE em lat/lng — como
+// localXY/xyToLatLng usam uma projeção local equiretangular (eixos alinhados), o retângulo em
+// XY também é um retângulo em lat/lng, então dá pra usar direto num L.imageOverlay
+function computeRasterBounds(gridResult, block){
+  const [south, west] = xyToLatLng(gridResult.minX, gridResult.minY, block.refLat, block.refLng);
+  const [north, east] = xyToLatLng(gridResult.maxX, gridResult.maxY, block.refLat, block.refLng);
+  return [[south, west],[north, east]];
+}
+
+// cria a instância L.imageOverlay de uma camada de raster salva e adiciona ao mapa se visível
+function drawRasterLayer(r){
+  if(rasterLeafletOverlays[r.id]){ map.removeLayer(rasterLeafletOverlays[r.id]); }
+  const layer = L.imageOverlay(r.dataUrl, r.bounds, {opacity: r.visible===false ? 0 : 0.85, interactive:false});
+  rasterLeafletOverlays[r.id] = layer;
+  if(r.visible!==false) layer.addTo(map);
+}
+
+// pega o raster GERADO NO MOMENTO (currentRasterCanvas/currentRasterGridResult) e publica ele
+// como uma camada persistente no mapa, que pode ser ligada/desligada depois pela lista
+function addCurrentRasterToMap(){
+  if(!currentRasterCanvas || !currentRasterGridResult){ toast('Gere o raster antes de adicionar ao mapa'); return; }
+  const block = interpBlocks.find(b=>b.id===currentRasterBlockId); if(!block) return;
+  const paramDef = RASTER_PARAMS.find(p=>p.key===currentRasterParam);
+  const bounds = computeRasterBounds(currentRasterGridResult, block);
+  const dataUrl = currentRasterCanvas.toDataURL('image/png');
+  const r = {
+    id: newRasterLayerId(),
+    blockId: block.id,
+    blockNome: block.nome,
+    paramKey: currentRasterParam,
+    paramLabel: paramDef.label,
+    elev: paramDef.needsElev ? parseFloat(document.getElementById('raster-elev-input').value) : null,
+    dataUrl, bounds, visible: true,
+  };
+  rasterLayers.push(r);
+  drawRasterLayer(r);
+  renderRasterLayersList();
+  scheduleSave();
+  toast('Raster adicionado como camada no mapa — veja na aba "Rasters"');
+}
+function toggleRasterLayerVisible(id){
+  const r = rasterLayers.find(x=>x.id===id); if(!r) return;
+  r.visible = !r.visible;
+  const layer = rasterLeafletOverlays[id];
+  if(layer){
+    if(r.visible) layer.addTo(map); else map.removeLayer(layer);
+  }
+  renderRasterLayersList();
+  scheduleSave();
+}
+function removeRasterLayer(id){
+  const idx = rasterLayers.findIndex(x=>x.id===id); if(idx===-1) return;
+  const layer = rasterLeafletOverlays[id];
+  if(layer) map.removeLayer(layer);
+  delete rasterLeafletOverlays[id];
+  rasterLayers.splice(idx,1);
+  renderRasterLayersList();
+  scheduleSave();
+}
+function renderRasterLayersList(){
+  const el = document.getElementById('list-rasters'); if(!el) return;
+  if(rasterLayers.length===0){
+    el.innerHTML = '<div class="sb-empty">Nenhum raster no mapa ainda.<br>Abra um bloco interpolado → "🖼️ Fatia em planta" → gere um raster → "📍 Adicionar ao mapa".</div>';
+    return;
+  }
+  el.innerHTML = '';
+  rasterLayers.forEach(r=>{
+    const div = document.createElement('div');
+    div.className = 'item';
+    const elevTxt = r.elev!=null && isFinite(r.elev) ? ` @ ${r.elev.toFixed(1)}m` : '';
+    div.innerHTML = `
+      <div style="display:flex;align-items:flex-start;gap:8px;">
+        <input type="checkbox" ${r.visible!==false?'checked':''} style="margin-top:3px;flex-shrink:0;" title="Mostrar/ocultar no mapa">
+        <div style="flex:1;min-width:0;">
+          <div class="item-title">🖼️ ${esc(r.paramLabel)}${elevTxt}</div>
+          <div class="item-sub">Bloco: ${esc(r.blockNome)}</div>
+        </div>
+        <button type="button" class="mini-btn danger" title="Remover camada">🗑</button>
+      </div>`;
+    div.querySelector('input[type=checkbox]').addEventListener('change', ()=> toggleRasterLayerVisible(r.id));
+    div.querySelector('button').addEventListener('click', (e)=>{ e.stopPropagation(); if(confirm('Remover este raster do mapa?')) removeRasterLayer(r.id); });
+    el.appendChild(div);
+  });
+}
 
 // ponto-em-polígono (ray casting) em coordenadas locais XY — usado pra recortar o raster no casco convexo
 function pointInPolygonXY(pt, poly){
@@ -2622,7 +3537,10 @@ function extractRasterValue(interp, paramKey, elev){
   if(paramKey==='na'){
     const naStr = interp.agua && interp.agua[0] ? interp.agua[0].prof : '';
     const naProf = (naStr!=='' && naStr!=null && isFinite(parseFloat(naStr))) ? parseFloat(naStr) : null;
-    return naProf!=null ? {valid:true, num:naProf} : {valid:false};
+    // cota real do N.A. (superfície do terreno menos a profundidade medida), não a profundidade
+    // isolada — mais direto de comparar com as cotas dos furos e do terreno ao redor
+    if(naProf==null || cota==null) return {valid:false};
+    return {valid:true, num: cota-naProf};
   }
   if(paramKey==='rocha'){
     let prof=0, achou=null;
@@ -2981,6 +3899,7 @@ function closeRasterView(){
 }
 document.getElementById('raster-view-overlay').addEventListener('click', e=>{ if(e.target.id==='raster-view-overlay') closeRasterView(); });
 document.getElementById('raster-gerar-btn').addEventListener('click', generateRaster);
+document.getElementById('raster-addmap-btn').addEventListener('click', addCurrentRasterToMap);
 document.getElementById('raster-elev-sugestao').addEventListener('click', ()=>{
   const block = interpBlocks.find(b=>b.id===currentRasterBlockId); if(!block) return;
   const srcFuros = block.furoIds.map(id=>furos.find(f=>f.id===id)).filter(Boolean);
@@ -3036,6 +3955,7 @@ document.querySelectorAll('.sb-tab').forEach(tab=>{
     document.getElementById('list-shapes').style.display = tab.dataset.tab==='shapes'?'block':'none';
     document.getElementById('list-interp').style.display = tab.dataset.tab==='interp'?'block':'none';
     document.getElementById('list-profiles').style.display = tab.dataset.tab==='profiles'?'block':'none';
+    document.getElementById('list-rasters').style.display = tab.dataset.tab==='rasters'?'block':'none';
   });
 });
 
@@ -3377,13 +4297,14 @@ document.getElementById('btn-export-csv').onclick=()=>{
 };
 
 document.getElementById('btn-clear').onclick=()=>{
-  if(!confirm('Isso apaga todos os furos, áreas, blocos interpolados e perfis salvos neste banco de dados. Continuar?')) return;
+  if(!confirm('Isso apaga todos os furos, áreas, blocos interpolados, perfis salvos e rasters no mapa deste banco de dados. Continuar?')) return;
   Object.values(markers).forEach(m=>map.removeLayer(m));
   Object.values(shapeLayers).forEach(l=>map.removeLayer(l));
   Object.values(interpLayers).forEach(l=>map.removeLayer(l));
   Object.values(profileLineLayers).forEach(l=>map.removeLayer(l));
-  furos=[]; shapes=[]; interpBlocks=[]; profiles=[]; markers={}; shapeLayers={}; interpLayers={}; profileLineLayers={};
-  closePanel(); renderFuroList(); renderShapeList(); renderInterpList(); renderProfileList(); scheduleSave();
+  Object.values(rasterLeafletOverlays).forEach(l=>map.removeLayer(l));
+  furos=[]; shapes=[]; interpBlocks=[]; profiles=[]; rasterLayers=[]; markers={}; shapeLayers={}; interpLayers={}; profileLineLayers={}; rasterLeafletOverlays={};
+  closePanel(); renderFuroList(); renderShapeList(); renderInterpList(); renderProfileList(); renderRasterLayersList(); scheduleSave();
 };
 
 /* ══════════════════ HELPERS ══════════════════ */

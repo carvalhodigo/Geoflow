@@ -15,7 +15,8 @@
 }
 *{box-sizing:border-box;margin:0;padding:0}
 html,body{height:100%;overflow:hidden}
-body{font-family:system-ui,sans-serif;font-size:13px;background:var(--bg);color:var(--tx)}
+body{font-family:system-ui,sans-serif;font-size:13px;background:var(--bg);color:var(--tx);
+  display:flex;flex-direction:column}
 button{font-family:inherit;cursor:pointer}
 input,select,textarea{font-family:inherit;font-size:12px}
 
@@ -37,13 +38,11 @@ input,select,textarea{font-family:inherit;font-size:12px}
 .tsel{height:28px;border-radius:var(--r);border:1px solid var(--bdr);background:#fff;
   font-size:11px;padding:0 6px;color:var(--tx);flex-shrink:0}
 #file-input{display:none}
-#search-box{height:28px;border-radius:var(--r);border:1px solid var(--bdr);background:#fff;
-  font-size:11px;padding:0 8px;width:150px;flex-shrink:0}
 
-#ws{display:flex;height:calc(100vh - 44px)}
+#ws{display:flex;flex:1;min-height:0}
 
 #sidebar{width:260px;flex-shrink:0;background:var(--card);border-right:1px solid var(--bdr);
-  display:flex;flex-direction:column;overflow:hidden}
+  display:flex;flex-direction:column;overflow:hidden;min-width:180px;max-width:600px}
 .sb-tabs{display:flex;border-bottom:1px solid var(--bdr);flex-shrink:0}
 .sb-tab{flex:1;padding:9px 4px;text-align:center;font-family:var(--mono);font-size:10px;
   font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:var(--mu);
@@ -60,14 +59,69 @@ input,select,textarea{font-family:inherit;font-size:12px}
 .item-title{font-weight:700;font-size:12px}
 .item-sub{font-size:10px;color:var(--mu);margin-top:2px;font-family:var(--mono)}
 
-#map{flex:1;background:#dfe6e0}
+/* alças de redimensionar os painéis laterais (arrastar horizontalmente) e a tabela de furos
+   no topo (arrastar verticalmente) */
+.resize-handle-v{width:6px;flex-shrink:0;cursor:col-resize;background:transparent;
+  position:relative;z-index:20;transition:background .1s}
+.resize-handle-v:hover,.resize-handle-v.dragging{background:rgba(45,107,74,.35)}
+.resize-handle-h{height:6px;flex-shrink:0;cursor:row-resize;background:transparent;
+  position:relative;z-index:20;transition:background .1s}
+.resize-handle-h:hover,.resize-handle-h.dragging{background:rgba(45,107,74,.35)}
+
+#map{flex:1;background:#dfe6e0;min-width:200px}
 
 #panel{width:640px;flex-shrink:0;background:var(--card);border-left:1px solid var(--bdr);
-  display:flex;flex-direction:column;overflow-y:auto}
+  display:flex;flex-direction:column;overflow-y:auto;min-width:340px;max-width:1100px}
 #panel.hidden{display:none}
 .p-hdr{padding:10px 14px;border-bottom:1px solid var(--bdr);display:flex;
   justify-content:space-between;align-items:center;background:var(--surf);position:sticky;top:0;z-index:5}
 .p-hdr b{font-family:var(--mono);font-size:11px;letter-spacing:.5px;text-transform:uppercase;color:var(--tx)}
+
+/* tabela de furos, no topo da tela, agrupada por local — colapsável e com altura ajustável */
+#furo-table-panel{background:var(--card);border-bottom:2px solid var(--bdr-s);flex-shrink:0;
+  display:flex;flex-direction:column;overflow:hidden;height:280px;min-height:120px;max-height:80vh;
+  width:100%}
+#furo-table-panel.hidden{display:none}
+/* modo flutuante: vira uma janela solta na tela (posição/tamanho livres, arrastável pelo
+   cabeçalho, com alça de redimensionar no canto) em vez de ocupar a largura toda no topo */
+#furo-table-panel.floating{
+  position:fixed;top:70px;left:70px;width:720px;height:360px;z-index:900;
+  border:1px solid var(--bdr-s);border-bottom:1px solid var(--bdr-s);border-radius:8px;
+  box-shadow:0 10px 34px rgba(0,0,0,.28);max-height:none}
+#furo-table-panel.floating #furo-table-header{cursor:move;border-radius:8px 8px 0 0}
+#furo-table-panel.floating #furo-table-resize{display:none}
+#furo-table-resize-corner{display:none}
+#furo-table-panel.floating #furo-table-resize-corner{
+  display:block;position:absolute;right:0;bottom:0;width:16px;height:16px;cursor:nwse-resize;
+  background:linear-gradient(135deg,transparent 0 50%,var(--bdr-s) 50% 60%,transparent 60% 70%,var(--bdr-s) 70% 80%,transparent 80%);
+  z-index:5}
+#furo-table-header{display:flex;align-items:center;gap:10px;padding:8px 12px;
+  background:var(--surf);border-bottom:1px solid var(--bdr);flex-shrink:0;user-select:none}
+#furo-table-header b{font-family:var(--mono);font-size:11px;letter-spacing:.5px;
+  text-transform:uppercase;color:var(--tx);white-space:nowrap}
+#furo-table-search{height:26px;border-radius:var(--r);border:1px solid var(--bdr);background:#fff;
+  font-size:11px;padding:0 8px;width:220px;flex-shrink:0}
+.ft-search-wrap{display:inline-flex;align-items:center;gap:4px;flex-shrink:0}
+.ft-search-clear{width:20px;height:20px;border-radius:50%;border:1px solid var(--bdr);background:#fff;
+  color:var(--mu);font-size:10px;line-height:1;display:flex;align-items:center;justify-content:center;
+  padding:0;cursor:pointer;flex-shrink:0;visibility:hidden;transition:all .12s}
+.ft-search-clear.show{visibility:visible}
+.ft-search-clear:hover{background:var(--red);color:#fff;border-color:var(--red)}
+#furo-table-body{flex:1;overflow-y:auto;padding:8px 12px;min-height:80px;position:relative}
+.ft-group{margin-bottom:14px}
+.ft-group-header{font-family:var(--mono);font-size:11px;font-weight:700;color:var(--green);
+  margin-bottom:5px;display:flex;align-items:center;gap:6px}
+.ft-count{color:var(--mu);font-weight:400}
+.ft-table{width:100%;border-collapse:collapse;background:#fff;border:1px solid var(--bdr);
+  border-radius:var(--r);overflow:hidden}
+.ft-table th{text-align:left;font-family:var(--mono);font-size:9.5px;text-transform:uppercase;
+  letter-spacing:.3px;color:var(--mu);background:var(--surf);padding:5px 8px;
+  border-bottom:1px solid var(--bdr);white-space:nowrap}
+.ft-table td{padding:5px 8px;font-size:11.5px;border-bottom:1px solid #ede9de;white-space:nowrap}
+.ft-table tbody tr{cursor:pointer;transition:background .1s}
+.ft-table tbody tr:hover{background:#f2f7f4}
+.ft-table tbody tr.sel{background:#e4f0e8}
+.ft-table tbody tr:last-child td{border-bottom:none}
 .p-close{border:none;background:none;font-size:16px;color:var(--mu);line-height:1;padding:2px 6px}
 .p-body{padding:12px 14px;display:flex;flex-direction:column;gap:10px}
 .sec-title{font-family:var(--mono);font-size:9px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;
@@ -113,6 +167,20 @@ hr{border:none;border-top:1px solid var(--bdr);margin:2px 0}
 .furo-pin.interpsel{box-shadow:0 0 0 3px rgba(122,63,160,.5),0 1px 3px rgba(0,0,0,.4)}
 .furo-pin.exportsel{box-shadow:0 0 0 3px rgba(42,90,140,.6),0 1px 3px rgba(0,0,0,.4)}
 .furo-pin.selpin{background:var(--green)}
+
+/* cruz provisória — marca onde o usuário clicou pra gerar um ponto de sondagem interpolado,
+   antes de decidir se salva (vira o pin roxo de furo interpolado) ou descarta (some) */
+.furo-pin-cross{width:20px;height:20px;position:relative}
+.furo-pin-cross::before,.furo-pin-cross::after{content:'';position:absolute;background:#c8860b;
+  box-shadow:0 0 0 1px #fff}
+.furo-pin-cross::before{left:9px;top:1px;width:2px;height:18px}
+.furo-pin-cross::after{left:1px;top:9px;width:18px;height:2px}
+
+/* rótulo com o nome do furo, sempre visível ao lado do ponto */
+.furo-label{background:rgba(250,248,243,.92);border:1px solid var(--bdr);border-radius:3px;
+  padding:1px 5px;font-family:var(--mono);font-size:10px;font-weight:700;color:var(--tx);
+  box-shadow:0 1px 2px rgba(0,0,0,.2)}
+.furo-label::before{display:none}
 
 .perfil-wrap{display:flex;gap:10px;align-items:flex-start;background:#fff;border:1px solid var(--bdr);
   border-radius:var(--r);padding:8px;overflow-x:auto}
@@ -329,9 +397,6 @@ table.edit-tbl input:focus,table.edit-tbl select:focus{outline:none;border-color
   <button class="tbtn" id="btn-add-line">＋ Linha</button>
   <div class="sep"></div>
   <button class="tbtn" id="btn-interp-mode" title="Selecione 3+ furos para gerar uma área interpolada (IDW)">🧭 Interpolar</button>
-  <div class="sep"></div>
-  <input id="search-box" placeholder="Buscar furo / obra…">
-  <div class="sep"></div>
   <button class="tbtn" id="btn-import" title="Aceita shapefile (.zip), GeoJSON, ou campanha completa em JSON ({&quot;furos&quot;:[...]}, com camadas e golpes por profundidade)">⇪ Importar</button>
   <button class="tbtn" id="btn-export-shp">⇩ Shapefile</button>
   <button class="tbtn" id="btn-export-gj">⇩ GeoJSON</button>
@@ -347,26 +412,42 @@ table.edit-tbl input:focus,table.edit-tbl select:focus{outline:none;border-color
   <div class="sep"></div>
   <button class="tbtn" id="btn-load-sample" title="Carrega 9 furos de exemplo dispostos em malha 3×3, cobrindo uma área de 100×100 m">🧪 Exemplo (100×100m)</button>
   <button class="tbtn" id="btn-load-sample2" title="Carrega 11 furos de exemplo com terreno irregular, cotas variadas e número de camadas variável — bom para testar interpolação e perfis">🧪 Exemplo 2 (variado)</button>
+  <button class="tbtn" id="btn-toggle-table" title="Mostra os furos em forma de tabela, agrupados por estado">📋 Tabela de furos</button>
   <button class="tbtn warn" id="btn-clear" style="margin-left:auto">🗑 Limpar tudo</button>
   <input type="file" id="file-input" accept=".zip,.geojson,.json">
+</div>
+
+<div id="furo-table-panel" class="hidden">
+  <div id="furo-table-header">
+    <b>📋 Furos por estado</b>
+    <span class="ft-search-wrap">
+      <input id="furo-table-search" placeholder="Buscar por obra…" list="furo-local-datalist" autocomplete="off">
+      <button type="button" id="furo-table-search-clear" class="ft-search-clear" title="Limpar filtro" aria-label="Limpar filtro">✕</button>
+    </span>
+    <datalist id="furo-local-datalist"></datalist>
+    <span class="hint" id="furo-table-hint" style="font-size:10.5px;color:var(--mu);"></span>
+    <button class="mini-btn" type="button" id="furo-table-float" title="Alternar entre fixo no topo e janela flutuante">🗗 Flutuante</button>
+    <button class="mini-btn" type="button" id="furo-table-close" style="margin-left:auto">✕ Fechar</button>
+  </div>
+  <div id="furo-table-body"></div>
+  <div class="resize-handle-h" id="furo-table-resize" title="Arraste para redimensionar a altura"></div>
+  <div id="furo-table-resize-corner" title="Arraste para redimensionar"></div>
 </div>
 
 <div id="ws">
   <div id="sidebar">
     <div class="sb-tabs">
-      <div class="sb-tab on" data-tab="furos">Boletins</div>
-      <div class="sb-tab" data-tab="shapes">Áreas / Linhas</div>
+      <div class="sb-tab on" data-tab="shapes">Áreas / Linhas</div>
       <div class="sb-tab" data-tab="interp">Interpolação</div>
       <div class="sb-tab" data-tab="profiles">Perfis</div>
       <div class="sb-tab" data-tab="rasters">Rasters</div>
     </div>
-    <span class="sb-count" id="sb-count"></span>
-    <div class="sb-list" id="list-furos"></div>
-    <div class="sb-list" id="list-shapes" style="display:none"></div>
+    <div class="sb-list" id="list-shapes"></div>
     <div class="sb-list" id="list-interp" style="display:none"></div>
     <div class="sb-list" id="list-profiles" style="display:none"></div>
     <div class="sb-list" id="list-rasters" style="display:none"></div>
   </div>
+  <div class="resize-handle-v" id="sidebar-resize" title="Arraste para redimensionar"></div>
 
   <div id="map"></div>
   <div id="interp-select-bar">
@@ -382,6 +463,7 @@ table.edit-tbl input:focus,table.edit-tbl select:focus{outline:none;border-color
     <button class="mini-btn" id="export-btn-cancel">Cancelar</button>
   </div>
 
+  <div class="resize-handle-v" id="panel-resize" style="display:none" title="Arraste para redimensionar"></div>
   <div id="panel" class="hidden"></div>
 </div>
 
@@ -596,7 +678,6 @@ let markers = {};
 let shapeLayers = {};
 let selected = null;
 let crsZone = 23;
-let searchTerm = '';
 let editingFuroId = null;
 
 /* ══════════════════════════════════════════════════════════════
@@ -782,6 +863,7 @@ function loadSampleCampaign(){
   renderFuroList();
   fitAll();
   scheduleSave();
+  toggleFuroTable(true);
   toast('9 furos de exemplo carregados (malha 100×100 m)');
 }
 document.getElementById('btn-load-sample').addEventListener('click', loadSampleCampaign);
@@ -947,6 +1029,7 @@ function loadSampleCampaign2(){
   renderFuroList();
   fitAll();
   scheduleSave();
+  toggleFuroTable(true);
   toast('11 furos de exemplo carregados (terreno irregular, cotas e camadas variadas)');
 }
 document.getElementById('btn-load-sample2').addEventListener('click', loadSampleCampaign2);
@@ -1016,7 +1099,186 @@ function utmToLatLng(e,n,zone,datum){
 function toast(msg){ const t=document.getElementById('hint-toast'); t.textContent=msg; t.classList.add('show');
   clearTimeout(toast._t); toast._t=setTimeout(()=>t.classList.remove('show'),2200); }
 
-document.getElementById('search-box').addEventListener('input', e=>{ searchTerm=e.target.value.toLowerCase(); renderFuroList(); });
+document.getElementById('btn-toggle-table').addEventListener('click', ()=>toggleFuroTable());
+document.getElementById('furo-table-close').addEventListener('click', ()=>toggleFuroTable(false));
+document.getElementById('furo-table-search').addEventListener('input', e=>{
+  furoTableSearch = e.target.value;
+  document.getElementById('furo-table-search-clear').classList.toggle('show', furoTableSearch.length>0);
+  renderFuroTable();
+});
+document.getElementById('furo-table-search-clear').addEventListener('click', ()=>{
+  furoTableSearch = '';
+  const input = document.getElementById('furo-table-search');
+  input.value = '';
+  document.getElementById('furo-table-search-clear').classList.remove('show');
+  renderFuroTable();
+  input.focus();
+});
+
+/* ── redimensionamento por arrasto: barra lateral (largura), painel de edição (largura) e
+   tabela de furos (altura) — arrasta a alça, solta, e a preferência fica salva ── */
+function makeResizable(handleEl, targetEl, opts){
+  // opts: {axis:'x'|'y', grow:'positive'|'negative', min, max}
+  let dragging=false, start=0, startSize=0;
+  const getPos = e => opts.axis==='x' ? (e.touches?e.touches[0].clientX:e.clientX) : (e.touches?e.touches[0].clientY:e.clientY);
+  const onDown = e=>{
+    dragging=true; start=getPos(e);
+    startSize = opts.axis==='x' ? targetEl.getBoundingClientRect().width : targetEl.getBoundingClientRect().height;
+    handleEl.classList.add('dragging');
+    document.body.style.userSelect='none';
+    document.body.style.cursor = opts.axis==='x' ? 'col-resize' : 'row-resize';
+    e.preventDefault();
+  };
+  const onMove = e=>{
+    if(!dragging) return;
+    const delta = getPos(e)-start;
+    const signedDelta = opts.grow==='negative' ? -delta : delta;
+    const newSize = Math.max(opts.min, Math.min(opts.max, startSize+signedDelta));
+    targetEl.style[opts.axis==='x'?'width':'height'] = newSize+'px';
+  };
+  const onUp = ()=>{
+    if(!dragging) return;
+    dragging=false;
+    handleEl.classList.remove('dragging');
+    document.body.style.userSelect='';
+    document.body.style.cursor='';
+    scheduleSaveUiPrefs();
+  };
+  handleEl.addEventListener('mousedown', onDown);
+  handleEl.addEventListener('touchstart', onDown, {passive:false});
+  document.addEventListener('mousemove', onMove);
+  document.addEventListener('touchmove', onMove, {passive:false});
+  document.addEventListener('mouseup', onUp);
+  document.addEventListener('touchend', onUp);
+}
+makeResizable(document.getElementById('sidebar-resize'), document.getElementById('sidebar'), {axis:'x', grow:'positive', min:180, max:600});
+makeResizable(document.getElementById('panel-resize'), document.getElementById('panel'), {axis:'x', grow:'negative', min:340, max:1100});
+makeResizable(document.getElementById('furo-table-resize'), document.getElementById('furo-table-panel'), {axis:'y', grow:'positive', min:120, max:Math.round(window.innerHeight*0.8)});
+
+/* ── modo flutuante da tabela de furos ──
+   Alterna entre "docada" (barra no topo, empurra o mapa pra baixo, largura toda a tela) e
+   "flutuante" (janela solta, arrastável pelo cabeçalho, redimensionável pelo canto,
+   posição/tamanho livres — não interfere no layout do resto da tela). */
+let furoTableFloating = false;
+function toggleFuroTableFloat(){
+  furoTableFloating = !furoTableFloating;
+  const panelEl = document.getElementById('furo-table-panel');
+  panelEl.classList.toggle('floating', furoTableFloating);
+  document.getElementById('furo-table-float').classList.toggle('on', furoTableFloating);
+  if(furoTableFloating){
+    panelEl.style.top = uiPrefs.tableFloatTop+'px';
+    panelEl.style.left = uiPrefs.tableFloatLeft+'px';
+    panelEl.style.width = uiPrefs.tableFloatWidth+'px';
+    panelEl.style.height = uiPrefs.tableFloatHeight+'px';
+  } else {
+    panelEl.style.top = ''; panelEl.style.left = '';
+    panelEl.style.width = '100%';
+    panelEl.style.height = uiPrefs.tableHeight+'px';
+  }
+  scheduleSaveUiPrefs();
+}
+document.getElementById('furo-table-float').addEventListener('click', toggleFuroTableFloat);
+
+// arrasta a janela flutuante pelo cabeçalho (ignora cliques nos próprios controles do cabeçalho)
+(function(){
+  const header = document.getElementById('furo-table-header');
+  const panelEl = document.getElementById('furo-table-panel');
+  let dragging=false, startX=0, startY=0, startTop=0, startLeft=0;
+  const getPos = e => ({ x: e.touches?e.touches[0].clientX:e.clientX, y: e.touches?e.touches[0].clientY:e.clientY });
+  const onDown = e=>{
+    if(!furoTableFloating) return;
+    if(e.target.closest('input,button,select,textarea')) return; // não arrasta ao interagir com os controles
+    dragging = true;
+    const p = getPos(e);
+    startX=p.x; startY=p.y;
+    startTop = panelEl.getBoundingClientRect().top;
+    startLeft = panelEl.getBoundingClientRect().left;
+    document.body.style.userSelect='none';
+    e.preventDefault();
+  };
+  const onMove = e=>{
+    if(!dragging) return;
+    const p = getPos(e);
+    const newTop = Math.max(0, startTop + (p.y-startY));
+    const newLeft = Math.max(0, startLeft + (p.x-startX));
+    panelEl.style.top = newTop+'px';
+    panelEl.style.left = newLeft+'px';
+  };
+  const onUp = ()=>{ if(!dragging) return; dragging=false; document.body.style.userSelect=''; scheduleSaveUiPrefs(); };
+  header.addEventListener('mousedown', onDown);
+  header.addEventListener('touchstart', onDown, {passive:false});
+  document.addEventListener('mousemove', onMove);
+  document.addEventListener('touchmove', onMove, {passive:false});
+  document.addEventListener('mouseup', onUp);
+  document.addEventListener('touchend', onUp);
+})();
+
+// redimensiona a janela flutuante pelo canto inferior-direito (largura + altura ao mesmo tempo)
+(function(){
+  const corner = document.getElementById('furo-table-resize-corner');
+  const panelEl = document.getElementById('furo-table-panel');
+  let dragging=false, startX=0, startY=0, startW=0, startH=0;
+  const getPos = e => ({ x: e.touches?e.touches[0].clientX:e.clientX, y: e.touches?e.touches[0].clientY:e.clientY });
+  const onDown = e=>{
+    dragging=true;
+    const p = getPos(e);
+    startX=p.x; startY=p.y;
+    const r = panelEl.getBoundingClientRect();
+    startW=r.width; startH=r.height;
+    document.body.style.userSelect='none';
+    e.preventDefault(); e.stopPropagation();
+  };
+  const onMove = e=>{
+    if(!dragging) return;
+    const p = getPos(e);
+    panelEl.style.width = Math.max(400, startW+(p.x-startX))+'px';
+    panelEl.style.height = Math.max(160, startH+(p.y-startY))+'px';
+  };
+  const onUp = ()=>{ if(!dragging) return; dragging=false; document.body.style.userSelect=''; scheduleSaveUiPrefs(); };
+  corner.addEventListener('mousedown', onDown);
+  corner.addEventListener('touchstart', onDown, {passive:false});
+  document.addEventListener('mousemove', onMove);
+  document.addEventListener('touchmove', onMove, {passive:false});
+  document.addEventListener('mouseup', onUp);
+  document.addEventListener('touchend', onUp);
+})();
+
+// a alça do painel de edição só aparece quando o painel está visível — observa a classe "hidden"
+new MutationObserver(()=>{
+  document.getElementById('panel-resize').style.display = document.getElementById('panel').classList.contains('hidden') ? 'none' : 'block';
+}).observe(document.getElementById('panel'), {attributes:true, attributeFilter:['class']});
+
+let uiPrefs = { sidebarWidth:260, panelWidth:640, tableHeight:280, tableOpen:false,
+  tableFloating:false, tableFloatTop:70, tableFloatLeft:70, tableFloatWidth:720, tableFloatHeight:360 };
+let uiPrefsSaveTimer = null;
+function scheduleSaveUiPrefs(){
+  clearTimeout(uiPrefsSaveTimer);
+  uiPrefsSaveTimer = setTimeout(saveUiPrefs, 400);
+}
+async function saveUiPrefs(){
+  const tablePanel = document.getElementById('furo-table-panel');
+  const tableRect = tablePanel.getBoundingClientRect();
+  uiPrefs = {
+    sidebarWidth: Math.round(document.getElementById('sidebar').getBoundingClientRect().width),
+    panelWidth: Math.round(document.getElementById('panel').getBoundingClientRect().width),
+    tableHeight: furoTableFloating ? uiPrefs.tableHeight : Math.round(tableRect.height),
+    tableOpen: furoTableOpen,
+    tableFloating: furoTableFloating,
+    tableFloatTop: furoTableFloating ? Math.round(tableRect.top) : uiPrefs.tableFloatTop,
+    tableFloatLeft: furoTableFloating ? Math.round(tableRect.left) : uiPrefs.tableFloatLeft,
+    tableFloatWidth: furoTableFloating ? Math.round(tableRect.width) : uiPrefs.tableFloatWidth,
+    tableFloatHeight: furoTableFloating ? Math.round(tableRect.height) : uiPrefs.tableFloatHeight,
+  };
+  try{ await window.storage.set('geosig:ui', JSON.stringify(uiPrefs)); }catch(e){}
+}
+async function loadUiPrefs(){
+  try{ const r = await window.storage.get('geosig:ui'); if(r) uiPrefs = {...uiPrefs, ...JSON.parse(r.value)}; }catch(e){}
+  document.getElementById('sidebar').style.width = uiPrefs.sidebarWidth+'px';
+  document.getElementById('panel').style.width = uiPrefs.panelWidth+'px';
+  document.getElementById('furo-table-panel').style.height = uiPrefs.tableHeight+'px';
+  if(uiPrefs.tableFloating) toggleFuroTableFloat();
+  if(uiPrefs.tableOpen) toggleFuroTable(true);
+}
 
 /* ══════════════════ PERSISTÊNCIA ══════════════════ */
 let saveTimer=null;
@@ -1087,6 +1349,7 @@ function drawFuro(f){
   const cls = 'furo-pin'+(f._interpolado?' interp':'');
   const icon = L.divIcon({className:'leaflet-div-icon', html:`<div class="${cls}" id="pin-${f.id}"></div>`, iconSize:[16,16], iconAnchor:[8,8]});
   const m = L.marker([f.lat,f.lng], {icon, draggable:true}).addTo(map);
+  m.bindTooltip(f.ident.sondagemNum || '(sem nome)', {permanent:true, direction:'right', offset:[6,0], className:'furo-label'});
   m.on('click', ()=>{
     if(interpSelectMode){ toggleInterpFuroSelect(f.id); return; }
     if(exportSelectMode){ toggleExportFuroSelect(f.id); return; }
@@ -1105,30 +1368,105 @@ function deleteFuro(id){
 }
 
 function renderFuroList(){
-  const el = document.getElementById('list-furos');
-  document.getElementById('sb-count').textContent = furos.length+' boletim(ns) de sondagem cadastrado(s)';
-  let list = furos;
-  if(searchTerm) list = furos.filter(f=> (f.ident.sondagemNum+' '+f.ident.obra+' '+f.ident.cliente).toLowerCase().includes(searchTerm));
-  if(furos.length===0){ el.innerHTML='<div class="sb-empty">Nenhum furo cadastrado.<br>Use "＋ Furo SPT" e clique no mapa,<br>ou importe um shapefile.</div>'; return; }
-  if(list.length===0){ el.innerHTML='<div class="sb-empty">Nenhum resultado para "'+esc(searchTerm)+'".</div>'; return; }
-  el.innerHTML='';
-  list.forEach(f=>{
-    const u = toUTM(f.lat,f.lng,crsZone);
-    const div = document.createElement('div');
-    const selCls = (selected&&selected.kind==='furo'&&selected.id===f.id) ? ' sel' : '';
-    const interpCls = interpSelectMode && interpSelected.has(f.id) ? ' interpsel' : '';
-    const exportCls = exportSelectMode && exportSelectedFuros.has(f.id) ? ' exportsel' : '';
-    div.className = 'item'+selCls+interpCls+exportCls;
-    const badge = f._interpolado ? '🔮 ' : '';
-    div.innerHTML = `<div class="item-title">${badge}${esc(f.ident.sondagemNum)}</div>
-      <div class="item-sub">${esc(f.ident.obra||'sem obra')} · até ${profFinal(f).toFixed(1)}m</div>
-      <div class="item-sub">E ${u.e.toFixed(1)} · N ${u.n.toFixed(1)}</div>`;
-    div.onclick=()=>{
-      if(interpSelectMode){ toggleInterpFuroSelect(f.id); return; }
-      if(exportSelectMode){ toggleExportFuroSelect(f.id); return; }
-      selectFuro(f.id); map.setView([f.lat,f.lng], Math.max(map.getZoom(),15));
-    };
-    el.appendChild(div);
+  renderFuroTable();
+}
+
+// lista de UFs do Brasil, usada pra extrair o estado do campo "local" (convenção já usada no
+// app: "Cidade - UF", ex. "Cachoeirinha - RS", "Campo Grande - MS") — não depende de um campo
+// novo no formulário, só reaproveita o que já é preenchido
+const UFS_BR = ['AC','AL','AP','AM','BA','CE','DF','ES','GO','MA','MT','MS','MG','PA','PB','PR','PE','PI','RJ','RN','RS','RO','RR','SC','SP','SE','TO'];
+function extrairEstadoDoLocal(local){
+  if(!local) return null;
+  const partes = local.split('-');
+  if(partes.length<2) return null;
+  const candidato = partes[partes.length-1].trim().toUpperCase();
+  return UFS_BR.includes(candidato) ? candidato : null;
+}
+
+/* ── tabela de furos no topo da tela, agrupada por estado ──
+   Complementa a lista lateral: dá uma visão tabular de todos os furos de uma vez, agrupados
+   pelo estado (UF) extraído do campo "local" da identificação, com busca/filtro por obra. Só
+   faz trabalho de verdade quando o painel está aberto (evita custo de render a cada mudança). */
+let furoTableOpen = false;
+let furoTableSearch = '';
+function toggleFuroTable(forceState){
+  furoTableOpen = (forceState!==undefined) ? forceState : !furoTableOpen;
+  document.getElementById('furo-table-panel').classList.toggle('hidden', !furoTableOpen);
+  document.getElementById('btn-toggle-table').classList.toggle('on', furoTableOpen);
+  if(furoTableOpen) renderFuroTable();
+  scheduleSaveUiPrefs();
+}
+function renderFuroTable(){
+  if(!furoTableOpen) return;
+  const el = document.getElementById('furo-table-body');
+  const hint = document.getElementById('furo-table-hint');
+  const term = furoTableSearch.trim().toLowerCase();
+
+  if(furos.length===0){
+    el.innerHTML = '<div class="sb-empty">Nenhum furo cadastrado ainda.<br>Use "＋ Furo SPT" e clique no mapa, ou importe uma campanha.</div>';
+    hint.textContent = '';
+    return;
+  }
+
+  // popula a combobox pesquisável (datalist) com as obras já cadastradas, não só as que batem
+  // com o filtro atual — assim o usuário sempre vê as opções disponíveis pra escolher
+  const obrasUnicas = Array.from(new Set(furos.map(f=>(f.ident.obra||'').trim()).filter(Boolean))).sort((a,b)=>a.localeCompare(b,'pt-BR'));
+  const datalist = document.getElementById('furo-local-datalist');
+  datalist.innerHTML = obrasUnicas.map(o=>`<option value="${esc(o)}">`).join('');
+
+  const filtrados = term ? furos.filter(f=>(f.ident.obra||'').toLowerCase().includes(term)) : furos;
+
+  const groups = {};
+  filtrados.forEach(f=>{
+    const estado = extrairEstadoDoLocal(f.ident.local) || 'Estado não identificado';
+    (groups[estado] = groups[estado]||[]).push(f);
+  });
+  const estadoNames = Object.keys(groups).sort((a,b)=> a==='Estado não identificado' ? 1 : b==='Estado não identificado' ? -1 : a.localeCompare(b,'pt-BR'));
+
+  hint.textContent = estadoNames.length+' estado(s) · '+filtrados.length+' furo(s)';
+
+  if(estadoNames.length===0){
+    el.innerHTML = '<div class="sb-empty">Nenhuma obra corresponde a "'+esc(furoTableSearch)+'".</div>';
+    return;
+  }
+
+  let html = '';
+  estadoNames.forEach(estado=>{
+    const list = groups[estado].slice().sort((a,b)=> a.ident.sondagemNum.localeCompare(b.ident.sondagemNum, 'pt-BR', {numeric:true}));
+    html += `<div class="ft-group">
+      <div class="ft-group-header">📍 ${esc(estado)} <span class="ft-count">(${list.length} furo${list.length!==1?'s':''})</span></div>
+      <table class="ft-table">
+        <thead><tr>
+          <th>Sondagem</th><th>Obra</th><th>Cliente</th><th>Local</th><th>Data</th><th>Cota (m)</th><th>Prof. máx (m)</th><th>Camadas</th>
+        </tr></thead>
+        <tbody>`;
+    list.forEach(f=>{
+      const selCls = (selected&&selected.kind==='furo'&&selected.id===f.id) ? ' sel' : '';
+      const badge = f._interpolado ? '🔮 ' : '';
+      const cotaTxt = (f.ident.cota!==''&&f.ident.cota!=null&&isFinite(parseFloat(f.ident.cota))) ? parseFloat(f.ident.cota).toFixed(2) : '—';
+      html += `<tr class="ft-row${selCls}" data-furo="${f.id}">
+        <td>${badge}${esc(f.ident.sondagemNum)}</td>
+        <td>${esc(f.ident.obra||'—')}</td>
+        <td>${esc(f.ident.cliente||'—')}</td>
+        <td>${esc(f.ident.local||'—')}</td>
+        <td>${esc(f.ident.dataInicio||'—')}</td>
+        <td>${cotaTxt}</td>
+        <td>${profFinal(f).toFixed(1)}</td>
+        <td>${f.camadas.length}</td>
+      </tr>`;
+    });
+    html += `</tbody></table></div>`;
+  });
+  el.innerHTML = html;
+
+  el.querySelectorAll('.ft-row').forEach(row=>{
+    row.addEventListener('click', ()=>{
+      const id = row.dataset.furo;
+      const f = furos.find(x=>x.id===id); if(!f) return;
+      if(interpSelectMode){ toggleInterpFuroSelect(id); renderFuroTable(); return; }
+      if(exportSelectMode){ toggleExportFuroSelect(id); renderFuroTable(); return; }
+      selectFuro(id); map.setView([f.lat,f.lng], Math.max(map.getZoom(),15));
+    });
   });
 }
 
@@ -1458,6 +1796,7 @@ function openFuroPanel(id){
     f.revestimento = document.getElementById('pf-revest').value;
     f.arquivo_ref = document.getElementById('pf-arq').value;
     f.obs = document.getElementById('pf-obs').value;
+    if(markers[f.id]) markers[f.id].setTooltipContent(f.ident.sondagemNum || '(sem nome)');
     scheduleSave(); renderFuroList(); toast('Dados salvos');
   };
   document.getElementById('pf-edit-full').onclick=()=> openBoletimEditor(f.id);
@@ -1655,13 +1994,15 @@ function saveBoletimEditor(){
     if(isFinite(latVal) && isFinite(lngVal)){ novoLat=latVal; novoLng=lngVal; }
   }
   f.lat = novoLat; f.lng = novoLng;
-  if(markers[f.id]) markers[f.id].setLatLng([f.lat, f.lng]);
+  if(markers[f.id]){ markers[f.id].setLatLng([f.lat, f.lng]); markers[f.id].setTooltipContent(f.ident.sondagemNum || '(sem nome)'); }
 
+  const eraFuroNovo = !!f._isNewUnsaved;
   delete f._isNewUnsaved;
   closeBoletimEditor();
   scheduleSave();
   renderFuroList();
   selectFuro(f.id);
+  if(eraFuroNovo) toggleFuroTable(true);
   toast('Boletim salvo');
 }
 
@@ -1791,6 +2132,7 @@ function renderShapeList(){
 
 function closePanel(){ selected=null; document.getElementById('panel').classList.add('hidden');
   Object.entries(markers).forEach(([id,m])=>{const p=document.getElementById('pin-'+id); if(p) p.classList.remove('selpin');});
+  removePickInterpCross(); // fecha o painel sem salvar a prévia interpolada? some com a cruz provisória
   renderFuroList(); renderShapeList(); renderInterpList(); }
 
 /* ══════════════════ CRIAÇÃO DE FURO ══════════════════ */
@@ -1819,6 +2161,10 @@ document.getElementById('bo-pick-map').addEventListener('click', ()=>{
   map.getContainer().style.cursor='crosshair';
 });
 map.on('click', e=>{
+  if(pickingInterpPointForBlock){
+    toast('Clique dentro da área tracejada roxa do bloco selecionado (ou recomece pelo painel)');
+    return;
+  }
   if(!pickingFuroLoc) return;
   pickingFuroLoc = false;
   map.getContainer().style.cursor='';
@@ -2033,11 +2379,48 @@ function drawInterpBlock(block){
   interpLayers[block.id] = layer;
 }
 
+// clique no bloco no mapa: se estiver no modo "criar ponto de sondagem interpolado" (ativado
+// pelo botão no painel do bloco), gera a prévia naquele ponto; senão, simplesmente abre o
+// painel lateral do bloco (mesma tela de clicar nele na lista de "Interpolação")
 function handleInterpBlockClick(blockId, latlng){
   if(interpSelectMode || pickingFuroLoc) return;
+  if(pickingInterpPointForBlock){
+    if(pickingInterpPointForBlock===blockId) handlePickInterpPoint(blockId, latlng);
+    else toast('Clique dentro da área tracejada do bloco selecionado pra criar o ponto');
+    return;
+  }
+  selectInterpBlock(blockId);
+}
+
+// gera a prévia do furo interpolado no ponto clicado, marcando o local com uma cruz provisória
+// enquanto o usuário decide se salva (a cruz vira o pin roxo de furo interpolado) ou descarta
+// (a cruz simplesmente some, nada fica salvo)
+let pickingInterpPointForBlock = null;
+let pickingInterpCrossMarker = null;
+function startPickInterpPoint(blockId){
+  pickingInterpPointForBlock = blockId;
+  closePanel();
+  toast('Clique dentro da área tracejada roxa para marcar o ponto de sondagem interpolado');
+  map.getContainer().style.cursor = 'crosshair';
+}
+function cancelPickInterpPoint(){
+  pickingInterpPointForBlock = null;
+  map.getContainer().style.cursor = '';
+}
+function removePickInterpCross(){
+  if(pickingInterpCrossMarker){ map.removeLayer(pickingInterpCrossMarker); pickingInterpCrossMarker = null; }
+}
+function handlePickInterpPoint(blockId, latlng){
+  cancelPickInterpPoint();
   const block = interpBlocks.find(b=>b.id===blockId); if(!block) return;
   const preview = computeInterpolatedFuro(block, latlng.lat, latlng.lng);
   if(!preview){ toast('Não foi possível interpolar neste ponto (furos de origem insuficientes)'); return; }
+
+  removePickInterpCross();
+  const crossIcon = L.divIcon({className:'leaflet-div-icon', html:'<div class="furo-pin-cross"></div>', iconSize:[20,20], iconAnchor:[10,10]});
+  pickingInterpCrossMarker = L.marker([latlng.lat, latlng.lng], {icon:crossIcon, interactive:false}).addTo(map);
+  pickingInterpCrossMarker.bindTooltip(preview.ident.sondagemNum+' (prévia)', {permanent:true, direction:'right', offset:[8,0], className:'furo-label'});
+
   showInterpPreview(preview);
 }
 
@@ -2249,20 +2632,29 @@ function computeInterpolatedFuro(block, lat, lng, forcedTemplateFuro){
   }
   const finalDepth = camadas.length? camadas[camadas.length-1].profFinal : 1;
 
-  // golpes SPT — IDW profundidade a profundidade (1 em 1 m), só entre furos com dado naquela cota
+  // golpes SPT — IDW profundidade a profundidade, usando as profundidades REAIS medidas em
+  // cada furo de origem (não necessariamente inteiras: ensaios de campo seguem a NBR 6484,
+  // que mede os golpes nos últimos 30 cm de cada avanço de 45 cm — ex. 1.45, 2.45, 3.45 m —
+  // enquanto os furos de exemplo do próprio app usam profundidades redondas 1, 2, 3 m só por
+  // simplicidade). Antes só se procurava por profundidade inteira exata, então dados reais
+  // importados nunca batiam com nada e o boletim interpolado saía sem nenhum golpe.
+  const profundidadesGolpes = Array.from(new Set(
+    sources.flatMap(s=> s.furo.golpes.map(g=> Math.round((+g.prof||0)*100)/100)).filter(p=>p>0)
+  )).sort((a,b)=>a-b);
   const golpes = [];
-  for(let d=1; d<=Math.floor(finalDepth+1e-6); d++){
-    const contribs = sources.filter(s=> s.furo.golpes.some(g=>+g.prof===d));
-    if(!contribs.length) continue;
+  profundidadesGolpes.forEach(d=>{
+    if(d > finalDepth+0.5) return; // não extrapola muito além da última camada interpolada
+    const contribs = sources.filter(s=> s.furo.golpes.some(g=> Math.round((+g.prof||0)*100)/100===d));
+    if(!contribs.length) return;
     const wsum = contribs.reduce((a,s)=>a+(wMap[s.id]||0),0) || 1;
     let g1=0,g2=0,g3=0;
     contribs.forEach(s=>{
-      const g = s.furo.golpes.find(gg=>+gg.prof===d);
+      const g = s.furo.golpes.find(gg=> Math.round((+gg.prof||0)*100)/100===d);
       const w = (wMap[s.id]||0)/wsum;
       g1 += w*(+g.g1||0); g2 += w*(+g.g2||0); g3 += w*(+g.g3||0);
     });
     golpes.push({prof:d, g1:Math.round(g1), g2:Math.round(g2), g3:Math.round(g3)});
-  }
+  });
   if(!golpes.length) golpes.push({prof:1, g1:'', g2:'', g3:''});
 
   // nível d'água — média ponderada da primeira leitura de cada furo de origem
@@ -2317,12 +2709,14 @@ function showInterpPreview(previewFuro){
   const panel = document.getElementById('panel');
   panel.classList.remove('hidden');
   const boletimHtml = renderFuroBoletimHtml(prepareBoletimState(previewFuro));
+  const temCruz = !!pickingInterpCrossMarker;
   panel.innerHTML = `
     <div class="p-hdr"><b>Furo Interpolado — prévia</b><button class="p-close" onclick="closePanel()">✕</button></div>
     <div class="p-body">
       <div class="interp-banner">
         🔮 <b>FURO INTERPOLADO</b> — estimativa gerada por IDW a partir de: ${esc(previewFuro._interpFontes.join(', '))}.
         Não é um ensaio de campo real. Use apenas como referência preliminar.
+        ${temCruz ? ' O ponto está marcado no mapa com uma cruz provisória (✛) — some se você descartar, ou vira o pino roxo de furo interpolado se você salvar.' : ''}
       </div>
       <div class="f-row"><label>Nome do furo interpolado</label><input class="f-input" id="pi-num" value="${escAttr(previewFuro.ident.sondagemNum)}"></div>
       <div class="boletim-preview-wrap">${boletimHtml}</div>
@@ -2337,14 +2731,25 @@ function showInterpPreview(previewFuro){
     drawFuro(previewFuro);
     renderFuroList();
     scheduleSave();
+    removePickInterpCross(); // a cruz vira o pin roxo de verdade — some a provisória
     selectFuro(previewFuro.id);
+    toggleFuroTable(true);
     toast('Furo interpolado salvo');
   };
-  document.getElementById('pi-discard').onclick=()=> closePanel();
+  document.getElementById('pi-discard').onclick=()=>{
+    removePickInterpCross();
+    closePanel();
+  };
 }
 
 /* ── painel de gestão do bloco (lista lateral) ── */
-function selectInterpBlock(id){ selected={kind:'interp', id}; renderInterpList(); openInterpBlockPanel(id); }
+function selectInterpBlock(id){
+  selected={kind:'interp', id};
+  renderInterpList();
+  const block = interpBlocks.find(b=>b.id===id);
+  if(block && block.hull && block.hull.length) map.fitBounds(L.latLngBounds(block.hull), {padding:[40,40], maxZoom:18});
+  openInterpBlockPanel(id);
+}
 function openInterpBlockPanel(id){
   const b = interpBlocks.find(x=>x.id===id); if(!b) return;
   const panel = document.getElementById('panel');
@@ -2361,7 +2766,12 @@ function openInterpBlockPanel(id){
         <input class="f-input" type="number" id="pb-power" value="${b.power||2}" step="0.5" min="0.5" max="6"></div>
       <div class="f-row"><label>Extrapolação além dos furos (m) — expande o retângulo envolvente em todas as direções</label>
         <input class="f-input" type="number" id="pb-extrap" value="${b.extrapDist!=null?b.extrapDist:DEFAULT_EXTRAP_M}" step="1" min="0" max="200"></div>
-      <p class="hint">A área de interpolação é sempre o retângulo envolvente dos furos selecionados, expandido pela distância de extrapolação acima. Clique dentro da área tracejada roxa no mapa para gerar um furo interpolado nesse ponto.</p>
+      <p class="hint">A área de interpolação é sempre o retângulo envolvente dos furos selecionados, expandido pela distância de extrapolação acima.</p>
+      <div class="sec-title">Ponto de sondagem interpolado</div>
+      <p class="hint">Clique no botão abaixo e depois clique num local dentro da área tracejada roxa no mapa. O ponto fica marcado com uma cruz provisória (✛) enquanto a prévia é mostrada aqui ao lado — salvando, a cruz vira um furo interpolado de verdade (pino roxo); descartando, a cruz simplesmente some.</p>
+      <div class="btn-row">
+        <button class="mini-btn" id="pb-add-interp-point" type="button">➕ Criar ponto de sondagem interpolado</button>
+      </div>
       <div class="sec-title">Perfil geotécnico</div>
       <p class="hint">Trace uma linha sobre a área para gerar a seção transversal interpolada (perfil de camadas ao longo do traçado).</p>
       <div class="btn-row">
@@ -2377,6 +2787,9 @@ function openInterpBlockPanel(id){
         <button class="mini-btn danger" id="pb-del">Excluir bloco</button>
       </div>
     </div>`;
+  document.getElementById('pb-add-interp-point').onclick=()=>{
+    startPickInterpPoint(b.id);
+  };
   document.getElementById('pb-draw-profile').onclick=()=>{
     drawingProfileForBlockId = b.id;
     closePanel();
@@ -3399,7 +3812,10 @@ function renderProfileList(){
     const div = document.createElement('div');
     div.className = 'item';
     div.innerHTML = `<div class="item-title">📐 ${esc(p.nome)}</div><div class="item-sub">${p.samples.length} amostras · ${p.totalLength.toFixed(0)} m de extensão</div>`;
-    div.onclick = ()=> showProfileView(p, true);
+    div.onclick = ()=>{
+      if(p.line && p.line.length) map.fitBounds(L.latLngBounds(p.line), {padding:[60,60], maxZoom:18});
+      showProfileView(p, true);
+    };
     el.appendChild(div);
   });
 }
@@ -3951,7 +4367,6 @@ document.querySelectorAll('.sb-tab').forEach(tab=>{
   tab.addEventListener('click', ()=>{
     document.querySelectorAll('.sb-tab').forEach(t=>t.classList.remove('on'));
     tab.classList.add('on');
-    document.getElementById('list-furos').style.display = tab.dataset.tab==='furos'?'block':'none';
     document.getElementById('list-shapes').style.display = tab.dataset.tab==='shapes'?'block':'none';
     document.getElementById('list-interp').style.display = tab.dataset.tab==='interp'?'block':'none';
     document.getElementById('list-profiles').style.display = tab.dataset.tab==='profiles'?'block':'none';
@@ -3974,6 +4389,7 @@ document.getElementById('file-input').addEventListener('change', async e=>{
       if(parsed && Array.isArray(parsed.furos)){
         const n = importFuroCampaignJSON(parsed.furos);
         renderFuroList(); fitAll(); scheduleSave();
+        if(n>0) toggleFuroTable(true);
         toast(`Importado: ${n} furo(s) da campanha (dados completos — camadas e golpes)`);
         e.target.value=''; return;
       }
@@ -3988,6 +4404,7 @@ document.getElementById('file-input').addEventListener('change', async e=>{
       });
     });
     renderFuroList(); renderShapeList(); fitAll(); scheduleSave();
+    if(nPts>0) toggleFuroTable(true);
     toast(`Importado: ${nPts} furo(s), ${nShp} área/linha(s)`);
   }catch(err){ console.error(err); alert('Não foi possível ler o arquivo. Verifique se é um .zip de shapefile válido (com .shp, .shx, .dbf), um GeoJSON, ou um JSON de campanha completa (formato {"furos":[...]}).'); }
   e.target.value='';
@@ -4323,6 +4740,7 @@ function truncate(s,n){ s=String(s); return s.length>n? s.slice(0,n-1)+'…' : s
 /* ══════════════════ INIT ══════════════════ */
 window.closePanel = closePanel;
 loadAll();
+loadUiPrefs();
 </script>
 </body>
 </html>

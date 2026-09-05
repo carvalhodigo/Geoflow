@@ -182,6 +182,27 @@ hr{border:none;border-top:1px solid var(--bdr);margin:2px 0}
   box-shadow:0 1px 2px rgba(0,0,0,.2)}
 .furo-label::before{display:none}
 
+/* ── janela de abertura (splash screen) — some sozinha 5s depois de carregar, ou no clique ── */
+#splash-screen{position:fixed;inset:0;z-index:99999;background:var(--bg);
+  display:flex;align-items:center;justify-content:center;opacity:1;
+  transition:opacity .5s ease;cursor:pointer}
+#splash-screen.hide{opacity:0;pointer-events:none}
+.splash-inner{display:flex;align-items:center;gap:40px;max-width:820px;padding:0 30px}
+.splash-log{flex-shrink:0}
+.splash-text{font-family:var(--mono)}
+.splash-logo{font-size:40px;font-weight:700;letter-spacing:3px;color:var(--tx);white-space:nowrap}
+.splash-logo .dash{color:var(--green)}
+.splash-logo .dot{color:var(--green)}
+.splash-subtitle{font-size:13px;letter-spacing:1px;color:var(--mu);margin-top:6px;text-transform:uppercase}
+.splash-tags{font-size:10.5px;letter-spacing:.5px;color:var(--mu);margin-top:3px}
+.splash-progress-track{width:280px;height:6px;border-radius:3px;background:#d8d3c5;margin-top:26px;overflow:hidden}
+.splash-progress-fill{height:100%;border-radius:3px;background:var(--amber);width:0;
+  animation:splashProgress 5s linear forwards}
+@keyframes splashProgress{from{width:0}to{width:100%}}
+.splash-loading-txt{font-size:10px;color:var(--mu);margin-top:6px}
+.splash-footer{position:absolute;bottom:22px;left:0;right:0;text-align:center;
+  font-family:var(--mono);font-size:11px;letter-spacing:.5px;color:var(--mu)}
+
 .perfil-wrap{display:flex;gap:10px;align-items:flex-start;background:#fff;border:1px solid var(--bdr);
   border-radius:var(--r);padding:8px;overflow-x:auto}
 
@@ -390,6 +411,49 @@ table.edit-tbl input:focus,table.edit-tbl select:focus{outline:none;border-color
 </head>
 <body>
 
+<div id="splash-screen">
+  <div class="splash-inner">
+    <svg class="splash-log" width="110" height="230" viewBox="0 0 110 230">
+      <defs>
+        <pattern id="splashpat-argila" patternUnits="userSpaceOnUse" width="10" height="10" patternTransform="rotate(45)">
+          <rect width="10" height="10" fill="#c79c72"/><rect width="5" height="10" fill="#a9825b"/>
+        </pattern>
+        <pattern id="splashpat-areia" patternUnits="userSpaceOnUse" width="9" height="9">
+          <rect width="9" height="9" fill="#f3e2ab"/>
+          <circle cx="2.25" cy="2.25" r="1.3" fill="#b8974a"/><circle cx="6.75" cy="2.25" r="1.3" fill="#b8974a"/>
+          <circle cx="2.25" cy="6.75" r="1.3" fill="#b8974a"/><circle cx="6.75" cy="6.75" r="1.3" fill="#b8974a"/>
+          <circle cx="4.5" cy="4.5" r="1.3" fill="#b8974a"/>
+        </pattern>
+        <pattern id="splashpat-silte" patternUnits="userSpaceOnUse" width="7" height="7">
+          <rect width="7" height="7" fill="#d3cdbe"/><rect width="7" height="3" fill="#b9b2a0"/>
+        </pattern>
+        <pattern id="splashpat-rocha" patternUnits="userSpaceOnUse" width="4" height="4"><rect width="4" height="4" fill="#8d8d8d"/></pattern>
+      </defs>
+      <line x1="35" y1="0" x2="35" y2="40" stroke="#8a8680" stroke-width="3"/>
+      <polygon points="35,40 24,56 46,56" fill="#c8860b"/>
+      <rect x="0" y="56" width="70" height="52" fill="url(#splashpat-argila)" stroke="#282420" stroke-width="1.2"/>
+      <rect x="0" y="108" width="70" height="46" fill="url(#splashpat-areia)" stroke="#282420" stroke-width="1.2"/>
+      <rect x="0" y="154" width="70" height="58" fill="url(#splashpat-silte)" stroke="#282420" stroke-width="1.2"/>
+      <rect x="0" y="212" width="70" height="18" fill="url(#splashpat-rocha)" stroke="#282420" stroke-width="1.2"/>
+      <g stroke="#8a8680" stroke-width="1">
+        <line x1="76" y1="56" x2="82" y2="56"/><line x1="76" y1="108" x2="82" y2="108"/>
+        <line x1="76" y1="154" x2="82" y2="154"/><line x1="76" y1="212" x2="82" y2="212"/>
+        <line x1="76" y1="230" x2="82" y2="230"/>
+      </g>
+      <text x="88" y="60" font-size="9" fill="#8a8680">0m</text>
+      <text x="88" y="216" font-size="9" fill="#8a8680">12m</text>
+    </svg>
+    <div class="splash-text">
+      <div class="splash-logo"><span class="dash">— </span>GEO<span class="dot">·</span>SIG</div>
+      <div class="splash-subtitle">Banco de Boletins de Sondagem</div>
+      <div class="splash-tags">Geotecnia · SPT · Interpolação · Perfis</div>
+      <div class="splash-progress-track"><div class="splash-progress-fill"></div></div>
+      <div class="splash-loading-txt">Carregando…</div>
+    </div>
+  </div>
+  <div class="splash-footer">Desenvolvido por Rodrigo Carvalho</div>
+</div>
+
 <div id="topbar">
   <div class="logo">GEO·SIG</div>
   <button class="tbtn" id="btn-add-furo">＋ Furo SPT</button>
@@ -413,7 +477,9 @@ table.edit-tbl input:focus,table.edit-tbl select:focus{outline:none;border-color
   <button class="tbtn" id="btn-load-sample" title="Carrega 9 furos de exemplo dispostos em malha 3×3, cobrindo uma área de 100×100 m">🧪 Exemplo (100×100m)</button>
   <button class="tbtn" id="btn-load-sample2" title="Carrega 11 furos de exemplo com terreno irregular, cotas variadas e número de camadas variável — bom para testar interpolação e perfis">🧪 Exemplo 2 (variado)</button>
   <button class="tbtn" id="btn-toggle-table" title="Mostra os furos em forma de tabela, agrupados por estado">📋 Tabela de furos</button>
-  <button class="tbtn warn" id="btn-clear" style="margin-left:auto">🗑 Limpar tudo</button>
+  <button class="tbtn" id="btn-publish-furos" title="Baixa o furos.json atualizado — depois substitua o arquivo no repositório para publicar pra todo mundo" style="display:none">📤 Publicar furos.json</button>
+  <button class="tbtn" id="btn-user" style="margin-left:auto"></button>
+  <button class="tbtn warn" id="btn-clear">🗑 Limpar</button>
   <input type="file" id="file-input" accept=".zip,.geojson,.json">
 </div>
 
@@ -469,6 +535,29 @@ table.edit-tbl input:focus,table.edit-tbl select:focus{outline:none;border-color
 
 <div id="hint-toast"></div>
 <!-- ══ EDITOR COMPLETO DO BOLETIM — NBR 6484 ══ -->
+<div class="popup-overlay" id="user-setup-overlay">
+  <div class="editor-box" style="max-width:420px;">
+    <div class="popup-header"><h3>👤 Identifique-se</h3></div>
+    <div class="p-body">
+      <p class="hint">Organiza o que cada um vê e mantém os dados de estudo de cada pessoa separados. Não é uma senha — dá pra trocar de perfil quando quiser, pelo botão no topo.</p>
+      <div class="f-row">
+        <label>Seu nome</label>
+        <input class="f-input" id="user-setup-name" type="text" placeholder="Ex: Rodrigo Carvalho">
+      </div>
+      <div class="f-row">
+        <label>Perfil</label>
+        <select class="f-input" id="user-setup-role">
+          <option value="consultor">Consultor — visualiza os furos, gera estudos (interpolação, perfis, rasters)</option>
+          <option value="administrador">Administrador — cadastra e edita os furos do banco principal</option>
+        </select>
+      </div>
+    </div>
+    <div class="popup-footer">
+      <button class="btn-primary" type="button" id="user-setup-confirm">Entrar</button>
+    </div>
+  </div>
+</div>
+
 <div class="popup-overlay" id="bo-editor-overlay">
   <div class="editor-box">
     <div class="popup-header">
@@ -495,13 +584,14 @@ table.edit-tbl input:focus,table.edit-tbl select:focus{outline:none;border-color
           <div class="field"><label>Término</label><input id="bo-f-data-fim" type="text" placeholder="dd/mm/aa"></div>
           <div class="field"><label>Cota (m)</label><input id="bo-f-cota" type="text" placeholder="Ex: 4,50"></div>
           <div class="field"><label>Datum</label><input id="bo-f-datum" type="text" placeholder="Ex: SIRGAS2000"></div>
+          <div class="field"><label>Zona UTM</label><input id="bo-f-zona-utm" type="text" placeholder="Ex: 23S"></div>
           <div class="field"><label>Coord. N</label><input id="bo-f-coord-n" type="text"></div>
           <div class="field"><label>Coord. E</label><input id="bo-f-coord-e" type="text"></div>
           <div class="field"><label>Responsável técnico</label><input id="bo-f-responsavel" type="text"></div>
           <div class="field"><label>Sondador</label><input id="bo-f-sondador" type="text"></div>
           <div class="field"><label>Desenhista</label><input id="bo-f-desenhista" type="text"></div>
         </div>
-        <button class="add-row-btn" type="button" id="bo-fill-utm" style="margin-top:8px">📍 Preencher Coord. N/E (registro do boletim) com a posição atual do furo</button>
+        <button class="add-row-btn" type="button" id="bo-fill-utm" style="margin-top:8px">📍 Preencher Coord. N/E e Zona UTM (registro do boletim) com a posição atual do furo</button>
 
         <div class="fieldset-title">Localização do furo (posição real no mapa)</div>
         <div class="loc-toggle">
@@ -671,8 +761,59 @@ table.edit-tbl input:focus,table.edit-tbl select:focus{outline:none;border-color
 <script src="https://unpkg.com/shpjs@4.0.4/dist/shp.js"></script>
 <script src="https://unpkg.com/@mapbox/shp-write@0.4.3/shpwrite.js"></script>
 <script>
+/* ══════════════════ JANELA DE ABERTURA (SPLASH) ══════════════════
+   Some sozinha 5s depois de carregar, ou no clique — roda logo no início
+   do script principal (não em bloco <script> separado) pra não interferir
+   com nada que dependa de ler "o" bloco de script da página. */
+(function(){
+  const splash = document.getElementById('splash-screen');
+  if(!splash) return;
+  function hideSplash(){
+    if(splash.classList.contains('hide')) return;
+    splash.classList.add('hide');
+    setTimeout(()=>{ if(splash.parentNode) splash.parentNode.removeChild(splash); }, 550);
+  }
+  splash.addEventListener('click', hideSplash);
+  setTimeout(hideSplash, 5000);
+})();
+
+/* ══════════════════ ARMAZENAMENTO ══════════════════
+   window.storage só existe dentro do preview de artefatos do Claude.ai. Quando este arquivo
+   é aberto direto num navegador comum (o jeito real de usar o app, fora do Claude), essa API
+   não existe — nada seria salvo. Se ela não estiver disponível, criamos uma versão equivalente
+   apoiada em localStorage, com a mesma assinatura (get/set assíncronos), pra todo o resto do
+   código continuar funcionando sem precisar saber a diferença. */
+if(!window.storage){
+  window.storage = {
+    async get(key){
+      const v = localStorage.getItem(key);
+      if(v===null) throw new Error('chave não encontrada: '+key);
+      return {key, value:v};
+    },
+    async set(key, value){
+      localStorage.setItem(key, value);
+      return {key, value};
+    }
+  };
+}
+
+/* ══════════════════ USUÁRIO / PERFIL ══════════════════
+   Sem servidor/login de verdade — isso é só um seletor pra organizar quem vê o quê, não é
+   segurança. Administrador cadastra/edita os furos do banco principal; Consultor só visualiza
+   os furos e gera seus próprios dados de estudo (furo interpolado, perfil, raster). */
+let currentUser = { name:'', role:'consultor' };
+function isAdmin(){ return currentUser.role==='administrador'; }
+// chave segura (sem acento/espaço) usada pra separar os dados de estudo de cada usuário
+function userKey(){
+  const base = (currentUser.name||'').trim().toLowerCase()
+    .normalize('NFD').replace(/[\u0300-\u036f]/g,'')
+    .replace(/[^a-z0-9]+/g,'_').replace(/^_+|_+$/g,'');
+  return base || 'anonimo';
+}
+
 /* ══════════════════ ESTADO ══════════════════ */
 let furos = [];
+let interpFuros = []; // furos interpolados salvos — dado de estudo do usuário, não faz parte do banco mestre
 let shapes = [];
 let markers = {};
 let shapeLayers = {};
@@ -688,11 +829,12 @@ let editingFuroId = null;
    pois não fazem parte do boletim impresso em si.
    ══════════════════════════════════════════════════════════════ */
 function blankFuro(lat,lng){
+  const sondagemNum = 'F-'+(furos.length+1).toString().padStart(2,'0');
   return {
-    id:newFuroId(), lat, lng,
+    id:newFuroId(), lat, lng, hash: computeFuroHash(sondagemNum, '', lat, lng, ''),
     ident:{
-      cliente:'', obra:'', local:'', sondagemNum:'F-'+(furos.length+1).toString().padStart(2,'0'),
-      dataInicio:'', dataFim:'', cota:'', datum:'SIRGAS2000', coordN:'', coordE:'',
+      cliente:'', obra:'', local:'', sondagemNum,
+      dataInicio:'', dataFim:'', cota:'', datum:'SIRGAS2000', zonaUTM:'', coordN:'', coordE:'',
       responsavel:'', sondador:'', desenhista:'',
       amDiamInt:'34.9', amDiamExt:'50.8', amPeso:'65', amAltura:'75'
     },
@@ -1282,52 +1424,154 @@ async function loadUiPrefs(){
 
 /* ══════════════════ PERSISTÊNCIA ══════════════════ */
 let saveTimer=null;
-function scheduleSave(){ clearTimeout(saveTimer); saveTimer=setTimeout(saveAll, 500); }
-async function saveAll(){
-  try{
-    await window.storage.set('geosig:furos', JSON.stringify(furos));
-    await window.storage.set('geosig:shapes', JSON.stringify(shapes));
-    await window.storage.set('geosig:interp', JSON.stringify(interpBlocks));
-    await window.storage.set('geosig:profiles', JSON.stringify(profiles));
-    await window.storage.set('geosig:rasterLayers', JSON.stringify(rasterLayers));
-  }catch(e){ console.error('erro ao salvar', e); }
+function scheduleSave(){ clearTimeout(saveTimer); saveTimer=setTimeout(saveStudyData, 500); }
+/* ══════════════════ PERSISTÊNCIA ══════════════════
+   Duas fontes bem separadas:
+   - Banco MESTRE de furos: vem de furos.json, buscado automaticamente ao abrir o app (precisa
+     de um servidor HTTP de verdade — não funciona abrindo o .html direto do disco). O
+     Administrador edita localmente e usa "Publicar furos.json" pra baixar a versão atualizada
+     e substituir no servidor/repositório — o app não escreve nele sozinho.
+   - Dados de ESTUDO (furos interpolados salvos, áreas/linhas, blocos de interpolação, perfis,
+     rasters no mapa): ficam em localStorage, sob uma chave própria por usuário (userKey()), e
+     são o que scheduleSave()/saveStudyData() persistem a cada mudança. */
+
+// monta o objeto "achatado" (mesmo formato de furos.json / importação) a partir de um furo
+// já carregado no app — usado tanto pra publicar o banco mestre quanto, futuramente, exportar
+function furoToFlatExportData(f){
+  return {
+    id: f.id, hash: f.hash,
+    sondagemNum: f.ident.sondagemNum, obra: f.ident.obra, cliente: f.ident.cliente, local: f.ident.local,
+    dataInicio: f.ident.dataInicio, dataFim: f.ident.dataFim, cota: f.ident.cota,
+    datum: f.ident.datum, zonaUTM: f.ident.zonaUTM,
+    lat: f.lat, lng: f.lng,
+    responsavel: f.ident.responsavel, sondador: f.ident.sondador, desenhista: f.ident.desenhista,
+    amostrador: {diamInt:f.ident.amDiamInt, diamExt:f.ident.amDiamExt, peso:f.ident.amPeso, altura:f.ident.amAltura},
+    metodo: f.metodo, equipamento: f.equipamento, revestimento: f.revestimento, arquivo_ref: f.arquivo_ref, obs: f.obs,
+    agua: f.agua, camadas: f.camadas, golpes: f.golpes
+  };
 }
-async function loadAll(){
-  try{ const rf = await window.storage.get('geosig:furos'); if(rf) furos = JSON.parse(rf.value); }catch(e){}
-  try{ const rs = await window.storage.get('geosig:shapes'); if(rs) shapes = JSON.parse(rs.value); }catch(e){}
-  try{ const ri = await window.storage.get('geosig:interp'); if(ri) interpBlocks = JSON.parse(ri.value); }catch(e){}
-  try{ const rp = await window.storage.get('geosig:profiles'); if(rp) profiles = JSON.parse(rp.value); }catch(e){}
-  try{ const rr = await window.storage.get('geosig:rasterLayers'); if(rr) rasterLayers = JSON.parse(rr.value); }catch(e){}
-  // migração de furos salvos no formato antigo (pré-unificação com o Boletim NBR 6484)
-  furos.forEach(f=>{
-    if(!f.ident){
-      f.ident = {
-        cliente:f.cliente||'', obra:f.obra||'', local:'', sondagemNum:f.name||('F-'+(furos.indexOf(f)+1)),
-        dataInicio:f.data_exec||'', dataFim:'', cota:f.cota_boca||'', datum:'SIRGAS2000',
-        coordN:'', coordE:'', responsavel:f.responsavel||'', sondador:'', desenhista:'',
-        amDiamInt:'34.9', amDiamExt:'50.8', amPeso:'65', amAltura:'75'
-      };
-      f.agua = (f.na||[{data:'',prof:''}]).map(r=>({data:r.data||'', prof:r.prof!==undefined?r.prof:''}));
-      f.camadas = (f.camadas||[]).map(c=>({
-        profFinal: (c.profFinal!==undefined? +c.profFinal : +c.prof_fim) || 0,
-        tipo: c.tipo || inferTipoSolo(c.descricao),
-        descricao: c.descricao||''
-      }));
-      f.golpes = (f.golpes||[]).map(g=>({
-        prof: +g.prof||0,
-        g1: g.g1!==undefined? g.g1 : (g.n1||''),
-        g2: g.g2!==undefined? g.g2 : (g.n2||''),
-        g3: g.g3!==undefined? g.g3 : (g.n3||'')
-      }));
-      f.metodo = f.metodo || 'SPT (NBR 6484)';
-      f.equipamento = f.equipamento||''; f.revestimento = f.revestimento||''; f.arquivo_ref = f.arquivo_ref||'';
-      f.obs = f.obs||'';
-      delete f.name; delete f.cliente; delete f.obra; delete f.data_exec; delete f.cota_boca; delete f.responsavel; delete f.na;
+
+let masterFurosDirty = false; // true quando o admin editou os furos mas ainda não publicou
+function markMasterDirty(){
+  masterFurosDirty = true;
+  try{ window.storage.set('geosig:furos_master_cache', JSON.stringify(furos.filter(f=>!f._interpolado).map(furoToFlatExportData))); }catch(e){}
+}
+window.addEventListener('beforeunload', e=>{
+  if(masterFurosDirty && isAdmin()){ e.preventDefault(); e.returnValue = ''; }
+});
+
+function publishFurosJson(){
+  const list = furos.filter(f=>!f._interpolado).map(furoToFlatExportData);
+  download('furos.json', JSON.stringify({furos:list}, null, 2), 'application/json');
+  window.storage.set('geosig:furos_master_cache', JSON.stringify(list)).catch(()=>{});
+  masterFurosDirty = false;
+  toast('furos.json baixado — substitua o arquivo no servidor/repositório para publicar pra todo mundo');
+}
+
+// carrega o banco MESTRE (não mexe em dados de estudo, não desenha nada ainda)
+async function loadFurosMaster(){
+  try{
+    const resp = await fetch('./furos.json', {cache:'no-store'});
+    if(!resp.ok) throw new Error('http '+resp.status);
+    const data = await resp.json();
+    const list = Array.isArray(data.furos) ? data.furos : [];
+    furos = list.map(fd=>buildFuroFromImportData(fd)).filter(Boolean);
+    try{ await window.storage.set('geosig:furos_master_cache', JSON.stringify(list)); }catch(e){}
+  }catch(e){
+    try{
+      const r = await window.storage.get('geosig:furos_master_cache');
+      const cached = JSON.parse(r.value);
+      furos = cached.map(fd=>buildFuroFromImportData(fd)).filter(Boolean);
+      toast('furos.json não encontrado no servidor — usando a última cópia salva neste navegador');
+    }catch(e2){
+      furos = [];
     }
-    if(!f.camadas.length) f.camadas=[{profFinal:1,tipo:'argila',descricao:''}];
-    if(!f.golpes.length) f.golpes=[{prof:1,g1:'',g2:'',g3:''}];
-    if(!f.agua.length) f.agua=[{data:'',prof:''}];
-  });
+  }
+}
+
+function migrateLegacyFuroFormat(f){
+  if(!f.ident){
+    f.ident = {
+      cliente:f.cliente||'', obra:f.obra||'', local:'', sondagemNum:f.name||('F-'+Math.random().toString(36).slice(2,6)),
+      dataInicio:f.data_exec||'', dataFim:'', cota:f.cota_boca||'', datum:'SIRGAS2000', zonaUTM:'',
+      coordN:'', coordE:'', responsavel:f.responsavel||'', sondador:'', desenhista:'',
+      amDiamInt:'34.9', amDiamExt:'50.8', amPeso:'65', amAltura:'75'
+    };
+    f.agua = (f.na||[{data:'',prof:''}]).map(r=>({data:r.data||'', prof:r.prof!==undefined?r.prof:''}));
+    f.camadas = (f.camadas||[]).map(c=>({
+      profFinal: (c.profFinal!==undefined? +c.profFinal : +c.prof_fim) || 0,
+      tipo: c.tipo || inferTipoSolo(c.descricao),
+      descricao: c.descricao||''
+    }));
+    f.golpes = (f.golpes||[]).map(g=>({
+      prof: +g.prof||0,
+      g1: g.g1!==undefined? g.g1 : (g.n1||''),
+      g2: g.g2!==undefined? g.g2 : (g.n2||''),
+      g3: g.g3!==undefined? g.g3 : (g.n3||'')
+    }));
+    f.metodo = f.metodo || 'SPT (NBR 6484)';
+    f.equipamento = f.equipamento||''; f.revestimento = f.revestimento||''; f.arquivo_ref = f.arquivo_ref||'';
+    f.obs = f.obs||'';
+    delete f.name; delete f.cliente; delete f.obra; delete f.data_exec; delete f.cota_boca; delete f.responsavel; delete f.na;
+  }
+  if(!f.camadas.length) f.camadas=[{profFinal:1,tipo:'argila',descricao:''}];
+  if(!f.golpes.length) f.golpes=[{prof:1,g1:'',g2:'',g3:''}];
+  if(!f.agua.length) f.agua=[{data:'',prof:''}];
+  if(!f.hash) f.hash = computeFuroHash(f.ident.sondagemNum, f.ident.obra, f.lat, f.lng, f.ident.cota);
+}
+
+// primeira execução depois desta atualização: migra dados salvos no formato antigo (chaves
+// globais "geosig:furos" etc, de antes da separação banco-mestre / dados-de-estudo) pro usuário
+// "anonimo", e separa furos de campo dos interpolados. Roda no máximo uma vez por navegador.
+async function migrateLegacyStorageIfNeeded(){
+  try{ await window.storage.get('geosig:furos_master_cache'); }
+  catch(e){
+    try{
+      const old = await window.storage.get('geosig:furos');
+      const oldFuros = JSON.parse(old.value);
+      oldFuros.forEach(migrateLegacyFuroFormat);
+      const master = oldFuros.filter(f=>!f._interpolado).map(furoToFlatExportData);
+      const interp = oldFuros.filter(f=>f._interpolado);
+      await window.storage.set('geosig:furos_master_cache', JSON.stringify(master));
+      await window.storage.set('geosig:study:anonimo:interpFuros', JSON.stringify(interp));
+    }catch(e2){}
+  }
+  const legacyMap = {shapes:'geosig:shapes', interpBlocks:'geosig:interp', profiles:'geosig:profiles', rasterLayers:'geosig:rasterLayers'};
+  for(const field in legacyMap){
+    const newKey = 'geosig:study:anonimo:'+field;
+    try{ await window.storage.get(newKey); continue; }catch(e){}
+    try{ const old = await window.storage.get(legacyMap[field]); await window.storage.set(newKey, old.value); }catch(e2){}
+  }
+}
+
+function studyKeyPrefix(){ return 'geosig:study:'+userKey()+':'; }
+
+async function saveStudyData(){
+  const p = studyKeyPrefix();
+  try{
+    await window.storage.set(p+'interpFuros', JSON.stringify(furos.filter(f=>f._interpolado)));
+    await window.storage.set(p+'shapes', JSON.stringify(shapes));
+    await window.storage.set(p+'interpBlocks', JSON.stringify(interpBlocks));
+    await window.storage.set(p+'profiles', JSON.stringify(profiles));
+    await window.storage.set(p+'rasterLayers', JSON.stringify(rasterLayers));
+  }catch(e){ console.error('erro ao salvar dados de estudo', e); }
+}
+
+// carrega os dados de ESTUDO do usuário atual e junta os furos interpolados aos furos mestre
+// já carregados por loadFurosMaster() — desenha e renderiza tudo de uma vez só, no fim
+async function loadStudyData(){
+  const p = studyKeyPrefix();
+  let loadedInterpFuros = [];
+  try{ const r = await window.storage.get(p+'interpFuros'); loadedInterpFuros = JSON.parse(r.value); }catch(e){}
+  try{ const r = await window.storage.get(p+'shapes'); shapes = JSON.parse(r.value); }catch(e){ shapes=[]; }
+  try{ const r = await window.storage.get(p+'interpBlocks'); interpBlocks = JSON.parse(r.value); }catch(e){ interpBlocks=[]; }
+  try{ const r = await window.storage.get(p+'profiles'); profiles = JSON.parse(r.value); }catch(e){ profiles=[]; }
+  try{ const r = await window.storage.get(p+'rasterLayers'); rasterLayers = JSON.parse(r.value); }catch(e){ rasterLayers=[]; }
+
+  loadedInterpFuros.forEach(migrateLegacyFuroFormat);
+  furos = furos.concat(loadedInterpFuros);
+
+  markers={}; shapeLayers={}; interpLayers={}; profileLineLayers={}; rasterLeafletOverlays={};
   furos.forEach(f=>drawFuro(f));
   shapes.forEach(s=>drawShape(s));
   interpBlocks.forEach(b=>drawInterpBlock(b));
@@ -1335,6 +1579,19 @@ async function loadAll(){
   rasterLayers.forEach(r=>drawRasterLayer(r));
   renderFuroList(); renderShapeList(); renderInterpList(); renderProfileList(); renderRasterLayersList();
   fitAll();
+}
+
+// troca de usuário/perfil: limpa o que está desenhado, recarrega o banco mestre (o mesmo pra
+// todo mundo) e os dados de estudo do novo usuário
+async function reloadForCurrentUser(){
+  Object.values(markers).forEach(m=>map.removeLayer(m));
+  Object.values(shapeLayers).forEach(l=>map.removeLayer(l));
+  Object.values(interpLayers).forEach(l=>map.removeLayer(l));
+  Object.values(profileLineLayers).forEach(l=>map.removeLayer(l));
+  Object.values(rasterLeafletOverlays).forEach(l=>map.removeLayer(l));
+  closePanel();
+  await loadFurosMaster();
+  await loadStudyData();
 }
 
 /* ══════════════════ FUROS / BOLETINS ══════════════════ */
@@ -1347,24 +1604,31 @@ function profFinal(f){
 
 function drawFuro(f){
   const cls = 'furo-pin'+(f._interpolado?' interp':'');
+  const podeMover = f._interpolado || isAdmin();
   const icon = L.divIcon({className:'leaflet-div-icon', html:`<div class="${cls}" id="pin-${f.id}"></div>`, iconSize:[16,16], iconAnchor:[8,8]});
-  const m = L.marker([f.lat,f.lng], {icon, draggable:true}).addTo(map);
+  const m = L.marker([f.lat,f.lng], {icon, draggable:podeMover}).addTo(map);
   m.bindTooltip(f.ident.sondagemNum || '(sem nome)', {permanent:true, direction:'right', offset:[6,0], className:'furo-label'});
   m.on('click', ()=>{
     if(interpSelectMode){ toggleInterpFuroSelect(f.id); return; }
     if(exportSelectMode){ toggleExportFuroSelect(f.id); return; }
     selectFuro(f.id);
   });
-  m.on('dragend', ()=>{ const p=m.getLatLng(); f.lat=p.lat; f.lng=p.lng; scheduleSave(); renderFuroList(); if(selected&&selected.id===f.id) openFuroPanel(f.id); });
+  m.on('dragend', ()=>{
+    const p=m.getLatLng(); f.lat=p.lat; f.lng=p.lng;
+    if(!f._interpolado) markMasterDirty(); else scheduleSave();
+    renderFuroList(); if(selected&&selected.id===f.id) openFuroPanel(f.id);
+  });
   markers[f.id]=m;
 }
 
 function deleteFuro(id){
   const f=furos.find(x=>x.id===id); if(!f) return;
+  if(!f._interpolado && !isAdmin()){ alert('Só o Administrador pode remover furos do banco principal.'); return; }
   if(markers[id]){ map.removeLayer(markers[id]); delete markers[id]; }
   furos = furos.filter(x=>x.id!==id);
   if(selected&&selected.id===id) closePanel();
-  renderFuroList(); scheduleSave();
+  renderFuroList();
+  if(!f._interpolado) markMasterDirty(); else scheduleSave();
 }
 
 function renderFuroList(){
@@ -1670,7 +1934,7 @@ function renderFuroBoletimHtml(state){
         <tr>
           <td><span class="lbl">Início</span><span class="val">${esc(ident.dataInicio)||'—'}</span></td>
           <td><span class="lbl">Término</span><span class="val">${esc(ident.dataFim)||'—'}</span></td>
-          <td><span class="lbl">Datum</span><span class="val">${esc(ident.datum)||'—'}</span></td>
+          <td><span class="lbl">Datum / Zona UTM</span><span class="val">${esc(ident.datum)||'—'}${ident.zonaUTM?' · '+esc(ident.zonaUTM):''}</span></td>
           <td><span class="lbl">Coord. N / E</span><span class="val">${esc(ident.coordN)||'—'} / ${esc(ident.coordE)||'—'}</span></td>
         </tr>
         <tr>
@@ -1875,6 +2139,7 @@ function openBoletimEditor(id){
   set('bo-f-data-fim', f.ident.dataFim);
   set('bo-f-cota', f.ident.cota);
   set('bo-f-datum', f.ident.datum);
+  set('bo-f-zona-utm', f.ident.zonaUTM);
   set('bo-f-coord-n', f.ident.coordN);
   set('bo-f-coord-e', f.ident.coordE);
   set('bo-f-responsavel', f.ident.responsavel);
@@ -1931,10 +2196,12 @@ document.getElementById('bo-fill-utm').addEventListener('click', ()=>{
   const u = toUTM(f.lat,f.lng,crsZone);
   document.getElementById('bo-f-coord-e').value = u.e.toFixed(2);
   document.getElementById('bo-f-coord-n').value = u.n.toFixed(2);
+  document.getElementById('bo-f-zona-utm').value = crsZone+'S';
 });
 
 function saveBoletimEditor(){
   const f = furos.find(x=>x.id===editingFuroId); if(!f) return;
+  if(!f._interpolado && !isAdmin()){ alert('Só o Administrador pode editar furos do banco principal. Troque de perfil no botão "👤" no topo se for o caso.'); return; }
   const val = elId=>{ const e=document.getElementById(elId); return e?e.value:''; };
 
   const camadas = Array.from(document.getElementById('bo-tbody-camadas').children).map(tr=>({
@@ -1958,7 +2225,7 @@ function saveBoletimEditor(){
     cliente: val('bo-f-cliente'), obra: val('bo-f-obra'), local: val('bo-f-local'),
     sondagemNum: val('bo-f-sondagem-num').trim() || f.ident.sondagemNum,
     dataInicio: val('bo-f-data-inicio'), dataFim: val('bo-f-data-fim'),
-    cota: val('bo-f-cota'), datum: val('bo-f-datum'),
+    cota: val('bo-f-cota'), datum: val('bo-f-datum'), zonaUTM: val('bo-f-zona-utm'),
     coordN: val('bo-f-coord-n'), coordE: val('bo-f-coord-e'),
     responsavel: val('bo-f-responsavel'), sondador: val('bo-f-sondador'), desenhista: val('bo-f-desenhista'),
     amDiamInt: val('bo-f-am-diam-int')||'34.9', amDiamExt: val('bo-f-am-diam-ext')||'50.8',
@@ -1994,12 +2261,13 @@ function saveBoletimEditor(){
     if(isFinite(latVal) && isFinite(lngVal)){ novoLat=latVal; novoLng=lngVal; }
   }
   f.lat = novoLat; f.lng = novoLng;
+  f.hash = computeFuroHash(f.ident.sondagemNum, f.ident.obra, f.lat, f.lng, f.ident.cota);
   if(markers[f.id]){ markers[f.id].setLatLng([f.lat, f.lng]); markers[f.id].setTooltipContent(f.ident.sondagemNum || '(sem nome)'); }
 
   const eraFuroNovo = !!f._isNewUnsaved;
   delete f._isNewUnsaved;
   closeBoletimEditor();
-  scheduleSave();
+  if(!f._interpolado) markMasterDirty(); else scheduleSave();
   renderFuroList();
   selectFuro(f.id);
   if(eraFuroNovo) toggleFuroTable(true);
@@ -2140,6 +2408,7 @@ function closePanel(){ selected=null; document.getElementById('panel').classList
 // enquanto) e abre direto o editor completo. Se o usuário cancelar sem
 // salvar, o furo provisório é descartado (ver cancelBoletimEditor).
 function openNewFuroEditor(){
+  if(!isAdmin()){ alert('Só o Administrador pode cadastrar furos no banco principal.'); return; }
   const c = map.getCenter ? map.getCenter() : {lat:-15.6, lng:-50.5};
   const f = blankFuro(c.lat, c.lng);
   f._isNewUnsaved = true;
@@ -4387,25 +4656,34 @@ document.getElementById('file-input').addEventListener('change', async e=>{
       const txt = await file.text();
       const parsed = JSON.parse(txt);
       if(parsed && Array.isArray(parsed.furos)){
+        if(!isAdmin()){ alert('Só o Administrador pode importar furos para o banco principal. Peça pra alguém com esse perfil importar, ou troque de perfil no botão "👤" no topo (isso é só organizacional, não uma senha).'); e.target.value=''; return; }
         const n = importFuroCampaignJSON(parsed.furos);
+        const dup = importFuroCampaignJSON.lastSkipped||0;
         renderFuroList(); fitAll(); scheduleSave();
         if(n>0) toggleFuroTable(true);
-        toast(`Importado: ${n} furo(s) da campanha (dados completos — camadas e golpes)`);
+        toast(`Importado: ${n} furo(s) da campanha (dados completos — camadas e golpes)`+(dup>0?` · ${dup} já existia(m), ignorado(s)`:''));
         e.target.value=''; return;
       }
       geojson = parsed;
     }
     const collections = Array.isArray(geojson) ? geojson : [geojson];
-    let nPts=0, nShp=0;
+    let nPts=0, nShp=0, nDup=0, nSemPermissao=0;
     collections.forEach(fc=>{
       (fc.features||[]).forEach(feat=>{
-        importFeature(feat);
-        if(feat.geometry.type==='Point') nPts++; else nShp++;
+        const status = importFeature(feat);
+        if(feat.geometry.type==='Point'){
+          if(status==='ok') nPts++;
+          else if(status==='duplicado') nDup++;
+          else if(status==='sem_permissao') nSemPermissao++;
+        } else nShp++;
       });
     });
     renderFuroList(); renderShapeList(); fitAll(); scheduleSave();
     if(nPts>0) toggleFuroTable(true);
-    toast(`Importado: ${nPts} furo(s), ${nShp} área/linha(s)`);
+    let msg = `Importado: ${nPts} furo(s), ${nShp} área/linha(s)`;
+    if(nDup>0) msg += ` · ${nDup} furo(s) já existia(m), ignorado(s)`;
+    if(nSemPermissao>0) msg += ` · ${nSemPermissao} furo(s) ignorado(s) (só o Administrador importa furos)`;
+    toast(msg);
   }catch(err){ console.error(err); alert('Não foi possível ler o arquivo. Verifique se é um .zip de shapefile válido (com .shp, .shx, .dbf), um GeoJSON, ou um JSON de campanha completa (formato {"furos":[...]}).'); }
   e.target.value='';
 });
@@ -4421,71 +4699,126 @@ document.getElementById('file-input').addEventListener('change', async e=>{
    sondagem reais (convertidos manualmente ou por outra ferramenta)
    no formato nativo do app.
    ══════════════════════════════════════════════════════════════ */
+// monta um objeto de furo a partir dos dados "planos" de importação/arquivo mestre (mesmo
+// formato usado no furos.json e na importação de campanha) — função pura, sem efeito colateral
+// (não mexe no array furos nem desenha no mapa), reaproveitada tanto pelo carregamento do banco
+// mestre quanto pela importação manual
+function buildFuroFromImportData(fd){
+  let lat, lng;
+  if(fd.lat!=null && fd.lng!=null && isFinite(parseFloat(fd.lat)) && isFinite(parseFloat(fd.lng))){
+    lat = parseFloat(fd.lat); lng = parseFloat(fd.lng);
+  } else if(fd.utm && isFinite(parseFloat(fd.utm.e)) && isFinite(parseFloat(fd.utm.n)) && fd.utm.zone){
+    const conv = utmToLatLng(parseFloat(fd.utm.e), parseFloat(fd.utm.n), parseInt(fd.utm.zone), fd.utm.datum||'SIRGAS2000');
+    lat = conv.lat; lng = conv.lng;
+  } else {
+    return null; // sem localização utilizável (nem lat/lng nem UTM válidos)
+  }
+  if(!isFinite(lat) || !isFinite(lng)) return null;
+
+  const f = blankFuro(lat, lng);
+  if(fd.id) f.id = fd.id;
+  f.ident.sondagemNum = fd.sondagemNum || f.ident.sondagemNum;
+  f.ident.obra = fd.obra || '';
+  f.ident.cliente = fd.cliente || '';
+  f.ident.local = fd.local || '';
+  f.ident.dataInicio = fd.dataInicio || '';
+  f.ident.dataFim = fd.dataFim || fd.dataInicio || '';
+  f.ident.cota = fd.cota!=null ? String(fd.cota) : '';
+  f.ident.datum = fd.datum || (fd.utm && fd.utm.datum) || 'SIRGAS2000';
+  f.ident.zonaUTM = fd.zonaUTM || (fd.utm && fd.utm.zone!=null ? fd.utm.zone+'S' : '');
+  f.ident.coordN = fd.utm ? String(fd.utm.n) : '';
+  f.ident.coordE = fd.utm ? String(fd.utm.e) : '';
+  f.ident.responsavel = fd.responsavel || '';
+  f.ident.sondador = fd.sondador || '';
+  f.ident.desenhista = fd.desenhista || '';
+  if(fd.amostrador){
+    f.ident.amDiamInt = fd.amostrador.diamInt!=null ? String(fd.amostrador.diamInt) : f.ident.amDiamInt;
+    f.ident.amDiamExt = fd.amostrador.diamExt!=null ? String(fd.amostrador.diamExt) : f.ident.amDiamExt;
+    f.ident.amPeso = fd.amostrador.peso!=null ? String(fd.amostrador.peso) : f.ident.amPeso;
+    f.ident.amAltura = fd.amostrador.altura!=null ? String(fd.amostrador.altura) : f.ident.amAltura;
+  }
+  f.metodo = fd.metodo || 'SPT (NBR 6484)';
+  f.equipamento = fd.equipamento || '';
+  f.revestimento = fd.revestimento || '';
+  f.arquivo_ref = fd.arquivo_ref || '';
+  f.obs = fd.obs || '';
+
+  if(Array.isArray(fd.agua) && fd.agua.length){
+    f.agua = fd.agua.map(a=>({data:a.data||'', prof: a.prof!=null ? String(a.prof) : ''}));
+  }
+  if(Array.isArray(fd.camadas) && fd.camadas.length){
+    f.camadas = fd.camadas.map(c=>({
+      profFinal: +c.profFinal||0,
+      tipo: TIPOS_SOLO.some(t=>t[0]===c.tipo) ? c.tipo : inferTipoSolo(c.descricao),
+      descricao: c.descricao || ''
+    }));
+  }
+  if(Array.isArray(fd.golpes) && fd.golpes.length){
+    f.golpes = fd.golpes.map(g=>({
+      prof: +g.prof||0,
+      g1: (g.g1!==undefined && g.g1!==null) ? g.g1 : '',
+      g2: (g.g2!==undefined && g.g2!==null) ? g.g2 : '',
+      g3: (g.g3!==undefined && g.g3!==null) ? g.g3 : ''
+    }));
+  }
+  f.hash = fd.hash || computeFuroHash(f.ident.sondagemNum, f.ident.obra, f.lat, f.lng, f.ident.cota);
+  return f;
+}
+
+// nome da sondagem normalizado (sem espaços nas pontas, sem diferenciar maiúsc./minúsc.) —
+// usado só pra comparar e detectar duplicidade, nunca exibido
+// hash de duplicidade — calculado no momento em que o furo é criado (manual ou importação) e
+// guardado no próprio furo (f.hash), pra próximas importações comparem por esse valor em vez
+// de comparar texto direto (mais robusto contra acento, espaço duplo, maiúsc./minúsc. etc, que
+// a comparação anterior por texto simples não tratava bem o suficiente em dados reais de campo).
+// Considera sondagem + obra + coordenadas + cota — dois furos só contam como o mesmo se
+// baterem em tudo isso, não só no nome.
+function normalizeForHash(s){
+  return (s||'').toString().trim().toLowerCase()
+    .normalize('NFD').replace(/[\u0300-\u036f]/g,'')   // remove acentos
+    .replace(/\s+/g,' ');                                // colapsa espaços múltiplos
+}
+function simpleHash(str){
+  let h = 0;
+  for(let i=0;i<str.length;i++){ h = (Math.imul(31,h) + str.charCodeAt(i))|0; }
+  return (h>>>0).toString(36);
+}
+// arredonda coordenadas/cota antes de incluir no hash — evita que ruído de ponto flutuante
+// (ex.: reconverter lat/lng a partir de UTM e cair num decimal ligeiramente diferente) faça o
+// mesmo furo, reimportado, parecer "diferente". ~1m de tolerância em lat/lng, 1cm em cota.
+function roundForHash(v, casas){
+  const n = parseFloat(v);
+  return isFinite(n) ? n.toFixed(casas) : '';
+}
+// hash a partir dos campos que identificam o furo (sondagem, obra, posição e cota) — usa os
+// valores já normalizados/arredondados, então funciona tanto pra um furo já carregado no app
+// quanto pra um registro "cru" ainda sendo importado (basta ter os mesmos campos)
+function computeFuroHash(sondagemNum, obra, lat, lng, cota){
+  return simpleHash([
+    normalizeForHash(sondagemNum), normalizeForHash(obra),
+    roundForHash(lat,5), roundForHash(lng,5), roundForHash(cota,2)
+  ].join('|'));
+}
+
+function normSondagemNum(s){ return (s||'').trim().toLowerCase(); }
+
 function importFuroCampaignJSON(furosData){
-  let count = 0;
+  let count = 0, skipped = 0;
   (furosData||[]).forEach(fd=>{
-    let lat, lng;
-    if(fd.lat!=null && fd.lng!=null && isFinite(parseFloat(fd.lat)) && isFinite(parseFloat(fd.lng))){
-      lat = parseFloat(fd.lat); lng = parseFloat(fd.lng);
-    } else if(fd.utm && isFinite(parseFloat(fd.utm.e)) && isFinite(parseFloat(fd.utm.n)) && fd.utm.zone){
-      const conv = utmToLatLng(parseFloat(fd.utm.e), parseFloat(fd.utm.n), parseInt(fd.utm.zone), fd.utm.datum||'SIRGAS2000');
-      lat = conv.lat; lng = conv.lng;
-    } else {
-      return; // sem localização utilizável (nem lat/lng nem UTM válidos) — pula este furo
-    }
-    if(!isFinite(lat) || !isFinite(lng)) return;
-
-    const f = blankFuro(lat, lng);
-    f.ident.sondagemNum = fd.sondagemNum || f.ident.sondagemNum;
-    f.ident.obra = fd.obra || '';
-    f.ident.cliente = fd.cliente || '';
-    f.ident.local = fd.local || '';
-    f.ident.dataInicio = fd.dataInicio || '';
-    f.ident.dataFim = fd.dataFim || fd.dataInicio || '';
-    f.ident.cota = fd.cota!=null ? String(fd.cota) : '';
-    f.ident.datum = fd.datum || (fd.utm && fd.utm.datum) || 'SIRGAS2000';
-    f.ident.coordN = fd.utm ? String(fd.utm.n) : '';
-    f.ident.coordE = fd.utm ? String(fd.utm.e) : '';
-    f.ident.responsavel = fd.responsavel || '';
-    f.ident.sondador = fd.sondador || '';
-    f.ident.desenhista = fd.desenhista || '';
-    if(fd.amostrador){
-      f.ident.amDiamInt = fd.amostrador.diamInt!=null ? String(fd.amostrador.diamInt) : f.ident.amDiamInt;
-      f.ident.amDiamExt = fd.amostrador.diamExt!=null ? String(fd.amostrador.diamExt) : f.ident.amDiamExt;
-      f.ident.amPeso = fd.amostrador.peso!=null ? String(fd.amostrador.peso) : f.ident.amPeso;
-      f.ident.amAltura = fd.amostrador.altura!=null ? String(fd.amostrador.altura) : f.ident.amAltura;
-    }
-    f.metodo = fd.metodo || 'SPT (NBR 6484)';
-    f.equipamento = fd.equipamento || '';
-    f.revestimento = fd.revestimento || '';
-    f.arquivo_ref = fd.arquivo_ref || '';
-    f.obs = fd.obs || '';
-
-    if(Array.isArray(fd.agua) && fd.agua.length){
-      f.agua = fd.agua.map(a=>({data:a.data||'', prof: a.prof!=null ? String(a.prof) : ''}));
-    }
-    if(Array.isArray(fd.camadas) && fd.camadas.length){
-      f.camadas = fd.camadas.map(c=>({
-        profFinal: +c.profFinal||0,
-        tipo: TIPOS_SOLO.some(t=>t[0]===c.tipo) ? c.tipo : inferTipoSolo(c.descricao),
-        descricao: c.descricao || ''
-      }));
-    }
-    if(Array.isArray(fd.golpes) && fd.golpes.length){
-      f.golpes = fd.golpes.map(g=>({
-        prof: +g.prof||0,
-        g1: (g.g1!==undefined && g.g1!==null) ? g.g1 : '',
-        g2: (g.g2!==undefined && g.g2!==null) ? g.g2 : '',
-        g3: (g.g3!==undefined && g.g3!==null) ? g.g3 : ''
-      }));
-    }
-
+    // constrói o furo primeiro (resolve lat/lng a partir de UTM se for o caso) — o hash já sai
+    // calculado com a posição/cota corretas, sem duplicar a lógica de resolução de coordenadas
+    const f = buildFuroFromImportData(fd);
+    if(!f) return;
+    const dup = furos.some(x=>!x._interpolado && x.hash===f.hash);
+    if(dup){ skipped++; return; }
     furos.push(f);
     drawFuro(f);
     count++;
   });
+  importFuroCampaignJSON.lastSkipped = skipped;
   return count;
 }
+
 
 function findProp(props, keys){
   if(!props) return '';
@@ -4496,27 +4829,40 @@ function findProp(props, keys){
 
 function importFeature(feat){
   const g = feat.geometry, p = feat.properties||{};
-  if(!g) return;
+  if(!g) return 'ok';
   if(g.type==='Point'){
+    if(!isAdmin()) return 'sem_permissao';
     const [lng,lat] = g.coordinates;
+    const nome = String(findProp(p,['name','nome','id','furo','ponto','sondagem']) || '');
+    const obraVal = String(findProp(p,['obra','projeto','project']) || '');
+    const cotaVal = String(findProp(p,['cota','cota_boca','elevation','z','elev']) || '');
+    const candidateHash = computeFuroHash(nome, obraVal, lat, lng, cotaVal);
+    const dup = furos.some(f=>!f._interpolado && f.hash===candidateHash);
+    if(dup) return 'duplicado';
     const f = blankFuro(lat,lng);
-    f.ident.sondagemNum = String(findProp(p,['name','nome','id','furo','ponto','sondagem']) || f.ident.sondagemNum);
-    f.ident.obra = String(findProp(p,['obra','projeto','project']) || '');
+    f.ident.sondagemNum = nome || f.ident.sondagemNum;
+    f.ident.obra = obraVal;
     f.ident.cliente = String(findProp(p,['cliente','client']) || '');
-    f.ident.cota = String(findProp(p,['cota','cota_boca','elevation','z','elev']) || '');
+    f.ident.cota = cotaVal;
+    f.ident.datum = String(findProp(p,['datum']) || f.ident.datum);
+    f.ident.zonaUTM = String(findProp(p,['zona_utm','zonautm','utm_zone']) || '');
     f.ident.responsavel = String(findProp(p,['responsavel','responsible']) || '');
     const naVal = findProp(p,['na','nivel_agua','nivel_dagua','water_level']);
     if(naVal) f.agua=[{data:'', prof:String(naVal)}];
     const nsptResumo = findProp(p,['nspt','n_spt','n']);
     if(nsptResumo) f.golpes=[{prof:'', g1:'', g2:'', g3:String(nsptResumo)}];
     f.obs = Object.keys(p).length? ('Importado — atributos originais: '+JSON.stringify(p)) : '';
+    f.hash = candidateHash;
     furos.push(f); drawFuro(f);
+    return 'ok';
   } else if(g.type==='Polygon'||g.type==='MultiPolygon'||g.type==='LineString'||g.type==='MultiLineString'){
     const name = findProp(p,['name','nome','id']) || ('Importado '+(shapes.length+1));
     const s = {id:newShapeId(), name:String(name), type:'Outro', color:'#2a5a8c',
       geomType:g.type, coords:g.coordinates};
     shapes.push(s); drawShape(s);
+    return 'ok';
   }
+  return 'ok';
 }
 
 /* ══════════════════ EXPORTAR ══════════════════ */
@@ -4531,7 +4877,7 @@ function buildGeoJSON(furoIds, shapeIds){
     const naTxt = f.agua.map(r=>`${r.data||'-'}: ${r.prof}m`).join(' | ');
     features.push({type:'Feature', geometry:{type:'Point', coordinates:[f.lng,f.lat]},
       properties:{id:f.id, nome:f.ident.sondagemNum, obra:f.ident.obra, cliente:f.ident.cliente, local:f.ident.local,
-        data_inicio:f.ident.dataInicio, data_fim:f.ident.dataFim, cota:f.ident.cota, datum:f.ident.datum,
+        data_inicio:f.ident.dataInicio, data_fim:f.ident.dataFim, cota:f.ident.cota, datum:f.ident.datum, zona_utm:f.ident.zonaUTM,
         coord_n:f.ident.coordN, coord_e:f.ident.coordE, responsavel:f.ident.responsavel,
         sondador:f.ident.sondador, desenhista:f.ident.desenhista,
         amostrador_diam_int:f.ident.amDiamInt, amostrador_diam_ext:f.ident.amDiamExt,
@@ -4713,16 +5059,70 @@ document.getElementById('btn-export-csv').onclick=()=>{
   download('geosig_boletins_sondagem.csv', csv, 'text/csv;charset=utf-8');
 };
 
-document.getElementById('btn-clear').onclick=()=>{
-  if(!confirm('Isso apaga todos os furos, áreas, blocos interpolados, perfis salvos e rasters no mapa deste banco de dados. Continuar?')) return;
+document.getElementById('btn-clear').onclick=async ()=>{
+  if(!confirm('Isso apaga seus dados de estudo (áreas/linhas, blocos interpolados, perfis salvos, rasters no mapa e furos interpolados que você salvou). Os furos do banco principal não são afetados. Continuar?')) return;
+  let apagarMestreTambem = false;
+  if(isAdmin()){
+    apagarMestreTambem = confirm('Você é Administrador — quer apagar também os furos do banco principal? Isso só muda sua visão local; o furos.json publicado só muda se você clicar em "Publicar furos.json" depois.');
+  }
   Object.values(markers).forEach(m=>map.removeLayer(m));
   Object.values(shapeLayers).forEach(l=>map.removeLayer(l));
   Object.values(interpLayers).forEach(l=>map.removeLayer(l));
   Object.values(profileLineLayers).forEach(l=>map.removeLayer(l));
   Object.values(rasterLeafletOverlays).forEach(l=>map.removeLayer(l));
-  furos=[]; shapes=[]; interpBlocks=[]; profiles=[]; rasterLayers=[]; markers={}; shapeLayers={}; interpLayers={}; profileLineLayers={}; rasterLeafletOverlays={};
-  closePanel(); renderFuroList(); renderShapeList(); renderInterpList(); renderProfileList(); renderRasterLayersList(); scheduleSave();
+  furos = apagarMestreTambem ? [] : furos.filter(f=>!f._interpolado);
+  shapes=[]; interpBlocks=[]; profiles=[]; rasterLayers=[];
+  markers={}; shapeLayers={}; interpLayers={}; profileLineLayers={}; rasterLeafletOverlays={};
+  furos.forEach(f=>drawFuro(f)); // redesenha os furos mestre que sobraram (marcadores foram removidos acima)
+  closePanel(); renderFuroList(); renderShapeList(); renderInterpList(); renderProfileList(); renderRasterLayersList();
+  if(apagarMestreTambem) markMasterDirty();
+  await saveStudyData();
 };
+
+/* ══════════════════ USUÁRIO / PERFIL — UI ══════════════════ */
+async function loadCurrentUser(){
+  try{ const r = await window.storage.get('geosig:currentUser'); currentUser = {...currentUser, ...JSON.parse(r.value)}; }catch(e){}
+}
+async function saveCurrentUser(){
+  try{ await window.storage.set('geosig:currentUser', JSON.stringify(currentUser)); }catch(e){}
+}
+function updateUserBadge(){
+  const btn = document.getElementById('btn-user');
+  if(!btn) return;
+  const roleLabel = isAdmin() ? 'Administrador' : 'Consultor';
+  btn.textContent = '👤 '+(currentUser.name || 'Identificar-se')+' · '+roleLabel;
+}
+function applyRolePermissions(){
+  const admin = isAdmin();
+  const addFuroBtn = document.getElementById('btn-add-furo');
+  if(addFuroBtn) addFuroBtn.style.display = admin ? '' : 'none';
+  const publishBtn = document.getElementById('btn-publish-furos');
+  if(publishBtn) publishBtn.style.display = admin ? '' : 'none';
+}
+function openUserSetup(){
+  document.getElementById('user-setup-name').value = currentUser.name;
+  document.getElementById('user-setup-role').value = currentUser.role;
+  document.getElementById('user-setup-overlay').classList.add('open');
+}
+function closeUserSetup(){ document.getElementById('user-setup-overlay').classList.remove('open'); }
+document.getElementById('user-setup-overlay').addEventListener('click', e=>{ if(e.target.id==='user-setup-overlay') closeUserSetup(); });
+document.getElementById('btn-user').addEventListener('click', openUserSetup);
+document.getElementById('user-setup-confirm').addEventListener('click', async ()=>{
+  const name = document.getElementById('user-setup-name').value.trim();
+  const role = document.getElementById('user-setup-role').value;
+  const changedUser = (userKeyFor(name)!==userKey());
+  currentUser = {name, role};
+  await saveCurrentUser();
+  updateUserBadge();
+  applyRolePermissions();
+  closeUserSetup();
+  if(changedUser) await reloadForCurrentUser();
+});
+function userKeyFor(name){
+  const base = (name||'').trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,'_').replace(/^_+|_+$/g,'');
+  return base || 'anonimo';
+}
+document.getElementById('btn-publish-furos').addEventListener('click', publishFurosJson);
 
 /* ══════════════════ HELPERS ══════════════════ */
 function fitAll(){
@@ -4739,8 +5139,17 @@ function truncate(s,n){ s=String(s); return s.length>n? s.slice(0,n-1)+'…' : s
 
 /* ══════════════════ INIT ══════════════════ */
 window.closePanel = closePanel;
-loadAll();
-loadUiPrefs();
+async function initApp(){
+  await loadCurrentUser();
+  updateUserBadge();
+  applyRolePermissions();
+  if(!currentUser.name) openUserSetup(); // primeira vez — pode fechar sem preencher, fica "anônimo"
+  await migrateLegacyStorageIfNeeded();
+  await loadFurosMaster();
+  await loadStudyData();
+  loadUiPrefs();
+}
+initApp();
 </script>
 </body>
 </html>

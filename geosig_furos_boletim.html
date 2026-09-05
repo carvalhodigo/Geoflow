@@ -217,6 +217,21 @@ hr{border:none;border-top:1px solid var(--bdr);margin:2px 0}
 .tag-list{display:flex;flex-wrap:wrap;gap:6px}
 .tag-chip{background:var(--surf);border:1px solid var(--bdr);border-radius:12px;padding:3px 9px;
   font-size:10.5px;font-family:var(--mono);color:var(--tx)}
+
+/* legenda flutuante sobre o mapa — aparece sozinha quando há pelo menos um raster visível,
+   embaixo do mapa, no mesmo estilo da legenda mostrada dentro do popup de gerar o raster
+   (barra de gradiente larga, com os valores mínimo/máximo nas pontas) */
+#map-raster-legend-panel{
+  position:absolute;left:50%;bottom:16px;transform:translateX(-50%);z-index:600;
+  width:min(560px, calc(100% - 40px));
+  background:rgba(250,248,243,.96);border:1px solid var(--bdr-s);border-radius:10px;
+  padding:10px 16px;box-shadow:0 4px 16px rgba(0,0,0,.2);font-family:var(--mono);
+}
+#map-raster-legend-panel.hidden{display:none}
+#map-raster-legend-panel .legend-item{margin-bottom:10px}
+#map-raster-legend-panel .legend-item:last-child{margin-bottom:0}
+#map-raster-legend-panel .legend-title{font-size:10.5px;font-weight:700;color:var(--tx);
+  margin-bottom:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 #interp-select-bar{
   display:none;position:absolute;bottom:14px;left:50%;transform:translateX(-50%);
   background:var(--card);border:1px solid var(--bdr-s);border-radius:10px;padding:10px 14px;
@@ -516,6 +531,7 @@ table.edit-tbl input:focus,table.edit-tbl select:focus{outline:none;border-color
   <div class="resize-handle-v" id="sidebar-resize" title="Arraste para redimensionar"></div>
 
   <div id="map"></div>
+  <div id="map-raster-legend-panel" class="hidden"></div>
   <div id="interp-select-bar">
     <span id="interp-select-count"></span>
     <button class="mini-btn" id="interp-btn-rect" type="button" title="Arraste um retângulo no mapa para selecionar vários furos de uma vez">▭ Selecionar por retângulo</button>
@@ -728,6 +744,7 @@ table.edit-tbl input:focus,table.edit-tbl select:focus{outline:none;border-color
       <button class="btn-ghost" type="button" onclick="closeRasterView()">Fechar</button>
       <button class="btn-primary" type="button" id="raster-addmap-btn">📍 Adicionar ao mapa</button>
       <button class="btn-primary" type="button" id="raster-save-btn">💾 Salvar imagem (PNG)</button>
+      <button class="btn-primary" type="button" id="raster-print-btn">🖨️ Imprimir</button>
       <button class="btn-primary" type="button" id="raster-save-tif-btn">🌍 Salvar GeoTIFF</button>
     </div>
   </div>
@@ -1179,6 +1196,9 @@ document.getElementById('btn-load-sample2').addEventListener('click', loadSample
 
 /* ══════════════════ MAPA ══════════════════ */
 const map = L.map('map', {zoomControl:true}).setView([-15.6, -50.5], 4);
+// mantém a legenda flutuante dos rasters em sincronia conforme o usuário navega o mapa — some
+// quando o raster sai da área visível, aparece de novo se ele voltar a aparecer na tela
+map.on('moveend zoomend', ()=> updateMapLegendPanel());
 const osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
   maxZoom:19, attribution:'© OpenStreetMap'}).addTo(map);
 const sat = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',{
@@ -1577,6 +1597,7 @@ async function loadStudyData(){
   interpBlocks.forEach(b=>drawInterpBlock(b));
   profiles.forEach(p=>drawProfileLine(p));
   rasterLayers.forEach(r=>drawRasterLayer(r));
+  updateMapLegendPanel();
   renderFuroList(); renderShapeList(); renderInterpList(); renderProfileList(); renderRasterLayersList();
   fitAll();
 }
@@ -4108,6 +4129,7 @@ const RASTER_PARAMS = [
 let currentRasterBlockId = null;
 let currentRasterParam = 'cota';
 let currentRasterCanvas = null;
+let currentRasterMinV = null, currentRasterMaxV = null;
 let currentRasterGridResult = null;
 // rasters "publicados" como camada no mapa — cada um pode ser mostrado/ocultado independente,
 // e fica salvo (a imagem em si, não a grade de valores) pra continuar aparecendo ao reabrir o app
@@ -4140,6 +4162,9 @@ function addCurrentRasterToMap(){
   const paramDef = RASTER_PARAMS.find(p=>p.key===currentRasterParam);
   const bounds = computeRasterBounds(currentRasterGridResult, block);
   const dataUrl = currentRasterCanvas.toDataURL('image/png');
+  const legendData = paramDef.key==='material'
+    ? { type:'material', tipos: Array.from(computeTiposPresentesFromGrid(currentRasterGridResult)) }
+    : { type:'continuous', minV: currentRasterMinV, maxV: currentRasterMaxV };
   const r = {
     id: newRasterLayerId(),
     blockId: block.id,
@@ -4147,13 +4172,14 @@ function addCurrentRasterToMap(){
     paramKey: currentRasterParam,
     paramLabel: paramDef.label,
     elev: paramDef.needsElev ? parseFloat(document.getElementById('raster-elev-input').value) : null,
-    dataUrl, bounds, visible: true,
+    dataUrl, bounds, visible: true, legendData,
   };
   rasterLayers.push(r);
   drawRasterLayer(r);
   renderRasterLayersList();
+  updateMapLegendPanel();
   scheduleSave();
-  toast('Raster adicionado como camada no mapa — veja na aba "Rasters"');
+  toast('Raster adicionado como camada no mapa (com legenda) — veja na aba "Rasters"');
 }
 function toggleRasterLayerVisible(id){
   const r = rasterLayers.find(x=>x.id===id); if(!r) return;
@@ -4163,6 +4189,7 @@ function toggleRasterLayerVisible(id){
     if(r.visible) layer.addTo(map); else map.removeLayer(layer);
   }
   renderRasterLayersList();
+  updateMapLegendPanel();
   scheduleSave();
 }
 function removeRasterLayer(id){
@@ -4172,6 +4199,7 @@ function removeRasterLayer(id){
   delete rasterLeafletOverlays[id];
   rasterLayers.splice(idx,1);
   renderRasterLayersList();
+  updateMapLegendPanel();
   scheduleSave();
 }
 function renderRasterLayersList(){
@@ -4184,6 +4212,8 @@ function renderRasterLayersList(){
   rasterLayers.forEach(r=>{
     const div = document.createElement('div');
     div.className = 'item';
+    div.style.cursor = 'pointer';
+    div.title = 'Clique para dar zoom até este raster no mapa';
     const elevTxt = r.elev!=null && isFinite(r.elev) ? ` @ ${r.elev.toFixed(1)}m` : '';
     div.innerHTML = `
       <div style="display:flex;align-items:flex-start;gap:8px;">
@@ -4192,12 +4222,48 @@ function renderRasterLayersList(){
           <div class="item-title">🖼️ ${esc(r.paramLabel)}${elevTxt}</div>
           <div class="item-sub">Bloco: ${esc(r.blockNome)}</div>
         </div>
+        <button type="button" class="mini-btn" title="Editar este raster">✏️</button>
         <button type="button" class="mini-btn danger" title="Remover camada">🗑</button>
       </div>`;
+    div.addEventListener('click', ()=> zoomToRasterLayer(r.id));
+    div.querySelector('input[type=checkbox]').addEventListener('click', e=>e.stopPropagation());
     div.querySelector('input[type=checkbox]').addEventListener('change', ()=> toggleRasterLayerVisible(r.id));
-    div.querySelector('button').addEventListener('click', (e)=>{ e.stopPropagation(); if(confirm('Remover este raster do mapa?')) removeRasterLayer(r.id); });
+    const [btnEdit, btnDel] = div.querySelectorAll('button');
+    btnEdit.addEventListener('click', (e)=>{ e.stopPropagation(); editRasterLayer(r.id); });
+    btnDel.addEventListener('click', (e)=>{ e.stopPropagation(); if(confirm('Remover este raster do mapa?')) removeRasterLayer(r.id); });
     el.appendChild(div);
   });
+}
+function zoomToRasterLayer(id){
+  const r = rasterLayers.find(x=>x.id===id); if(!r || !r.bounds) return;
+  map.fitBounds(r.bounds, {padding:[40,40], maxZoom:18});
+}
+
+// checa se o raster está dentro da área atualmente visível do mapa (não só "ligado" pela
+// checkbox — se o usuário afastou/moveu o mapa pra longe dele, ele não está "na tela")
+function isRasterOnScreen(r){
+  if(!r.bounds || !map.getBounds) return true; // sem como checar, assume visível (mais seguro)
+  try{
+    const viewBounds = map.getBounds();
+    const rasterBounds = L.latLngBounds(r.bounds);
+    return viewBounds.intersects(rasterBounds);
+  }catch(e){ return true; }
+}
+
+// legenda flutuante sobre o mapa: uma entrada por raster ligado (checkbox) E que esteja de
+// fato dentro da área visível do mapa no momento — some quando nenhum atender aos dois
+function updateMapLegendPanel(){
+  const panel = document.getElementById('map-raster-legend-panel'); if(!panel) return;
+  const visiveis = rasterLayers.filter(r=>r.visible!==false && r.legendData && isRasterOnScreen(r));
+  if(!visiveis.length){ panel.classList.add('hidden'); panel.innerHTML=''; return; }
+  panel.innerHTML = visiveis.map(r=>{
+    const paramDef = RASTER_PARAMS.find(p=>p.key===r.paramKey) || {key:r.paramKey, label:r.paramLabel, unidade:''};
+    const elevTxt = r.elev!=null && isFinite(r.elev) ? ` @ ${r.elev.toFixed(1)}m` : '';
+    const tipos = r.legendData.type==='material' ? new Set(r.legendData.tipos) : null;
+    const html = buildRasterLegendHtml(paramDef, r.legendData.minV, r.legendData.maxV, tipos);
+    return `<div class="legend-item"><div class="legend-title" title="${escAttr(r.blockNome)}">${esc(r.blockNome)}${elevTxt}</div>${html}</div>`;
+  }).join('');
+  panel.classList.remove('hidden');
 }
 
 // ponto-em-polígono (ray casting) em coordenadas locais XY — usado pra recortar o raster no casco convexo
@@ -4492,26 +4558,139 @@ function renderRasterToCanvas(gridResult, paramKey){
   return {canvas, minV, maxV};
 }
 
-function renderRasterLegend(paramDef, minV, maxV, gridResult){
-  const el = document.getElementById('raster-legend');
+// extrai os tipos de material presentes numa grade já calculada — usado tanto na legenda da
+// prévia quanto na hora de guardar a legenda junto com a camada publicada no mapa
+function computeTiposPresentesFromGrid(gridResult){
+  const tipos = new Set();
+  gridResult.grid.forEach(row=>row.forEach(c=>{ if(c.valid) tipos.add(c.tipo); }));
+  return tipos;
+}
+
+// monta a legenda em HTML — usada na prévia dentro do popup e no painel flutuante sobre o mapa.
+// tiposPresentes: Set (ou array) de tipos de solo, só usado quando paramDef.key==='material'
+function buildRasterLegendHtml(paramDef, minV, maxV, tiposPresentes){
   if(paramDef.key==='material'){
-    const tiposPresentes = new Set();
-    gridResult.grid.forEach(row=>row.forEach(c=>{ if(c.valid) tiposPresentes.add(c.tipo); }));
-    if(!tiposPresentes.size){ el.innerHTML='<p class="hint">Nenhuma célula válida nessa cota (toda a área ficou acima do terreno, ou fora do casco convexo).</p>'; return; }
-    el.innerHTML = '<div class="tag-list">'+Array.from(tiposPresentes).map(t=>{
+    const tipos = tiposPresentes ? Array.from(tiposPresentes) : [];
+    if(!tipos.length) return '<p class="hint">Nenhuma célula válida nessa cota (toda a área ficou acima do terreno, ou fora do casco convexo).</p>';
+    return '<div class="tag-list">'+tipos.map(t=>{
       const label = (TIPOS_SOLO.find(x=>x[0]===t)||[t,t])[1];
       return `<span class="tag-chip" style="background:${SOIL_FILL[t]||SOIL_FILL.outro};border-color:rgba(0,0,0,.2)">${esc(label)}</span>`;
     }).join('')+'</div>';
-    return;
   }
   const stops = Array.from({length:11},(_,i)=>{ const [r,g,b]=continuousColor(i/10); return `rgb(${r},${g},${b})`; }).join(',');
-  el.innerHTML = `
+  return `
     <div style="display:flex;align-items:center;gap:8px;">
       <span style="font-family:var(--mono);font-size:10px;">${minV.toFixed(1)}${paramDef.unidade?' '+paramDef.unidade:''}</span>
       <div style="flex:1;height:14px;border-radius:4px;background:linear-gradient(to right, ${stops});border:1px solid rgba(0,0,0,.15)"></div>
       <span style="font-family:var(--mono);font-size:10px;">${maxV.toFixed(1)}${paramDef.unidade?' '+paramDef.unidade:''}</span>
     </div>
     <div style="font-size:10px;color:var(--mu);margin-top:3px;">${esc(paramDef.label)}</div>`;
+}
+
+// desenha a mesma legenda direto num canvas (usado na imagem exportada e na impressão, onde
+// não dá pra simplesmente reaproveitar o HTML) — devolve a altura ocupada, pra quem chamar
+// saber quanto espaço reservar
+function drawRasterLegendOnCanvas(ctx, x, y, width, paramDef, minV, maxV, tiposPresentes){
+  ctx.textBaseline = 'top';
+  if(paramDef.key==='material'){
+    const tipos = tiposPresentes ? Array.from(tiposPresentes) : [];
+    ctx.font = '13px monospace';
+    let cx = x, cy = y, linhaMaxH = 0;
+    tipos.forEach(t=>{
+      const label = (TIPOS_SOLO.find(x2=>x2[0]===t)||[t,t])[1];
+      const textW = ctx.measureText(label).width;
+      const blocoW = 18+6+textW+22;
+      if(cx+blocoW > x+width){ cx = x; cy += 24; } // quebra linha se não couber
+      ctx.fillStyle = SOIL_FILL[t]||SOIL_FILL.outro;
+      ctx.fillRect(cx, cy, 16, 16);
+      ctx.strokeStyle = 'rgba(0,0,0,.3)'; ctx.lineWidth=1; ctx.strokeRect(cx+0.5, cy+0.5, 16, 16);
+      ctx.fillStyle = '#282420';
+      ctx.fillText(label, cx+22, cy+1);
+      cx += blocoW;
+      linhaMaxH = 24;
+    });
+    return (cy - y) + 16 + 8;
+  }
+  const barX = x+90, barW = Math.max(60, width-180);
+  const grad = ctx.createLinearGradient(barX, 0, barX+barW, 0);
+  for(let i=0;i<=10;i++){ const [r,g,b]=continuousColor(i/10); grad.addColorStop(i/10, `rgb(${r},${g},${b})`); }
+  ctx.fillStyle = grad;
+  ctx.fillRect(barX, y, barW, 16);
+  ctx.strokeStyle = 'rgba(0,0,0,.25)'; ctx.lineWidth=1; ctx.strokeRect(barX+0.5, y+0.5, barW, 16);
+  ctx.font = '13px monospace';
+  ctx.fillStyle = '#282420';
+  ctx.textAlign = 'left';
+  ctx.fillText(minV.toFixed(1)+(paramDef.unidade?' '+paramDef.unidade:''), x, y+1);
+  ctx.textAlign = 'right';
+  ctx.fillText(maxV.toFixed(1)+(paramDef.unidade?' '+paramDef.unidade:''), x+width, y+1);
+  ctx.textAlign = 'left';
+  ctx.font = 'bold 13px monospace';
+  ctx.fillText(paramDef.label, x, y+24);
+  return 24+16+8;
+}
+
+function renderRasterLegend(paramDef, minV, maxV, gridResult){
+  const tiposPresentes = paramDef.key==='material' ? computeTiposPresentesFromGrid(gridResult) : null;
+  document.getElementById('raster-legend').innerHTML = buildRasterLegendHtml(paramDef, minV, maxV, tiposPresentes);
+}
+
+// monta um canvas único com título + imagem do raster + legenda — usado tanto pra exportar PNG
+// quanto pra imprimir, pra garantir que os dois sempre mostrem a legenda junto com a imagem
+function buildRasterExportCanvas(scaleUp){
+  const block = interpBlocks.find(b=>b.id===currentRasterBlockId);
+  const paramDef = RASTER_PARAMS.find(p=>p.key===currentRasterParam);
+  const tiposPresentes = paramDef.key==='material' ? computeTiposPresentesFromGrid(currentRasterGridResult) : null;
+
+  const imgW = currentRasterCanvas.width*scaleUp;
+  const imgH = currentRasterCanvas.height*scaleUp;
+  const pad = 16;
+  const titleH = 28;
+
+  // desenha a legenda "a seco" primeiro só pra medir a altura que ela vai ocupar de verdade
+  // (varia: uma faixa contínua sempre cabe numa linha, mas "material" pode quebrar em várias
+  // linhas dependendo de quantos tipos de solo apareceram e da largura disponível)
+  const scratch = document.createElement('canvas');
+  scratch.width = Math.max(1,imgW); scratch.height = 300;
+  const legendH = drawRasterLegendOnCanvas(scratch.getContext('2d'), pad, 0, imgW-pad*2, paramDef, currentRasterMinV, currentRasterMaxV, tiposPresentes);
+
+  const canvas = document.createElement('canvas');
+  canvas.width = imgW + pad*2;
+  canvas.height = pad + titleH + imgH + pad + legendH + pad;
+  const ctx = canvas.getContext('2d');
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(0,0,canvas.width,canvas.height);
+
+  ctx.fillStyle = '#282420';
+  ctx.font = 'bold 16px monospace';
+  ctx.textBaseline = 'top';
+  const elevInput = parseFloat(document.getElementById('raster-elev-input').value);
+  const elevTxt = paramDef.needsElev && isFinite(elevInput) ? ' — cota '+elevInput.toFixed(1)+'m' : '';
+  ctx.fillText((block?block.nome:'Bloco interpolado')+' — '+paramDef.label+elevTxt, pad, pad);
+
+  ctx.imageSmoothingEnabled = false;
+  ctx.drawImage(currentRasterCanvas, pad, pad+titleH, imgW, imgH);
+
+  drawRasterLegendOnCanvas(ctx, pad, pad+titleH+imgH+pad, imgW, paramDef, currentRasterMinV, currentRasterMaxV, tiposPresentes);
+
+  return canvas;
+}
+
+function printRaster(){
+  if(!currentRasterCanvas){ toast('Gere o raster antes de imprimir'); return; }
+  const block = interpBlocks.find(b=>b.id===currentRasterBlockId);
+  const composite = buildRasterExportCanvas(3);
+  const dataUrl = composite.toDataURL('image/png');
+  const win = window.open('', '_blank');
+  win.document.write(`<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8"><title>Raster ${escXml(block?block.nome:'')}</title>
+  <style>
+    body{margin:0;padding:20px;font-family:system-ui,sans-serif;background:#fff;}
+    img{max-width:100%;display:block;margin:0 auto;}
+    @media print{ body{padding:0} }
+  </style></head><body>
+  <img src="${dataUrl}">
+  <script>window.onload = function(){ window.print(); };<\/script>
+  </body></html>`);
+  win.document.close();
 }
 
 function buildRasterParamButtons(){
@@ -4544,6 +4723,7 @@ function generateRaster(){
   const {canvas, minV, maxV} = renderRasterToCanvas(gridResult, currentRasterParam);
   currentRasterCanvas = canvas;
   currentRasterGridResult = gridResult;
+  currentRasterMinV = minV; currentRasterMaxV = maxV;
 
   const dispW = Math.min(680, Math.max(200, gridResult.cols*7));
   const scale = dispW/gridResult.cols;
@@ -4562,20 +4742,27 @@ function generateRaster(){
     'Áreas transparentes: fora do casco convexo dos furos'+(paramDef.needsElev ? ', ou acima do terreno naquele ponto.' : '.');
 }
 
-function openRasterView(blockId){
+function openRasterView(blockId, initialParam, initialElev){
   currentRasterBlockId = blockId;
-  currentRasterParam = 'cota';
+  currentRasterParam = initialParam || 'cota';
   currentRasterCanvas = null;
   currentRasterGridResult = null;
   buildRasterParamButtons();
-  document.getElementById('raster-elev-wrap').style.display='none';
-  document.getElementById('raster-elev-input').value='';
+  const paramDef = RASTER_PARAMS.find(p=>p.key===currentRasterParam);
+  document.getElementById('raster-elev-wrap').style.display = (paramDef && paramDef.needsElev) ? '' : 'none';
+  document.getElementById('raster-elev-input').value = (initialElev!=null && isFinite(initialElev)) ? initialElev : '';
   document.getElementById('raster-canvas-area').innerHTML='';
   document.getElementById('raster-legend').innerHTML='';
   document.getElementById('raster-hint').textContent='';
   document.getElementById('raster-view-overlay').classList.add('open');
   document.body.style.overflow='hidden';
   generateRaster();
+}
+// reabre o popup do raster já configurado com o mesmo parâmetro/cota da camada clicada na
+// lista lateral, pra continuar editando de onde parou em vez de começar do zero
+function editRasterLayer(id){
+  const r = rasterLayers.find(x=>x.id===id); if(!r) return;
+  openRasterView(r.blockId, r.paramKey, r.elev);
 }
 function closeRasterView(){
   document.getElementById('raster-view-overlay').classList.remove('open');
@@ -4585,6 +4772,7 @@ function closeRasterView(){
 document.getElementById('raster-view-overlay').addEventListener('click', e=>{ if(e.target.id==='raster-view-overlay') closeRasterView(); });
 document.getElementById('raster-gerar-btn').addEventListener('click', generateRaster);
 document.getElementById('raster-addmap-btn').addEventListener('click', addCurrentRasterToMap);
+document.getElementById('raster-print-btn').addEventListener('click', printRaster);
 document.getElementById('raster-elev-sugestao').addEventListener('click', ()=>{
   const block = interpBlocks.find(b=>b.id===currentRasterBlockId); if(!block) return;
   const srcFuros = block.furoIds.map(id=>furos.find(f=>f.id===id)).filter(Boolean);
@@ -4597,20 +4785,14 @@ document.getElementById('raster-save-btn').addEventListener('click', ()=>{
   if(!currentRasterCanvas){ toast('Gere o raster antes de salvar'); return; }
   const block = interpBlocks.find(b=>b.id===currentRasterBlockId);
   const paramDef = RASTER_PARAMS.find(p=>p.key===currentRasterParam);
-  const scaleUp = 6;
-  const big = document.createElement('canvas');
-  big.width = currentRasterCanvas.width*scaleUp;
-  big.height = currentRasterCanvas.height*scaleUp;
-  const bctx = big.getContext('2d');
-  bctx.imageSmoothingEnabled = false;
-  bctx.drawImage(currentRasterCanvas, 0, 0, big.width, big.height);
-  const url = big.toDataURL('image/png');
+  const composite = buildRasterExportCanvas(6);
+  const url = composite.toDataURL('image/png');
   const nomeBloco = block ? block.nome.replace(/[^a-z0-9]+/gi,'_') : 'bloco';
   const filename = `raster_${nomeBloco}_${paramDef.key}.png`;
   const a = document.createElement('a');
   a.href = url; a.download = filename;
   document.body.appendChild(a); a.click(); a.remove();
-  toast('Imagem salva: '+filename);
+  toast('Imagem salva (com legenda): '+filename);
 });
 document.getElementById('raster-save-tif-btn').addEventListener('click', ()=>{
   if(!currentRasterGridResult){ toast('Gere o raster antes de salvar'); return; }

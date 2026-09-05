@@ -218,6 +218,14 @@ hr{border:none;border-top:1px solid var(--bdr);margin:2px 0}
 .tag-chip{background:var(--surf);border:1px solid var(--bdr);border-radius:12px;padding:3px 9px;
   font-size:10.5px;font-family:var(--mono);color:var(--tx)}
 
+/* rótulos flutuantes das alças do modelo 3D — acompanham a projeção da alça na tela */
+.handle-label3d{
+  position:absolute; transform:translate(-50%,-50%); pointer-events:none;
+  font-size:10.5px; font-weight:700; padding:2px 7px; border-radius:10px;
+  white-space:nowrap; box-shadow:0 1px 3px rgba(0,0,0,.3); border:1px solid rgba(0,0,0,.15);
+  font-family:var(--mono);
+}
+
 /* legenda flutuante sobre o mapa — aparece sozinha quando há pelo menos um raster visível,
    embaixo do mapa, no mesmo estilo da legenda mostrada dentro do popup de gerar o raster
    (barra de gradiente larga, com os valores mínimo/máximo nas pontas) */
@@ -750,6 +758,39 @@ table.edit-tbl input:focus,table.edit-tbl select:focus{outline:none;border-color
   </div>
 </div>
 
+<!-- ══ MODELO 3D DA INTERPOLAÇÃO ══ -->
+<div class="popup-overlay" id="model3d-view-overlay">
+  <div class="editor-box" style="max-width:920px;width:96vw;">
+    <div class="popup-header">
+      <h3>Modelo 3D — Bloco Interpolado</h3>
+      <button class="popup-close" onclick="closeModel3DView()">✕</button>
+    </div>
+    <div class="popup-body">
+      <div class="interp-banner">
+        🧊 Arraste as <b>setas coloridas</b> no centro de cada face pra cortar o maciço naquela
+        direção e revelar a estratigrafia interpolada. Arraste o fundo com o mouse pra girar a
+        vista; roda do mouse dá zoom. <b>Exagero vertical: <span id="model3d-exagero"></span></b> —
+        a profundidade aparece ampliada pra facilitar a visualização, não é a escala real.
+      </div>
+      <div class="loc-toggle" id="model3d-mode-toggle" style="margin-top:8px;">
+        <button type="button" class="loc-mode-btn active" data-mode="material">Material predominante</button>
+        <button type="button" class="loc-mode-btn" data-mode="spt">N-SPT interpolado</button>
+      </div>
+      <div id="model3d-canvas-wrap" style="position:relative;margin-top:10px;height:64vh;min-height:420px;
+        border:1px solid var(--bo-border);border-radius:10px;overflow:hidden;background:#dfe6e0;">
+        <div id="model3d-labels-layer" style="position:absolute;inset:0;pointer-events:none;z-index:2;"></div>
+        <div id="model3d-loading" class="hint" style="position:absolute;left:12px;top:12px;background:rgba(250,248,243,.9);
+          padding:6px 10px;border-radius:6px;display:none;z-index:3;">Calculando corte…</div>
+      </div>
+      <div id="model3d-legend" style="margin-top:10px;"></div>
+    </div>
+    <div class="popup-footer">
+      <button class="btn-ghost" type="button" onclick="closeModel3DView()">Fechar</button>
+      <button class="btn-ghost" type="button" id="model3d-reset-btn">↺ Restaurar cubo fechado</button>
+    </div>
+  </div>
+</div>
+
 <!-- ══ ESCOLHA DE EXPORTAÇÃO DE SHAPEFILE ══ -->
 <div class="popup-overlay" id="export-shp-choice-overlay">
   <div class="editor-box" style="max-width:460px;width:92vw;">
@@ -777,6 +818,8 @@ table.edit-tbl input:focus,table.edit-tbl select:focus{outline:none;border-color
 <script src="https://unpkg.com/proj4@2.9.2/dist/proj4.js"></script>
 <script src="https://unpkg.com/shpjs@4.0.4/dist/shp.js"></script>
 <script src="https://unpkg.com/@mapbox/shp-write@0.4.3/shpwrite.js"></script>
+<script src="https://unpkg.com/three@0.128.0/build/three.min.js"></script>
+<script src="https://unpkg.com/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
 <script>
 /* ══════════════════ JANELA DE ABERTURA (SPLASH) ══════════════════
    Some sozinha 5s depois de carregar, ou no clique — roda logo no início
@@ -3072,6 +3115,11 @@ function openInterpBlockPanel(id){
       <div class="btn-row">
         <button class="mini-btn" id="pb-open-raster" type="button">🗺️ Fatia em planta (raster)</button>
       </div>
+      <div class="sec-title">Modelo 3D</div>
+      <p class="hint">Abre um cubo 3D representando o volume interpolado do bloco — arraste as setas nas faces pra cortar e ver a estratigrafia (material ou N-SPT) exposta em qualquer posição.</p>
+      <div class="btn-row">
+        <button class="mini-btn" id="pb-open-model3d" type="button">🧊 Modelo 3D</button>
+      </div>
       <div class="btn-row" style="margin-top:10px">
         <button class="mini-btn primary" id="pb-save">Salvar</button>
         <button class="mini-btn danger" id="pb-del">Excluir bloco</button>
@@ -3088,6 +3136,9 @@ function openInterpBlockPanel(id){
   };
   document.getElementById('pb-open-raster').onclick=()=>{
     openRasterView(b.id);
+  };
+  document.getElementById('pb-open-model3d').onclick=()=>{
+    openModel3DView(b.id);
   };
   document.getElementById('pb-save').onclick=()=>{
     b.nome = document.getElementById('pb-nome').value.trim() || b.nome;
@@ -4335,10 +4386,25 @@ function extractRasterValue(interp, paramKey, elev){
   return {valid:false};
 }
 
+/* ══════════════════ MODELO 3D DA INTERPOLAÇÃO — GEOMETRIA E DADOS ══════════════════
+   Funções puras (sem Three.js) que calculam as dimensões do bloco em 3D e as grades de
+   valores usadas nas faces de corte. Reaproveitam o mesmo motor de interpolação do raster
+   (computeInterpolatedFuro + extractRasterValue) — só muda a forma da grade: em vez de duas
+   direções horizontais (planta), as faces X/Y usam uma direção horizontal + profundidade
+   (como um perfil de sondagem "de lado"). */
+
+// retângulo em XY local (mesmo sistema usado pelo raster) que o bloco ocupa em planta
+function computeBlockXYRange(block){
+  const hullXY = block.hull.map(([lat,lng])=> localXY(lat,lng, block.refLat, block.refLng));
+  return {
+    minX: Math.min(...hullXY.map(p=>p.x)), maxX: Math.max(...hullXY.map(p=>p.x)),
+    minY: Math.min(...hullXY.map(p=>p.y)), maxY: Math.max(...hullXY.map(p=>p.y)),
+  };
+}
+
 // monta a grade (raster) de valores dentro do casco convexo do bloco
 function computeRasterGrid(block, paramKey, elev){
-  const hullXY = block.hull.map(([lat,lng])=> localXY(lat,lng, block.refLat, block.refLng));
-  const minX = Math.min(...hullXY.map(p=>p.x)), maxX = Math.max(...hullXY.map(p=>p.x));
+  const hullXY = block.hull.map(([lat,lng])=> localXY(lat,lng, block.refLat, block.refLng));  const minX = Math.min(...hullXY.map(p=>p.x)), maxX = Math.max(...hullXY.map(p=>p.x));
   const minY = Math.min(...hullXY.map(p=>p.y)), maxY = Math.max(...hullXY.map(p=>p.y));
   const spanX = Math.max(1, maxX-minX), spanY = Math.max(1, maxY-minY);
 
@@ -4692,6 +4758,543 @@ function printRaster(){
   </body></html>`);
   win.document.close();
 }
+
+/* ══════════════════════════════════════════════════════════════════════
+   MODELO 3D DA INTERPOLAÇÃO — cubo com planos de corte arrastáveis nos 3
+   eixos, revelando a estratigrafia interpolada (material ou N-SPT) no
+   corte. A cena Three.js é criada uma vez (lazy) e reaproveitada entre
+   aberturas — só a geometria/textura são recalculadas por bloco.
+   ══════════════════════════════════════════════════════════════════════ */
+let model3D = null;        // objetos Three.js (câmera, cena, renderer, alças…) — criado uma vez
+let model3DBlockId = null;
+let model3DMode = 'material'; // 'material' | 'spt'
+let model3DGeo = null;     // {block, xyRange, depthRange, halfX, halfV, halfZ, scaleX, scaleZ, scaleV}
+const MODEL3D_SCENE_MAX_DIM = 8; // maior dimensão horizontal da cena, em unidades Three.js
+// folga aplicada à posição "fechada" dos 6 planos de corte — sem isso, o maciço externo (que
+// também é recortado pelos MESMOS planos, pra encolher corretamente ao cortar) fica com suas
+// próprias paredes EXATAMENTE em cima do plano "fechado", e por imprecisão de ponto flutuante
+// parte delas acaba do lado "cortado fora" da própria borda — some justo as paredes, deixando
+// só as superfícies de cima/baixo visíveis (parecendo "folhas" soltas, sem conexão sólida)
+const MODEL3D_CLIP_EPS = 0.02;
+
+/* ══════════════════════════════════════════════════════════════════════
+   MODELO 3D DA INTERPOLAÇÃO — v2: camadas como SUPERFÍCIES ONDULADAS REAIS
+   Cada camada é modelada como um volume sólido de verdade (superfície de
+   cima + superfície de baixo + paredes), com espessura variando pelo
+   bloco de acordo com a interpolação IDW real (mesmo motor do raster/
+   boletim interpolado) — não mais uma imagem "colada" numa face plana.
+   Os cortes revelam o contorno exato de cada camada como MALHA (geometria
+   nítida), sem pixelização.
+
+   Correlação de camadas: computeInterpolatedFuro já resolve a estrutura
+   de camadas usando um furo "molde" (o mais próximo, por padrão). Se
+   deixássemos o molde trocar ponto a ponto conforme o furo mais próximo
+   muda, o número/tipo de camadas "pularia" de repente em certas bordas —
+   por isso FIXAMOS um único molde (o furo com mais camadas, pra
+   preservar o máximo de detalhe) pra TODO o grid do bloco, garantindo
+   uma superfície contínua. É a mesma estratégia que o perfil topo-
+   geotécnico já usa (forcedTemplateFuro), agora estendida a uma grade 2D.
+   ══════════════════════════════════════════════════════════════════════ */
+
+// escolhe o furo "molde" — o que tem MAIS camadas entre os furos de origem do bloco
+function pickModel3DTemplateFuro(block){
+  const srcFuros = block.furoIds.map(id=>furos.find(f=>f.id===id)).filter(Boolean);
+  if(!srcFuros.length) return null;
+  return srcFuros.reduce((best,f)=> (f.camadas||[]).length > (best.camadas||[]).length ? f : best, srcFuros[0]);
+}
+
+// consulta a interpolação REAL num ponto (x,y local) e devolve as elevações de cada horizonte
+// (0=terreno, 1..N=fundo de cada camada do molde) + o N-SPT em cada horizonte (pro modo N-SPT)
+function model3DQueryPoint(block, templateFuro, x, y){
+  const nLayers = templateFuro.camadas.length;
+  const [lat,lng] = xyToLatLng(x, y, block.refLat, block.refLng);
+  const interp = computeInterpolatedFuro(block, lat, lng, templateFuro);
+  const cota = interp && isFinite(parseFloat(interp.ident.cota)) ? parseFloat(interp.ident.cota) : 0;
+  const horizonElev = [cota];
+  const sptAt = [];
+  for(let k=0;k<nLayers;k++){
+    const prof = interp && interp.camadas[k] ? +interp.camadas[k].profFinal : (k+1);
+    horizonElev.push(cota - prof);
+  }
+  for(let k=0;k<=nLayers;k++){
+    if(!interp){ sptAt.push(0); continue; }
+    const r = extractRasterValue(interp, 'spt', horizonElev[k]);
+    sptAt.push(r.valid ? r.num : 0);
+  }
+  return {horizonElev, sptAt};
+}
+
+// pré-computa a grade de horizontes (alinhada nas bordas) — uma única vez, quando o bloco é
+// aberto/reconstruído. As faces de corte, ao serem reveladas depois, consultam a interpolação
+// AO VIVO na posição exata do corte (não usam essa grade), pra ficarem sempre precisas.
+function computeModel3DHorizonGrid(block, templateFuro, xyRange, gridN){
+  const nLayers = templateFuro.camadas.length;
+  const horizons = Array.from({length:nLayers+1}, ()=> Array.from({length:gridN+1}, ()=> new Array(gridN+1).fill(0)));
+  const spt = Array.from({length:nLayers+1}, ()=> Array.from({length:gridN+1}, ()=> new Array(gridN+1).fill(0)));
+  let sptMin=Infinity, sptMax=-Infinity;
+  for(let ix=0; ix<=gridN; ix++){
+    const x = xyRange.minX + ix*(xyRange.maxX-xyRange.minX)/gridN;
+    for(let iz=0; iz<=gridN; iz++){
+      const y = xyRange.minY + iz*(xyRange.maxY-xyRange.minY)/gridN;
+      const {horizonElev, sptAt} = model3DQueryPoint(block, templateFuro, x, y);
+      for(let k=0;k<=nLayers;k++){
+        horizons[k][ix][iz] = horizonElev[k];
+        spt[k][ix][iz] = sptAt[k];
+        if(sptAt[k]>0){ sptMin=Math.min(sptMin,sptAt[k]); sptMax=Math.max(sptMax,sptAt[k]); }
+      }
+    }
+  }
+  if(!isFinite(sptMin)){ sptMin=0; sptMax=1; }
+  if(sptMax<=sptMin) sptMax = sptMin+1;
+  return {horizons, spt, sptMin, sptMax, nLayers, tipos: templateFuro.camadas.map(c=>c.tipo)};
+}
+
+function model3DGridPos(i, min, max, gridN){ return min + i*(max-min)/gridN; }
+
+function model3DClearGroup(g){ while(g.children.length) g.remove(g.children[0]); }
+
+function ensureModel3DScene(){
+  if(model3D) return;
+  const wrap = document.getElementById('model3d-canvas-wrap');
+  const scene = new THREE.Scene();
+  scene.background = new THREE.Color(0xdfe6e0);
+  const camera = new THREE.PerspectiveCamera(45, Math.max(1,wrap.clientWidth)/Math.max(1,wrap.clientHeight), 0.1, 300);
+  const renderer = new THREE.WebGLRenderer({antialias:true});
+  renderer.setPixelRatio(window.devicePixelRatio||1);
+  renderer.localClippingEnabled = true;
+  wrap.insertBefore(renderer.domElement, wrap.firstChild);
+  renderer.domElement.style.display='block';
+
+  const controls = new THREE.OrbitControls(camera, renderer.domElement);
+  controls.enableDamping = true; controls.dampingFactor = 0.08;
+  controls.minDistance = 2; controls.maxDistance = 60;
+
+  scene.add(new THREE.AmbientLight(0xffffff, 0.7));
+  const sun = new THREE.DirectionalLight(0xffffff, 0.65); sun.position.set(6,10,4); scene.add(sun);
+  const sun2 = new THREE.DirectionalLight(0xffffff, 0.3); sun2.position.set(-6,4,-4); scene.add(sun2);
+
+  // ══ 6 direções de corte (2 por eixo) ══
+  function axisVec(i,v){ const a=[0,0,0]; a[i]=v; return new THREE.Vector3(a[0],a[1],a[2]); }
+  const DIRS = [
+    {key:'x+', axisIdx:0, sign:1,  color:0xd6493a, label:'Corte X'},
+    {key:'x-', axisIdx:0, sign:-1, color:0xd6493a, label:'Corte X'},
+    {key:'y+', axisIdx:1, sign:1,  color:0x2d6b4a, label:'Profundidade'},
+    {key:'y-', axisIdx:1, sign:-1, color:0x2d6b4a, label:'Profundidade'},
+    {key:'z+', axisIdx:2, sign:1,  color:0x2a5a8c, label:'Corte Y'},
+    {key:'z-', axisIdx:2, sign:-1, color:0x2a5a8c, label:'Corte Y'},
+  ];
+  DIRS.forEach(d=>{ d.plane = new THREE.Plane(axisVec(d.axisIdx,-d.sign), 0); d.dirVec = axisVec(d.axisIdx,d.sign); });
+  function getCutPos(d){ return d.sign>0 ? d.plane.constant : -d.plane.constant; }
+  function setCutPos(d,pos){ d.plane.constant = d.sign>0 ? pos : -pos; }
+  const ALL_CLIPS = DIRS.map(d=>d.plane);
+  function otherAxesClips(axisIdx){ return DIRS.filter(d=>d.axisIdx!==axisIdx).map(d=>d.plane); }
+
+  const edgesGeo = new THREE.EdgesGeometry(new THREE.BoxGeometry(1,1,1));
+  const edges = new THREE.LineSegments(edgesGeo, new THREE.LineBasicMaterial({color:0x282420, transparent:true, opacity:0.35, clippingPlanes:ALL_CLIPS}));
+  scene.add(edges);
+  const gridHelper = new THREE.GridHelper(40,40,0xbdb8ae,0xd8d3c5);
+  scene.add(gridHelper);
+
+  const layerGroup = new THREE.Group(); scene.add(layerGroup); // superfícies onduladas (exterior)
+  DIRS.forEach(d=>{ d.cutMeshGroup = new THREE.Group(); d.cutMeshGroup.visible=false; scene.add(d.cutMeshGroup); });
+
+  function makeArrowHandle(cor, direction){
+    const group = new THREE.Group();
+    const mat = new THREE.MeshStandardMaterial({color:cor, roughness:0.35, metalness:0.2, emissive:cor, emissiveIntensity:0.18});
+    const shaft = new THREE.Mesh(new THREE.CylinderGeometry(0.07,0.07,0.55,14), mat); shaft.position.y=0.275;
+    const cone = new THREE.Mesh(new THREE.ConeGeometry(0.24,0.5,20), mat); cone.position.y=0.8;
+    group.add(shaft, cone);
+    group.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0), direction.clone().normalize());
+    scene.add(group);
+    return group;
+  }
+  DIRS.forEach(d=>{
+    const handle = makeArrowHandle(d.color, d.dirVec);
+    handle.userData.dirKey = d.key;
+    handle.children.forEach(ch=>ch.userData.dirKey=d.key);
+    d.handle = handle;
+  });
+  const ALL_HANDLES = DIRS.map(d=>d.handle);
+
+  const labelsLayer = document.getElementById('model3d-labels-layer');
+  function makeLabel(text,cor){ const el=document.createElement('div'); el.className='handle-label3d'; el.textContent=text; el.style.background=cor; el.style.color='#fff'; labelsLayer.appendChild(el); return el; }
+  DIRS.forEach(d=>{ d.label3d = makeLabel(d.label, '#'+d.color.toString(16).padStart(6,'0')); });
+
+  const raycaster = new THREE.Raycaster();
+  const mouseNDC = new THREE.Vector2();
+  const dragPlane = new THREE.Plane();
+  const dragPoint = new THREE.Vector3();
+  let dragging=null, hoveredHandle=null;
+
+  function setMouseNDC(cx,cy){ const r=renderer.domElement.getBoundingClientRect(); mouseNDC.x=((cx-r.left)/r.width)*2-1; mouseNDC.y=-((cy-r.top)/r.height)*2+1; }
+  function dirFromObj(obj){ return DIRS.find(d=>d.key===obj.userData.dirKey); }
+  function setHi(d,on){ d.handle.scale.setScalar(on?1.35:1); d.handle.children.forEach(c=>c.material.emissiveIntensity=on?0.6:0.18); }
+  function updateHoverFromPointer(cx,cy){
+    setMouseNDC(cx,cy); raycaster.setFromCamera(mouseNDC,camera);
+    const hits = raycaster.intersectObjects(ALL_HANDLES,true);
+    const alvo = hits.length? dirFromObj(hits[0].object): null;
+    if(alvo!==hoveredHandle){ if(hoveredHandle) setHi(hoveredHandle,false); if(alvo) setHi(alvo,true); hoveredHandle=alvo; }
+    if(!dragging) controls.enabled=!alvo;
+    renderer.domElement.style.cursor = dragging?'grabbing':(alvo?'grab':'default');
+  }
+  function updateHandlePositions(){ DIRS.forEach(d=>{ d.handle.position.setComponent(d.axisIdx, getCutPos(d)); }); }
+
+  renderer.domElement.addEventListener('pointerdown', e=>{
+    setMouseNDC(e.clientX,e.clientY); raycaster.setFromCamera(mouseNDC,camera);
+    const hits = raycaster.intersectObjects(ALL_HANDLES,true);
+    if(hits.length){
+      dragging = dirFromObj(hits[0].object); controls.enabled=false;
+      const camDir=new THREE.Vector3(); camera.getWorldDirection(camDir);
+      dragPlane.setFromNormalAndCoplanarPoint(camDir, dragging.handle.position);
+      renderer.domElement.setPointerCapture(e.pointerId);
+      renderer.domElement.style.cursor='grabbing';
+      if(hoveredHandle && hoveredHandle!==dragging) setHi(hoveredHandle,false);
+      setHi(dragging,true); hoveredHandle=dragging;
+    }
+  });
+  const AXIS_PROP=['x','y','z'];
+  renderer.domElement.addEventListener('pointermove', e=>{
+    if(!dragging){ updateHoverFromPointer(e.clientX,e.clientY); return; }
+    setMouseNDC(e.clientX,e.clientY); raycaster.setFromCamera(mouseNDC,camera);
+    if(!raycaster.ray.intersectPlane(dragPlane,dragPoint)) return;
+    if(!model3DGeo) return;
+    const halves = [model3DGeo.halfX, model3DGeo.halfV, model3DGeo.halfZ];
+    const half = halves[dragging.axisIdx] + MODEL3D_CLIP_EPS;
+    const raw = dragPoint[AXIS_PROP[dragging.axisIdx]];
+    setCutPos(dragging, Math.max(-half, Math.min(half, raw)));
+    updateHandlePositions();
+  });
+  function endDrag(e){
+    if(dragging) refreshModel3DCut(dragging.key); // recalcula a interpolação AO VIVO só ao soltar
+    dragging=null; controls.enabled=true;
+    if(e && e.clientX!=null) updateHoverFromPointer(e.clientX,e.clientY); else renderer.domElement.style.cursor='default';
+  }
+  renderer.domElement.addEventListener('pointerup', endDrag);
+  renderer.domElement.addEventListener('pointerleave', ()=>{
+    if(hoveredHandle){ setHi(hoveredHandle,false); hoveredHandle=null; }
+    renderer.domElement.style.cursor='default';
+    endDrag();
+  });
+
+  const tmpV = new THREE.Vector3();
+  function updateHandleLabels(){
+    const w=wrap.clientWidth, h=wrap.clientHeight;
+    DIRS.forEach(d=>{ tmpV.copy(d.handle.position).project(camera); d.label3d.style.left=((tmpV.x*0.5+0.5)*w)+'px'; d.label3d.style.top=((-tmpV.y*0.5+0.5)*h-30)+'px'; });
+  }
+  function animate(){ requestAnimationFrame(animate); controls.update(); updateHandleLabels(); renderer.render(scene,camera); }
+  animate();
+
+  model3D = {
+    scene, camera, renderer, controls, wrap, DIRS,
+    dirByKey(key){ return DIRS.find(d=>d.key===key); },
+    getCutPos, setCutPos, edges, layerGroup, otherAxesClips, ALL_CLIPS,
+    updateHandlePositions,
+    resize(){
+      if(!wrap.clientWidth || !wrap.clientHeight) return;
+      camera.aspect = wrap.clientWidth/wrap.clientHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(wrap.clientWidth, wrap.clientHeight);
+    }
+  };
+  window.addEventListener('resize', model3D.resize);
+}
+
+// cor de uma camada k, no modo atual (sólida por material, ou gradiente N-SPT por vértice)
+function model3DLayerColorHex(k){
+  const tipo = model3DGeo.tipos[k];
+  return parseInt((SOIL_FILL[tipo]||SOIL_FILL.outro).replace('#',''), 16);
+}
+function model3DSptColor(sptVal){
+  const { sptMin, sptMax } = model3DGeo.gridData;
+  const t = (sptVal-sptMin)/(sptMax-sptMin);
+  const [r,g,b] = continuousColor(t);
+  return new THREE.Color(r/255,g/255,b/255);
+}
+
+// constrói o volume sólido de UMA camada (superfície de cima + de baixo + paredes), lendo da
+// grade pré-computada — usa cor de vértice (funciona pros dois modos: sólida no material, ou
+// gradiente no N-SPT, sem precisar reconstruir a geometria ao trocar de modo)
+function buildModel3DLayerGeometry(k){
+  const { xyRange, gridN, gridData, sceneOrigin, scaleH, scaleV } = model3DGeo;
+  const { horizons, spt } = gridData;
+  const positions=[], colors=[]; const indices=[]; let vi=0;
+  function sceneXZ(ix,iz){
+    const x = model3DGridPos(ix, xyRange.minX, xyRange.maxX, gridN);
+    const z = model3DGridPos(iz, xyRange.minY, xyRange.maxY, gridN);
+    return [ (x-sceneOrigin.x)*scaleH, (z-sceneOrigin.z)*scaleH ];
+  }
+  function sceneY(elev){ return (elev-sceneOrigin.y)*scaleV; }
+  function colorFor(surfaceHorizonIdx, layerIdx, ix, iz){
+    // no modo material a cor é a MESMA em toda a camada (usa sempre a cor da própria camada,
+    // não a do horizonte específico) — no modo N-SPT, cada horizonte pode ter um valor
+    // diferente (gradiente dentro da própria camada), então usa o valor daquele horizonte
+    if(model3DMode==='material') return new THREE.Color(model3DLayerColorHex(layerIdx));
+    return model3DSptColor(spt[surfaceHorizonIdx][ix][iz]);
+  }
+  function pushVert(sx,sy,sz,col){ positions.push(sx,sy,sz); colors.push(col.r,col.g,col.b); return vi++; }
+  const topIdx=[], botIdx=[];
+  for(let ix=0; ix<=gridN; ix++){
+    const rowT=[];
+    for(let iz=0; iz<=gridN; iz++){ const [sx,sz]=sceneXZ(ix,iz); rowT.push(pushVert(sx, sceneY(horizons[k][ix][iz]), sz, colorFor(k,k,ix,iz))); }
+    topIdx.push(rowT);
+  }
+  for(let ix=0; ix<=gridN; ix++){
+    const rowB=[];
+    for(let iz=0; iz<=gridN; iz++){ const [sx,sz]=sceneXZ(ix,iz); rowB.push(pushVert(sx, sceneY(horizons[k+1][ix][iz]), sz, colorFor(k+1,k,ix,iz))); }
+    botIdx.push(rowB);
+  }
+  for(let ix=0; ix<gridN; ix++){
+    for(let iz=0; iz<gridN; iz++){
+      const a=topIdx[ix][iz], b=topIdx[ix+1][iz], c=topIdx[ix+1][iz+1], d=topIdx[ix][iz+1];
+      indices.push(a,b,c, a,c,d);
+      const a2=botIdx[ix][iz], b2=botIdx[ix][iz+1], c2=botIdx[ix+1][iz+1], d2=botIdx[ix+1][iz];
+      indices.push(a2,b2,c2, a2,c2,d2);
+    }
+  }
+  for(let iz=0; iz<gridN; iz++){
+    let a=topIdx[0][iz], b=topIdx[0][iz+1], c=botIdx[0][iz+1], d=botIdx[0][iz];
+    indices.push(a,b,c, a,c,d);
+    a=topIdx[gridN][iz]; b=botIdx[gridN][iz]; c=botIdx[gridN][iz+1]; d=topIdx[gridN][iz+1];
+    indices.push(a,b,c, a,c,d);
+  }
+  for(let ix=0; ix<gridN; ix++){
+    let a=topIdx[ix][0], b=botIdx[ix][0], c=botIdx[ix+1][0], d=topIdx[ix+1][0];
+    indices.push(a,b,c, a,c,d);
+    a=topIdx[ix][gridN]; b=topIdx[ix+1][gridN]; c=botIdx[ix+1][gridN]; d=botIdx[ix][gridN];
+    indices.push(a,b,c, a,c,d);
+  }
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.Float32BufferAttribute(positions,3));
+  geo.setAttribute('color', new THREE.Float32BufferAttribute(colors,3));
+  geo.setIndex(indices);
+  geo.computeVertexNormals();
+  return geo;
+}
+
+// face de corte vertical (X ou Y geotécnico) — consulta a interpolação AO VIVO na posição
+// exata do corte, ponto a ponto ao longo da direção que varia, e monta um "leque" de quads por
+// camada seguindo o contorno real — geometria nítida, sem imagem/pixel
+function buildModel3DVerticalCutMesh(d){
+  const { block, templateFuro, xyRange, gridN, sceneOrigin, scaleH, scaleV } = model3DGeo;
+  const cutPosScene = model3D.getCutPos(d);
+  // posição REAL (coordenada local do bloco) do corte, convertendo de volta de cena pra real
+  const cutPosReal = d.axisIdx===0 ? sceneOrigin.x + cutPosScene/scaleH : sceneOrigin.z + cutPosScene/scaleH;
+  const group = d.cutMeshGroup;
+  model3DClearGroup(group);
+  const nLayers = model3DGeo.gridData.nLayers;
+  const segs = gridN;
+  for(let k=0;k<nLayers;k++){
+    const positions=[], colors=[];
+    for(let i=0;i<=segs;i++){
+      // parâmetro que VARIA, em coordenada real, ao longo do eixo perpendicular ao corte
+      const tReal = d.axisIdx===0
+        ? xyRange.minY + i*(xyRange.maxY-xyRange.minY)/segs   // corte X: varia Y geotécnico
+        : xyRange.minX + i*(xyRange.maxX-xyRange.minX)/segs;  // corte Y geotécnico: varia X
+      const realX = d.axisIdx===0 ? cutPosReal : tReal;
+      const realY = d.axisIdx===0 ? tReal : cutPosReal;
+      const {horizonElev, sptAt} = model3DQueryPoint(block, templateFuro, realX, realY);
+      const sceneVar = (tReal - (d.axisIdx===0 ? sceneOrigin.z : sceneOrigin.x)) * scaleH;
+      const sy1 = (horizonElev[k]-sceneOrigin.y)*scaleV, sy2=(horizonElev[k+1]-sceneOrigin.y)*scaleV;
+      const col1 = model3DMode==='material'? new THREE.Color(model3DLayerColorHex(k)) : model3DSptColor(sptAt[k]);
+      const col2 = model3DMode==='material'? new THREE.Color(model3DLayerColorHex(k)) : model3DSptColor(sptAt[k+1]);
+      if(d.axisIdx===0){
+        positions.push(cutPosScene, sy1, sceneVar,  cutPosScene, sy2, sceneVar);
+      } else {
+        positions.push(sceneVar, sy1, cutPosScene,  sceneVar, sy2, cutPosScene);
+      }
+      colors.push(col1.r,col1.g,col1.b, col2.r,col2.g,col2.b);
+    }
+    const indices=[];
+    for(let i=0;i<segs;i++){ const a=i*2,b=i*2+1,c=i*2+3,e=i*2+2; indices.push(a,b,c, a,c,e); }
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.Float32BufferAttribute(positions,3));
+    geo.setAttribute('color', new THREE.Float32BufferAttribute(colors,3));
+    geo.setIndex(indices);
+    geo.computeVertexNormals();
+    const mat = new THREE.MeshBasicMaterial({vertexColors:true, side:THREE.DoubleSide, clippingPlanes:model3D.otherAxesClips(d.axisIdx), clipShadows:true});
+    group.add(new THREE.Mesh(geo, mat));
+  }
+}
+
+// face de corte de profundidade (fatia horizontal) — uma malha só, cor por célula (vértices não
+// compartilhados entre células, pra não misturar cor de camadas vizinhas), consultando a
+// interpolação ao vivo em cada célula na cota exata do corte
+function buildModel3DDepthCutMesh(d){
+  const { block, templateFuro, xyRange, gridN, sceneOrigin, scaleH, scaleV } = model3DGeo;
+  const elevScene = model3D.getCutPos(d);
+  const elevReal = sceneOrigin.y + elevScene/scaleV;
+  const group = d.cutMeshGroup;
+  model3DClearGroup(group);
+  const nLayers = model3DGeo.gridData.nLayers;
+  const nSeg = gridN;
+  const positions = new Float32Array(nSeg*nSeg*4*3);
+  const colors = new Float32Array(nSeg*nSeg*4*3);
+  const indices = [];
+  let qi=0;
+  for(let ix=0; ix<nSeg; ix++){
+    for(let iz=0; iz<nSeg; iz++){
+      const x0=model3DGridPos(ix,xyRange.minX,xyRange.maxX,gridN), x1=model3DGridPos(ix+1,xyRange.minX,xyRange.maxX,gridN);
+      const z0=model3DGridPos(iz,xyRange.minY,xyRange.maxY,gridN), z1=model3DGridPos(iz+1,xyRange.minY,xyRange.maxY,gridN);
+      const xm=(x0+x1)/2, zm=(z0+z1)/2;
+      const {horizonElev, sptAt} = model3DQueryPoint(block, templateFuro, xm, zm);
+      let k=0, achou=false;
+      for(;k<nLayers;k++){ if(elevReal<=horizonElev[k] && elevReal>=horizonElev[k+1]){ achou=true; break; } }
+      const cor = achou ? (model3DMode==='material'? new THREE.Color(model3DLayerColorHex(k)) : model3DSptColor(sptAt[k])) : new THREE.Color(0xf0ece0);
+      const sx0=(x0-sceneOrigin.x)*scaleH, sx1=(x1-sceneOrigin.x)*scaleH, sz0=(z0-sceneOrigin.z)*scaleH, sz1=(z1-sceneOrigin.z)*scaleH;
+      const base=qi*4;
+      positions[base*3+0]=sx0; positions[base*3+1]=elevScene; positions[base*3+2]=sz0;
+      positions[(base+1)*3+0]=sx1; positions[(base+1)*3+1]=elevScene; positions[(base+1)*3+2]=sz0;
+      positions[(base+2)*3+0]=sx1; positions[(base+2)*3+1]=elevScene; positions[(base+2)*3+2]=sz1;
+      positions[(base+3)*3+0]=sx0; positions[(base+3)*3+1]=elevScene; positions[(base+3)*3+2]=sz1;
+      for(let vv=0; vv<4; vv++){ colors[(base+vv)*3+0]=cor.r; colors[(base+vv)*3+1]=cor.g; colors[(base+vv)*3+2]=cor.b; }
+      indices.push(base,base+1,base+2, base,base+2,base+3);
+      qi++;
+    }
+  }
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.BufferAttribute(positions,3));
+  geo.setAttribute('color', new THREE.BufferAttribute(colors,3));
+  geo.setIndex(indices);
+  const mat = new THREE.MeshBasicMaterial({vertexColors:true, side:THREE.DoubleSide, clippingPlanes:model3D.otherAxesClips(1), clipShadows:true});
+  group.add(new THREE.Mesh(geo, mat));
+}
+
+// (re)constrói a face de corte de UMA direção — chamada ao soltar o arrasto, ou ao trocar modo
+function refreshModel3DCut(dirKey){
+  if(!model3DGeo) return;
+  const d = model3D.dirByKey(dirKey);
+  if(d.axisIdx===1) buildModel3DDepthCutMesh(d); else buildModel3DVerticalCutMesh(d);
+  // só mostra a face revelada se um corte de verdade foi feito (não um clique trivial sem
+  // arrastar, que deixaria uma face redundante bem em cima da própria borda do maciço)
+  const halves = [model3DGeo.halfX, model3DGeo.halfV, model3DGeo.halfZ];
+  const half = halves[d.axisIdx];
+  const cutAmount = half - d.sign*model3D.getCutPos(d);
+  d.cutMeshGroup.visible = cutAmount > 0.01*half;
+  updateModel3DLegend();
+}
+
+// recalcula geometria/escala do cubo pro bloco atual — chamado toda vez que o popup abre
+function rebuildModel3DGeometry(block){
+  const templateFuro = pickModel3DTemplateFuro(block);
+  const xyRange = computeBlockXYRange(block);
+  const gridN = 22;
+  const gridData = computeModel3DHorizonGrid(block, templateFuro, xyRange, gridN);
+
+  const realSpanX = Math.max(1, xyRange.maxX-xyRange.minX);
+  const realSpanZ = Math.max(1, xyRange.maxY-xyRange.minY);
+  let minElev=Infinity, maxElev=-Infinity;
+  gridData.horizons.forEach(grid=>grid.forEach(row=>row.forEach(v=>{ minElev=Math.min(minElev,v); maxElev=Math.max(maxElev,v); })));
+  const realDepth = Math.max(1, maxElev-minElev);
+  const maxHoriz = Math.max(realSpanX, realSpanZ);
+
+  const scaleH = MODEL3D_SCENE_MAX_DIM/maxHoriz;
+  const sceneX = realSpanX*scaleH, sceneZ = realSpanZ*scaleH;
+  const targetDepth = MODEL3D_SCENE_MAX_DIM*0.5;
+  const scaleV = targetDepth/realDepth;
+  const exaggeration = scaleV/scaleH;
+  const sceneOrigin = { x:(xyRange.minX+xyRange.maxX)/2, y:(minElev+maxElev)/2, z:(xyRange.minY+xyRange.maxY)/2 };
+
+  model3DGeo = {
+    block, templateFuro, xyRange, gridN, gridData, sceneOrigin, scaleH, scaleV, exaggeration,
+    halfX: sceneX/2, halfZ: sceneZ/2, halfV: targetDepth/2,
+    tipos: gridData.tipos,
+  };
+
+  const { edges, layerGroup, DIRS, camera, controls } = model3D;
+  edges.scale.set(sceneX, targetDepth, sceneZ);
+
+  model3DClearGroup(layerGroup);
+  for(let k=0;k<gridData.nLayers;k++){
+    // MeshBasicMaterial (ignora luz/normais) — não depende de normais suavizadas, que criam
+    // sombreamento estranho justamente nas quinas onde o topo encontra a parede lateral (ângulo
+    // quase reto); as faces de corte já usam esse material e ficam corretas, então unifica aqui
+    const mat = new THREE.MeshBasicMaterial({vertexColors:true, side:THREE.DoubleSide, clippingPlanes:model3D.ALL_CLIPS, clipShadows:true});
+    layerGroup.add(new THREE.Mesh(buildModel3DLayerGeometry(k), mat));
+  }
+
+  DIRS.forEach(d=>{
+    const halves = [model3DGeo.halfX, model3DGeo.halfV, model3DGeo.halfZ];
+    model3D.setCutPos(d, d.sign*(halves[d.axisIdx]+MODEL3D_CLIP_EPS));
+    model3DClearGroup(d.cutMeshGroup);
+    d.cutMeshGroup.visible = false;
+  });
+  model3D.updateHandlePositions();
+
+  const dist = Math.max(sceneX, sceneZ, targetDepth)*1.7 + 2;
+  camera.position.set(dist*0.62, dist*0.55, dist*0.62);
+  controls.target.set(0,0,0);
+  controls.minDistance = Math.max(2, dist*0.15);
+  controls.maxDistance = dist*4;
+
+  document.getElementById('model3d-exagero').textContent = exaggeration.toFixed(1)+'×';
+}
+
+function updateModel3DLegend(){
+  const el = document.getElementById('model3d-legend');
+  if(!model3DGeo){ el.innerHTML=''; return; }
+  if(model3DMode==='material'){
+    const tiposUnicos = Array.from(new Set(model3DGeo.tipos));
+    el.innerHTML = buildRasterLegendHtml({key:'material', label:'Material predominante'}, 0, 0, new Set(tiposUnicos));
+  } else {
+    const { sptMin, sptMax } = model3DGeo.gridData;
+    el.innerHTML = buildRasterLegendHtml({key:'spt', label:'N-SPT interpolado', unidade:'golpes'}, sptMin, sptMax, null);
+  }
+}
+
+function openModel3DView(blockId){
+  const block = interpBlocks.find(b=>b.id===blockId); if(!block) return;
+  if(!block.furoIds || block.furoIds.length<2){ toast('Bloco precisa de pelo menos 2 furos pra gerar o modelo 3D'); return; }
+  const template = pickModel3DTemplateFuro(block);
+  if(!template || !template.camadas || !template.camadas.length){ toast('Nenhum furo do bloco tem camadas cadastradas'); return; }
+  document.getElementById('model3d-view-overlay').classList.add('open');
+  document.body.style.overflow='hidden';
+  ensureModel3DScene();
+  model3DBlockId = blockId;
+  rebuildModel3DGeometry(block);
+  updateModel3DLegend();
+  setTimeout(()=> model3D.resize(), 50);
+}
+function closeModel3DView(){
+  document.getElementById('model3d-view-overlay').classList.remove('open');
+  document.body.style.overflow='';
+}
+document.getElementById('model3d-reset-btn').addEventListener('click', ()=>{
+  if(!model3DGeo || !model3D) return;
+  const halves = [model3DGeo.halfX, model3DGeo.halfV, model3DGeo.halfZ];
+  model3D.DIRS.forEach(d=>{
+    model3D.setCutPos(d, d.sign*(halves[d.axisIdx]+MODEL3D_CLIP_EPS));
+    model3DClearGroup(d.cutMeshGroup);
+    d.cutMeshGroup.visible = false;
+  });
+  model3D.updateHandlePositions();
+});
+document.querySelectorAll('#model3d-mode-toggle .loc-mode-btn').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    document.querySelectorAll('#model3d-mode-toggle .loc-mode-btn').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    model3DMode = btn.dataset.mode;
+    if(!model3DGeo) return;
+    // troca de modo só recolore (não recalcula a geometria/interpolação) — a forma do maciço
+    // não muda, só a cor mostrada em cada camada
+    model3D.layerGroup.children.forEach((mesh,k)=>{
+      const colorAttr = mesh.geometry.attributes.color;
+      const { gridN } = model3DGeo;
+      for(let ix=0; ix<=gridN; ix++){
+        for(let iz=0; iz<=gridN; iz++){
+          const idxTop = ix*(gridN+1)+iz, idxBot = (gridN+1)*(gridN+1)+ix*(gridN+1)+iz;
+          const colTop = model3DMode==='material'? new THREE.Color(model3DLayerColorHex(k)) : model3DSptColor(model3DGeo.gridData.spt[k][ix][iz]);
+          const colBot = model3DMode==='material'? new THREE.Color(model3DLayerColorHex(k)) : model3DSptColor(model3DGeo.gridData.spt[k+1][ix][iz]);
+          colorAttr.setXYZ(idxTop, colTop.r,colTop.g,colTop.b);
+          colorAttr.setXYZ(idxBot, colBot.r,colBot.g,colBot.b);
+        }
+      }
+      colorAttr.needsUpdate = true;
+    });
+    updateModel3DLegend();
+    model3D.DIRS.forEach(d=>{ if(d.cutMeshGroup.visible) refreshModel3DCut(d.key); });
+  });
+});
+
 
 function buildRasterParamButtons(){
   const wrap = document.getElementById('raster-param-toggle');

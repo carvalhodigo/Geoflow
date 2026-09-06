@@ -181,6 +181,11 @@ hr{border:none;border-top:1px solid var(--bdr);margin:2px 0}
   padding:1px 5px;font-family:var(--mono);font-size:10px;font-weight:700;color:var(--tx);
   box-shadow:0 1px 2px rgba(0,0,0,.2)}
 .furo-label::before{display:none}
+/* rótulo de pontos/linhas/áreas importadas — mesma ideia do furo, cor diferente pra distinguir */
+.shape-label{background:rgba(250,248,243,.92);border:1px solid var(--bdr);border-radius:3px;
+  padding:1px 5px;font-family:var(--mono);font-size:10px;font-weight:700;color:#2a5a8c;
+  box-shadow:0 1px 2px rgba(0,0,0,.2)}
+.shape-label::before{display:none}
 
 /* ── janela de abertura (splash screen) — some sozinha 5s depois de carregar, ou no clique ── */
 #splash-screen{position:fixed;inset:0;z-index:99999;background:var(--bg);
@@ -230,6 +235,12 @@ hr{border:none;border-top:1px solid var(--bdr);margin:2px 0}
   position:absolute; transform:translate(-50%,-50%); pointer-events:none;
   font-size:9.5px; font-family:var(--mono); color:#4a453e;
   background:rgba(250,248,243,.75); padding:1px 4px; border-radius:3px;
+}
+/* rótulo do nome de cada furo real, na posição verdadeira dele dentro do modelo 3D */
+.furo-marker3d-label{
+  position:absolute; transform:translate(-50%,-100%); pointer-events:none;
+  font-size:9.5px; font-weight:700; font-family:var(--mono); color:#fff;
+  background:rgba(26,26,26,.85); padding:1px 5px; border-radius:8px; white-space:nowrap;
 }
 
 /* legenda flutuante sobre o mapa — aparece sozinha quando há pelo menos um raster visível,
@@ -782,6 +793,10 @@ table.edit-tbl input:focus,table.edit-tbl select:focus{outline:none;border-color
         <button type="button" class="loc-mode-btn active" data-mode="material">Material predominante</button>
         <button type="button" class="loc-mode-btn" data-mode="spt">N-SPT interpolado</button>
       </div>
+      <label style="display:flex;align-items:center;gap:6px;margin-top:8px;font-size:12.5px;cursor:pointer;">
+        <input type="checkbox" id="model3d-show-furos" checked>
+        Mostrar posição das sondagens de origem
+      </label>
       <div id="model3d-canvas-wrap" style="position:relative;margin-top:10px;height:64vh;min-height:420px;
         border:1px solid var(--bo-border);border-radius:10px;overflow:hidden;background:#dfe6e0;">
         <div id="model3d-labels-layer" style="position:absolute;inset:0;pointer-events:none;z-index:2;"></div>
@@ -789,6 +804,14 @@ table.edit-tbl input:focus,table.edit-tbl select:focus{outline:none;border-color
         <div id="model3d-hover-tip" style="position:absolute;pointer-events:none;z-index:4;display:none;
           background:rgba(40,36,32,.92);color:#fff;font-family:var(--mono);font-size:11px;line-height:1.5;
           padding:6px 9px;border-radius:6px;white-space:nowrap;transform:translate(12px,12px);"></div>
+        <div id="model3d-value-input-wrap" style="position:absolute;pointer-events:none;z-index:5;display:none;
+          transform:translate(-50%,-50%);">
+          <input id="model3d-value-input" type="number" step="0.1" style="width:78px;font-family:var(--mono);
+            font-size:11.5px;text-align:center;padding:3px 4px;border-radius:5px;border:1.5px solid #282420;
+            pointer-events:auto;background:#fff;">
+          <span id="model3d-value-unit" style="font-family:var(--mono);font-size:10px;color:#282420;
+            background:rgba(250,248,243,.9);padding:1px 4px;border-radius:3px;margin-left:3px;">m</span>
+        </div>
         <div id="model3d-loading" class="hint" style="position:absolute;left:12px;top:12px;background:rgba(250,248,243,.9);
           padding:6px 10px;border-radius:6px;display:none;z-index:3;">Calculando corte…</div>
       </div>
@@ -1381,14 +1404,20 @@ function toggleFuroTableFloat(){
   panelEl.classList.toggle('floating', furoTableFloating);
   document.getElementById('furo-table-float').classList.toggle('on', furoTableFloating);
   if(furoTableFloating){
-    panelEl.style.top = uiPrefs.tableFloatTop+'px';
-    panelEl.style.left = uiPrefs.tableFloatLeft+'px';
-    panelEl.style.width = uiPrefs.tableFloatWidth+'px';
-    panelEl.style.height = uiPrefs.tableFloatHeight+'px';
+    // corrige posição/tamanho salvos que podem ter ficado fora da tela atual (ex.: a janela do
+    // navegador encolheu desde a última vez que a tabela flutuante foi usada, ou o valor salvo
+    // está corrompido/ausente) — sem isso, o painel pode ficar posicionado fora da área visível,
+    // sem nenhum jeito de arrastar de volta (não dá pra pegar um cabeçalho que você não vê)
+    const maxTop = Math.max(0, window.innerHeight-40);
+    const maxLeft = Math.max(0, window.innerWidth-120);
+    panelEl.style.top = safeUiNum(uiPrefs.tableFloatTop, 0, maxTop, 70)+'px';
+    panelEl.style.left = safeUiNum(uiPrefs.tableFloatLeft, 0, maxLeft, 70)+'px';
+    panelEl.style.width = safeUiNum(uiPrefs.tableFloatWidth, 300, 2000, 720)+'px';
+    panelEl.style.height = safeUiNum(uiPrefs.tableFloatHeight, 150, 2000, 360)+'px';
   } else {
     panelEl.style.top = ''; panelEl.style.left = '';
     panelEl.style.width = '100%';
-    panelEl.style.height = uiPrefs.tableHeight+'px';
+    panelEl.style.height = safeUiNum(uiPrefs.tableHeight, 100, 2000, 280)+'px';
   }
   scheduleSaveUiPrefs();
 }
@@ -1414,8 +1443,13 @@ document.getElementById('furo-table-float').addEventListener('click', toggleFuro
   const onMove = e=>{
     if(!dragging) return;
     const p = getPos(e);
-    const newTop = Math.max(0, startTop + (p.y-startY));
-    const newLeft = Math.max(0, startLeft + (p.x-startX));
+    // limita em todos os 4 lados — sem isso dava pra arrastar a janela flutuante completamente
+    // pra fora da tela (sobrava só o canto negativo tratado; o lado direito/inferior não tinha
+    // limite nenhum), aí essa posição ficava salva e a tabela sumia na próxima vez que abrisse
+    const maxTop = Math.max(0, window.innerHeight-40);
+    const maxLeft = Math.max(0, window.innerWidth-120);
+    const newTop = Math.min(maxTop, Math.max(0, startTop + (p.y-startY)));
+    const newLeft = Math.min(maxLeft, Math.max(0, startLeft + (p.x-startX)));
     panelEl.style.top = newTop+'px';
     panelEl.style.left = newLeft+'px';
   };
@@ -1486,11 +1520,20 @@ async function saveUiPrefs(){
   };
   try{ await window.storage.set('geosig:ui', JSON.stringify(uiPrefs)); }catch(e){}
 }
+// valida um número salvo de preferência de UI — se estiver ausente, corrompido (NaN) ou fora
+// de uma faixa sensata, usa o padrão em vez do valor salvo. Sem isso, um valor antigo salvo
+// numa tela maior (ou corrompido de alguma forma) podia deixar a tabela de furos com posição/
+// tamanho inválido, ficando efetivamente invisível mesmo com o painel tecnicamente "aberto"
+// (o botão fica marcado, mas nada aparece na tela).
+function safeUiNum(val, min, max, fallback){
+  const n = +val;
+  return (isFinite(n) && n>=min && n<=max) ? n : fallback;
+}
 async function loadUiPrefs(){
   try{ const r = await window.storage.get('geosig:ui'); if(r) uiPrefs = {...uiPrefs, ...JSON.parse(r.value)}; }catch(e){}
-  document.getElementById('sidebar').style.width = uiPrefs.sidebarWidth+'px';
-  document.getElementById('panel').style.width = uiPrefs.panelWidth+'px';
-  document.getElementById('furo-table-panel').style.height = uiPrefs.tableHeight+'px';
+  document.getElementById('sidebar').style.width = safeUiNum(uiPrefs.sidebarWidth, 160, 600, 260)+'px';
+  document.getElementById('panel').style.width = safeUiNum(uiPrefs.panelWidth, 320, 1200, 640)+'px';
+  document.getElementById('furo-table-panel').style.height = safeUiNum(uiPrefs.tableHeight, 100, 2000, 280)+'px';
   if(uiPrefs.tableFloating) toggleFuroTableFloat();
   if(uiPrefs.tableOpen) toggleFuroTable(true);
 }
@@ -2402,14 +2445,80 @@ function printFuroBoletim(f){
 /* ══════════════════ ÁREAS / LINHAS ══════════════════ */
 function newShapeId(){ return 'S'+Date.now().toString(36)+Math.random().toString(36).slice(2,5); }
 
+// ícone SVG pra cada símbolo disponível nas camadas de pontos importadas — cor e forma
+// totalmente editáveis pelo usuário depois da importação
+const POINT_SYMBOLS = [
+  ['circle','● Círculo'], ['square','■ Quadrado'], ['triangle','▲ Triângulo'],
+  ['diamond','◆ Losango'], ['star','★ Estrela'], ['cross','✚ Cruz'],
+];
+function buildPointSymbolIcon(symbol, color){
+  const svgShapes = {
+    square: '<rect x="3" y="3" width="12" height="12"/>',
+    triangle: '<polygon points="9,2 16,15 2,15"/>',
+    diamond: '<polygon points="9,1 17,9 9,17 1,9"/>',
+    star: '<polygon points="9,0.5 11.1,6.5 17.5,6.5 12.4,10.4 14.3,16.5 9,12.8 3.7,16.5 5.6,10.4 0.5,6.5 6.9,6.5"/>',
+    cross: '<path d="M7,1 H11 V7 H17 V11 H11 V17 H7 V11 H1 V7 H7 Z"/>',
+    circle: '<circle cx="9" cy="9" r="7"/>',
+  };
+  const svg = `<svg width="18" height="18" viewBox="0 0 18 18" xmlns="http://www.w3.org/2000/svg">
+    <g fill="${color||'#c2410c'}" stroke="#fff" stroke-width="1.4">${svgShapes[symbol]||svgShapes.circle}</g>
+  </svg>`;
+  return L.divIcon({html:svg, className:'leaflet-div-icon point-symbol-icon', iconSize:[18,18], iconAnchor:[9,9]});
+}
+
+// escolhe automaticamente o campo "nome"/"name" (sem diferenciar maiúsculas) como rótulo
+// padrão, se existir entre os atributos importados — senão usa o nome já dado ao item/camada
+function pickDefaultLabelField(propKeys){
+  const nomeKey = (propKeys||[]).find(k=> /^nome$/i.test(k) || /^name$/i.test(k));
+  return nomeKey || '__name__';
+}
+// texto do rótulo de uma camada inteira (polígono/linha) — '__name__' é um valor especial que
+// significa "usa o nome dado à camada", não uma chave de atributo de verdade
+function getShapeLabelText(s){
+  if(!s.labelField || s.labelField==='__name__') return s.name||'';
+  const val = s.rawProps ? s.rawProps[s.labelField] : undefined;
+  return (val!==undefined && val!==null && val!=='') ? String(val) : (s.name||'');
+}
+// texto do rótulo de UM ponto dentro de uma camada de pontos
+function getPointLabelText(s, pt){
+  if(!s.labelField || s.labelField==='__name__') return pt.label||'';
+  const val = pt.props ? pt.props[s.labelField] : undefined;
+  return (val!==undefined && val!==null && val!=='') ? String(val) : (pt.label||'');
+}
+// lista de opções pro seletor de campo de rótulo no painel — sempre inclui a opção "nome da
+// camada" + qualquer atributo real disponível nos dados importados
+function buildLabelFieldOptions(s){
+  let keys = [];
+  if(s.geomType==='MultiPoint'){
+    const set = new Set();
+    (s.points||[]).forEach(pt=> Object.keys(pt.props||{}).forEach(k=>set.add(k)));
+    keys = Array.from(set);
+  } else {
+    keys = Object.keys(s.rawProps||{});
+  }
+  return [['__name__', 'Nome ("'+s.name+'")']].concat(keys.map(k=>[k,k]));
+}
+
 function drawShape(s){
   let layer;
-  if(s.geomType==='Polygon' || s.geomType==='MultiPolygon'){
+  if(s.geomType==='MultiPoint'){
+    layer = L.featureGroup();
+    (s.points||[]).forEach(pt=>{
+      const m = L.marker([pt.lat,pt.lng], {icon: buildPointSymbolIcon(s.symbol, s.color)});
+      const txt = getPointLabelText(s, pt);
+      if(txt) m.bindTooltip(txt, {permanent:true, direction:'top', offset:[0,-9], className:'shape-label'});
+      m.addTo(layer);
+    });
+  } else if(s.geomType==='Polygon' || s.geomType==='MultiPolygon'){
     const latlngs = (s.geomType==='Polygon'?[s.coords]:s.coords).map(poly=>poly[0].map(c=>[c[1],c[0]]));
     layer = L.polygon(latlngs, {color:s.color||'#2a5a8c'});
+    const txt = getShapeLabelText(s);
+    if(txt) layer.bindTooltip(txt, {permanent:true, direction:'center', className:'shape-label'});
   } else {
     const latlngs = s.coords.map(c=>[c[1],c[0]]);
     layer = L.polyline(latlngs, {color:s.color||'#2a5a8c'});
+    const txt = getShapeLabelText(s);
+    if(txt) layer.bindTooltip(txt, {permanent:true, direction:'center', className:'shape-label'});
   }
   layer.addTo(map);
   layer.on('click', ()=>{
@@ -2425,15 +2534,30 @@ function openShapePanel(id){
   const s = shapes.find(x=>x.id===id); if(!s) return;
   const panel = document.getElementById('panel');
   panel.classList.remove('hidden');
+  const isPoint = s.geomType==='MultiPoint';
+  const tituloTipo = isPoint ? 'Camada de pontos' : (s.geomType.includes('Polygon')?'Área':'Linha');
+  const labelOpts = buildLabelFieldOptions(s);
+  const labelFieldAtual = s.labelField || '__name__';
   panel.innerHTML = `
-    <div class="p-hdr"><b>${s.geomType.includes('Polygon')?'Área':'Linha'}</b><button class="p-close" onclick="closePanel()">✕</button></div>
+    <div class="p-hdr"><b>${tituloTipo}</b><button class="p-close" onclick="closePanel()">✕</button></div>
     <div class="p-body">
       <div class="f-row"><label>Nome</label><input class="f-input" id="ps-name" value="${escAttr(s.name)}"></div>
+      ${isPoint ? '' : `
       <div class="f-row"><label>Tipo</label>
         <select class="f-input" id="ps-type">
           ${['Talude','Aterro','Área de estudo','Seção geológica','Outro'].map(t=>`<option ${s.type===t?'selected':''}>${t}</option>`).join('')}
-        </select></div>
+        </select></div>`}
       <div class="f-row"><label>Cor</label><input class="f-input" type="color" id="ps-color" value="${s.color||'#2a5a8c'}" style="height:32px;padding:2px"></div>
+      ${isPoint ? `
+      <div class="f-row"><label>Símbolo</label>
+        <select class="f-input" id="ps-symbol">
+          ${POINT_SYMBOLS.map(([v,l])=>`<option value="${v}" ${s.symbol===v?'selected':''}>${l}</option>`).join('')}
+        </select></div>
+      <p class="hint">${(s.points||[]).length} ponto(s) nesta camada — importados de um shapefile/GeoJSON, não são furos de sondagem.</p>` : ''}
+      <div class="f-row"><label>Rótulo no mapa</label>
+        <select class="f-input" id="ps-labelfield">
+          ${labelOpts.map(([v,l])=>`<option value="${escAttr(v)}" ${labelFieldAtual===v?'selected':''}>${esc(l)}</option>`).join('')}
+        </select></div>
       <div class="btn-row">
         <button class="mini-btn primary" id="ps-save">Salvar</button>
         <button class="mini-btn danger" id="ps-del">Excluir</button>
@@ -2441,10 +2565,12 @@ function openShapePanel(id){
     </div>`;
   document.getElementById('ps-save').onclick=()=>{
     s.name=document.getElementById('ps-name').value.trim()||s.name;
-    s.type=document.getElementById('ps-type').value;
+    if(!isPoint) s.type=document.getElementById('ps-type').value;
     s.color=document.getElementById('ps-color').value;
+    if(isPoint) s.symbol=document.getElementById('ps-symbol').value;
+    s.labelField=document.getElementById('ps-labelfield').value;
     map.removeLayer(shapeLayers[s.id]); drawShape(s);
-    scheduleSave(); renderShapeList(); toast('Área salva');
+    scheduleSave(); renderShapeList(); toast((isPoint?'Camada de pontos':'Área')+' salva');
   };
   document.getElementById('ps-del').onclick=()=>{
     if(confirm('Excluir "'+s.name+'"?')){
@@ -2463,7 +2589,8 @@ function renderShapeList(){
     const selCls = (selected&&selected.kind==='shape'&&selected.id===s.id) ? ' sel' : '';
     const exportCls = exportSelectMode && exportSelectedShapes.has(s.id) ? ' exportsel' : '';
     div.className='item'+selCls+exportCls;
-    div.innerHTML=`<div class="item-title">${esc(s.name)}</div><div class="item-sub">${esc(s.type)} · ${s.geomType}</div>`;
+    const subLabel = s.geomType==='MultiPoint' ? `${(s.points||[]).length} pontos · camada de pontos` : `${esc(s.type)} · ${s.geomType}`;
+    div.innerHTML=`<div class="item-title">${esc(s.name)}</div><div class="item-sub">${subLabel}</div>`;
     div.onclick=()=>{
       if(exportSelectMode){ toggleExportShapeSelect(s.id); return; }
       selectShape(s.id);
@@ -2554,7 +2681,7 @@ map.on(L.Draw.Event.CREATED, e=>{
   }
   const s = {id:newShapeId(), name:(gj.type.includes('Polygon')?'Área ':'Linha ')+(shapes.length+1),
     type:gj.type.includes('Polygon')?'Área de estudo':'Seção geológica', color:'#2a5a8c',
-    geomType:gj.type, coords:gj.coordinates};
+    geomType:gj.type, coords:gj.coordinates, labelField:'__name__'};
   shapes.push(s); drawShape(s); renderShapeList(); selectShape(s.id); scheduleSave();
 });
 
@@ -2756,7 +2883,7 @@ function removePickInterpCross(){
 function handlePickInterpPoint(blockId, latlng){
   cancelPickInterpPoint();
   const block = interpBlocks.find(b=>b.id===blockId); if(!block) return;
-  const preview = computeInterpolatedFuro(block, latlng.lat, latlng.lng);
+  const preview = computeInterpolatedFuro(block, latlng.lat, latlng.lng, buildUnionTemplate(block));
   if(!preview){ toast('Não foi possível interpolar neste ponto (furos de origem insuficientes)'); return; }
 
   removePickInterpCross();
@@ -2782,6 +2909,82 @@ function pickBlockTemplateFuro(block){
     if(score>bestScore){ bestScore=score; best=f; }
   });
   return best;
+}
+
+// constrói um "molde sintético" que é a UNIÃO das camadas de TODOS os furos de origem — não só
+// as do furo mais detalhado. Usar só o furo com mais camadas como molde (como antes) fazia
+// qualquer camada presente APENAS em outro furo (mesmo que real e medida em campo) sumir
+// completamente da interpolação, do perfil, do raster e do modelo 3D — porque o motor de
+// interpolação só consegue mostrar tipos de camada que existem no próprio molde.
+// Funde as sequências de tipo par a par (do furo mais detalhado pro menos), usando o mesmo
+// algoritmo de alinhamento (maior subsequência comum) já usado antes na concordância suave —
+// e guarda, pra cada furo real, um mapa de qual índice DELE corresponde a cada posição do
+// molde combinado (null onde aquele furo específico não tem aquela camada).
+function buildUnionTemplate(block){
+  const srcFuros = block.furoIds.map(id=>furos.find(f=>f.id===id)).filter(Boolean);
+  if(!srcFuros.length) return null;
+  const base = pickBlockTemplateFuro(block); // só pros metadados (obra, cliente, responsável…)
+  if(srcFuros.length===1){
+    return { camadas: base.camadas, ident: base.ident, _alignMap: {[base.id]: base.camadas.map((_,i)=>i)} };
+  }
+
+  const ordenados = [...srcFuros].sort((a,b)=> b.camadas.length-a.camadas.length);
+  let tipos = ordenados[0].camadas.map(c=>c.tipo);
+  let alignMap = { [ordenados[0].id]: tipos.map((_,i)=>i) };
+
+  for(let fi=1; fi<ordenados.length; fi++){
+    const outro = ordenados[fi];
+    const seqOutro = outro.camadas.map(c=>c.tipo);
+    const events = alignCamadaSequences(tipos, seqOutro);
+    const novoTipos = [];
+    const novoAlignMap = {};
+    Object.keys(alignMap).forEach(id=> novoAlignMap[id]=[]);
+    const mapOutro = [];
+    events.forEach(ev=>{
+      if(ev.type==='match'){
+        Object.keys(alignMap).forEach(id=> novoAlignMap[id].push(alignMap[id][ev.ia]));
+        mapOutro.push(ev.ib);
+        novoTipos.push(tipos[ev.ia]);
+      } else if(ev.type==='onlyA'){
+        Object.keys(alignMap).forEach(id=> novoAlignMap[id].push(alignMap[id][ev.ia]));
+        mapOutro.push(null);
+        novoTipos.push(tipos[ev.ia]);
+      } else { // onlyB — camada exclusiva do OUTRO furo, entra numa posição nova do molde
+        Object.keys(alignMap).forEach(id=> novoAlignMap[id].push(null));
+        mapOutro.push(ev.ib);
+        novoTipos.push(seqOutro[ev.ib]);
+      }
+    });
+    tipos = novoTipos;
+    alignMap = novoAlignMap;
+    alignMap[outro.id] = mapOutro;
+  }
+
+  // descrição/profundidade de referência de cada posição do molde: usa o primeiro furo real
+  // que tem aquela posição alinhada (só como valor inicial — a interpolação de verdade recalcula
+  // a profundidade via IDW entre quem realmente contribui pra aquela posição)
+  const camadas = tipos.map((tipo,i)=>{
+    let descricao = '', profFinal = i+1;
+    for(const fid in alignMap){
+      const idx = alignMap[fid][i];
+      if(idx!=null){
+        const f = srcFuros.find(x=>x.id===fid);
+        if(f && f.camadas[idx]){ descricao = f.camadas[idx].descricao; profFinal = f.camadas[idx].profFinal; break; }
+      }
+    }
+    return { tipo, descricao, profFinal };
+  });
+
+  return { camadas, ident: base.ident, _alignMap: alignMap };
+}
+// dado um molde (real ou sintético/união) e um furo real, devolve a camada DAQUELE furo que
+// corresponde à posição "i" do molde — ou null se esse furo específico não tem camada ali
+function templateAlignedCamada(template, furo, i){
+  if(template._alignMap){
+    const idx = template._alignMap[furo.id];
+    return (idx && idx[i]!=null) ? furo.camadas[idx[i]] : null;
+  }
+  return furo.camadas[i]||null; // molde é um furo real de verdade (comportamento anterior)
 }
 
 // só é seguro usar um molde fixo (estrutura constante) quando TODOS os furos do bloco têm
@@ -2958,17 +3161,31 @@ function computeInterpolatedFuro(block, lat, lng, forcedTemplateFuro){
     template = nearest.furo;
   }
 
-  // profundidade de cada topo de camada — IDW por índice de camada, usando o molde como referência
-  const camadas = template.camadas.map((c,i)=>{
-    const contribs = sources.filter(s=> s.furo.camadas[i]);
-    let profFinal;
-    if(contribs.length){
-      const wsum = contribs.reduce((a,s)=>a+(wMap[s.id]||0),0) || 1;
-      profFinal = contribs.reduce((a,s)=> a + (wMap[s.id]||0)*(+s.furo.camadas[i].profFinal||0), 0) / wsum;
-    } else {
-      profFinal = +c.profFinal||0;
-    }
-    return { profFinal: Math.round(profFinal*100)/100, tipo:c.tipo, descricao:c.descricao };
+  // profundidade de cada topo de camada — IDW por índice de camada, usando o molde como referência.
+  // templateAlignedCamada() resolve o índice de cada furo real que corresponde à posição do
+  // molde (que pode ser sintético/união, não necessariamente um furo real) — sem isso, uma
+  // camada exclusiva de um furo que não é o molde jamais entraria na conta.
+  //
+  // Furos que NÃO têm essa camada (não é exclusiva deles) contribuem como se ela tivesse uma
+  // espessura MÍNIMA bem fina ali, em vez de ficar de fora da média — isso faz a camada AFINAR
+  // suavemente com a distância (peso de IDW) até quase sumir perto de furos que não a
+  // registraram, em vez de aparecer com a espessura real "constante" em qualquer lugar do bloco
+  // só porque um único furo distante a tem.
+  const ESPESSURA_MIN_CAMADA_PARCIAL = 0.05; // metros — bem fina, mas não exatamente zero
+  const camadas = [];
+  let profAnteriorInterp = 0;
+  template.camadas.forEach((c,i)=>{
+    const wsumTodos = sources.reduce((a,s)=>a+(wMap[s.id]||0), 0) || 1;
+    let profFinal = 0;
+    sources.forEach(s=>{
+      const camAlin = templateAlignedCamada(template, s.furo, i);
+      const w = (wMap[s.id]||0)/wsumTodos;
+      profFinal += w * (camAlin ? (+camAlin.profFinal||0) : (profAnteriorInterp+ESPESSURA_MIN_CAMADA_PARCIAL));
+    });
+    profFinal = Math.round(profFinal*100)/100;
+    if(profFinal <= profAnteriorInterp) profFinal = +(profAnteriorInterp+0.05).toFixed(2);
+    camadas.push({ profFinal, tipo:c.tipo, descricao:c.descricao });
+    profAnteriorInterp = profFinal;
   });
   for(let i=1;i<camadas.length;i++){
     if(camadas[i].profFinal <= camadas[i-1].profFinal) camadas[i].profFinal = +(camadas[i-1].profFinal+0.3).toFixed(2);
@@ -3241,14 +3458,14 @@ function generateGeotechProfile(blockId, latlngs){
   const totalLength = localPts[localPts.length-1].cum;
   if(totalLength<1){ toast('Linha muito curta para gerar um perfil (mín. 1 m)'); return; }
 
-  // molde FIXO pro perfil inteiro só quando é seguro (todos os furos do bloco têm a mesma
-  // sequência de tipos de camada) — evita o "degrau" de estrutura sem misturar profundidade
-  // de um furo com a descrição de outro furo estruturalmente diferente. Quando os furos
-  // divergem em estrutura, usa concordância suave (alinhamento de camadas) trecho a trecho,
-  // seguindo a ordem em que a linha do perfil passa pelos furos (nunca "olhando pra trás").
+  // molde FIXO pro perfil inteiro — a MESMA função usada pelo raster e pelo modelo 3D, pra
+  // garantir que os três mostrem exatamente a mesma interpretação de material no mesmo ponto.
+  // Antes, quando os furos tinham estruturas diferentes, o perfil usava uma "concordância
+  // suave" própria (alinhamento de camadas trecho a trecho) — mas isso divergia visivelmente
+  // do raster/modelo 3D (que sempre usaram um molde fixo global), então essa técnica foi
+  // aposentada em favor da consistência entre as três visualizações.
   const estruturaUniforme = blockHasUniformStratigraphy(block);
-  const profileTemplate = estruturaUniforme ? pickBlockTemplateFuro(block) : null;
-  const orderedFuros = estruturaUniforme ? null : projectFurosOntoLine(block, localPts);
+  const profileTemplate = buildUnionTemplate(block);
 
   const N = Math.min(220, Math.max(24, Math.round(totalLength/0.5)));
   const samples = [];
@@ -3259,7 +3476,7 @@ function generateGeotechProfile(blockId, latlngs){
     const interp = computeInterpolatedFuro(block, lat, lng, profileTemplate);
     const cota = interp && interp.ident.cota!=='' && interp.ident.cota!=null && isFinite(parseFloat(interp.ident.cota))
       ? parseFloat(interp.ident.cota) : null;
-    const camadasAmostra = (!estruturaUniforme && orderedFuros) ? computeBlendedCamadasAlongLine(orderedFuros, d, block) : (interp ? interp.camadas : []);
+    const camadasAmostra = interp ? interp.camadas : [];
     const naProf = interp && interp.agua && interp.agua[0] && interp.agua[0].prof!=='' && interp.agua[0].prof!=null && isFinite(parseFloat(interp.agua[0].prof))
       ? parseFloat(interp.agua[0].prof) : null;
     samples.push({ dist:d, lat, lng, camadas: camadasAmostra, cota, naProf });
@@ -3301,6 +3518,7 @@ function generateGeotechProfile(blockId, latlngs){
     nearFuros,
     blockAvgCota,
     estruturaUniforme,
+    profileTemplateNome: profileTemplate ? profileTemplate.ident.sondagemNum : '',
     createdAt: Date.now()
   };
   drawProfileLine(profile);
@@ -3917,6 +4135,7 @@ function renderProfileHtml(profile){
   const estruturaUniforme = profile.estruturaUniforme!==undefined
     ? profile.estruturaUniforme
     : samples.every(s => seqOf(s)===seqOf(samples[0]));
+  const profileTemplateNome = profile.profileTemplateNome || '';
 
   const temEdicaoManual = !!(profile.boundaries && profile.boundaries.length);
 
@@ -4027,11 +4246,12 @@ function renderProfileHtml(profile){
   const terrainLegend = `<span class="tag-chip" style="border-color:#3a5c2a;color:#3a5c2a;">— linha do terreno (topografia interpolada)</span>`;
   const naLegend = naLine ? `<span class="tag-chip" style="border-color:#2a6fb0;color:#2a6fb0;">▽ N.A. — nível d'água interpolado</span>` : '';
 
-  // descrição do material — mesmo texto e mesma ordem de camadas usados no boletim de sondagem;
-  // só é seguro mostrar como lista única quando a estrutura é constante (e não foi editada
-  // manualmente, já que edição manual não carrega descrição textual detalhada por camada)
+  // descrição do material — mesmo texto e mesma ordem de camadas usados no boletim de sondagem.
+  // Antes só era seguro mostrar como lista única quando a estrutura era constante — agora o
+  // perfil SEMPRE usa um molde fixo (mesma estrutura em toda a extensão), então isso vale
+  // sempre, exceto quando as camadas foram editadas manualmente.
   let descList = '';
-  if(!temEdicaoManual && estruturaUniforme && samples.length){
+  if(!temEdicaoManual && samples.length){
     const camadaRef = samples[0].camadas;
     let profAntRef = 0;
     descList = camadaRef.map(c=>{
@@ -4053,12 +4273,11 @@ function renderProfileHtml(profile){
   const warnEstrutura = (!estruturaUniforme && !temEdicaoManual) ? `
     <div class="warn-box" style="margin-top:8px;">
       ⚠ Os furos de origem deste bloco têm sequências de camadas diferentes entre si (número e/ou ordem
-      de tipos de solo distintos). O perfil faz a <b>concordância suave</b> entre os furos vizinhos, seguindo
-      o sentido do traçado da linha: cada trecho mistura só os dois furos que a linha realmente passa entre
-      eles, começando num e terminando no seguinte. Camadas presentes nos dois furos interpolam a profundidade
-      suavemente; camadas que só existem num deles afinam gradualmente até desaparecer. Isso é uma estimativa
-      de concordância, não uma correlação geológica confirmada — passe o mouse sobre cada camada pra ver a
-      descrição exata usada naquele ponto, ou use "✏️ Editar camadas" pra ajustar manualmente.
+      de tipos de solo distintos). O perfil usa um <b>molde combinado</b> — a união de todas as camadas
+      encontradas em qualquer furo de origem, alinhadas pela sequência de tipos — pra não perder nenhuma
+      camada real, mesmo as que aparecem em apenas um dos furos. Isso é uma correspondência automática por
+      alinhamento de tipo, não uma correlação geológica confirmada — use "✏️ Editar camadas" pra ajustar
+      manualmente onde souber que a realidade é diferente. O raster e o modelo 3D usam o mesmo molde combinado.
     </div>` : '';
 
   const editBanner = temEdicaoManual ? `
@@ -4090,11 +4309,9 @@ function renderProfileHtml(profile){
       </svg>
     </div>
     <div class="tag-list" style="margin-top:10px">${terrainLegend}${naLegend}${legend}</div>
-    ${!temEdicaoManual ? (estruturaUniforme ? `
+    ${!temEdicaoManual ? `
     <div class="fieldset-title" style="margin-top:14px;">Descrição do material (perfil estratigráfico — estrutura constante ao longo do perfil)</div>
     <div>${descList}</div>` : `
-    <div class="fieldset-title" style="margin-top:14px;">Descrição do material</div>
-    <p class="hint">A estrutura de camadas faz concordância suave ao longo deste perfil (furos de origem com estratigrafias diferentes) — passe o mouse sobre cada trecho do gráfico para ver a descrição exata naquele ponto.</p>`) : `
     <div class="fieldset-title" style="margin-top:14px;">Descrição do material</div>
     <p class="hint">Camadas ajustadas manualmente — as descrições textuais originais não se aplicam mais ponto a ponto; a legenda acima mostra os tipos de material presentes no perfil editado.</p>`}
     ${(profile.nearFuros&&profile.nearFuros.length) ? `<p class="hint">Linhas tracejadas pretas: furos reais a até 5 m do traçado. Linhas tracejadas roxas (🔮): furos interpolados já salvos a até 5 m do traçado. Os círculos marcam a cota real cadastrada de cada furo, para conferir contra a linha de terreno interpolada. Posições projetadas sobre a linha.</p>` : ''}
@@ -4457,6 +4674,13 @@ function computeRasterGrid(block, paramKey, elev){
   const cols = Math.max(2, Math.round(spanX/cellSize));
   const rows = Math.max(2, Math.round(spanY/cellSize));
 
+  // molde FIXO pro raster inteiro (mesma função usada pelo perfil e pelo modelo 3D) — sem
+  // isso, o molde da estrutura de camadas trocava pro furo mais próximo em CADA célula da
+  // grade, criando saltos entre células vizinhas E fazendo o raster mostrar um material
+  // diferente do perfil/modelo 3D no mesmo ponto exato (a mesma interpolação tem que dar a
+  // mesma resposta em qualquer lugar do app que a consulte)
+  const rasterTemplate = buildUnionTemplate(block);
+
   // linha 0 da grade = a mais ao NORTE (maior Y), pra bater com a convenção padrão de raster
   // (linha 0 no topo da imagem) e permitir georreferenciar corretamente no GeoTIFF
   const grid = [];
@@ -4467,7 +4691,7 @@ function computeRasterGrid(block, paramKey, elev){
       const x = minX + (c+0.5)*cellSize;
       if(!pointInPolygonXY({x,y}, hullXY)){ row.push({valid:false}); continue; }
       const [lat,lng] = xyToLatLng(x, y, block.refLat, block.refLng);
-      const interp = computeInterpolatedFuro(block, lat, lng);
+      const interp = computeInterpolatedFuro(block, lat, lng, rasterTemplate);
       if(!interp){ row.push({valid:false}); continue; }
       row.push(extractRasterValue(interp, paramKey, elev));
     }
@@ -4847,12 +5071,6 @@ const MODEL3D_DEPTHCUT_GRID_N = 90;
    ══════════════════════════════════════════════════════════════════════ */
 
 // escolhe o furo "molde" — o que tem MAIS camadas entre os furos de origem do bloco
-function pickModel3DTemplateFuro(block){
-  const srcFuros = block.furoIds.map(id=>furos.find(f=>f.id===id)).filter(Boolean);
-  if(!srcFuros.length) return null;
-  return srcFuros.reduce((best,f)=> (f.camadas||[]).length > (best.camadas||[]).length ? f : best, srcFuros[0]);
-}
-
 // consulta a interpolação REAL num ponto (x,y local) e devolve as elevações de cada horizonte
 // (0=terreno, 1..N=fundo de cada camada do molde) + o N-SPT em cada horizonte (pro modo N-SPT)
 function model3DQueryPoint(block, templateFuro, x, y){
@@ -4949,6 +5167,7 @@ function ensureModel3DScene(){
                           // linhas da grade do chão aparecendo cruzando a própria superfície)
 
   const layerGroup = new THREE.Group(); scene.add(layerGroup); // superfícies onduladas (exterior)
+  const furoMarkersGroup = new THREE.Group(); scene.add(furoMarkersGroup); // posição real dos furos de origem
   DIRS.forEach(d=>{ d.cutMeshGroup = new THREE.Group(); d.cutMeshGroup.visible=false; scene.add(d.cutMeshGroup); });
 
   function makeArrowHandle(cor, direction){
@@ -4982,11 +5201,49 @@ function ensureModel3DScene(){
   function setMouseNDC(cx,cy){ const r=renderer.domElement.getBoundingClientRect(); mouseNDC.x=((cx-r.left)/r.width)*2-1; mouseNDC.y=-((cy-r.top)/r.height)*2+1; }
   function dirFromObj(obj){ return DIRS.find(d=>d.key===obj.userData.dirKey); }
   function setHi(d,on){ d.handle.scale.setScalar(on?1.35:1); d.handle.children.forEach(c=>c.material.emissiveIntensity=on?0.6:0.18); }
+
+  // caixa de valor exato — aparece ao passar o mouse sobre uma seta, mostrando a posição atual
+  // do corte naquele eixo em unidade real; o usuário pode digitar um valor exato e apertar Enter
+  const valueWrapEl = document.getElementById('model3d-value-input-wrap');
+  const valueInputEl = document.getElementById('model3d-value-input');
+  const valueUnitEl = document.getElementById('model3d-value-unit');
+  function showModel3DValueInput(d){
+    if(document.activeElement===valueInputEl && valueWrapEl.dataset.dirKey===d.key) return; // já editando essa mesma alça
+    tmpV.copy(d.handle.position).project(camera);
+    valueWrapEl.style.left = ((tmpV.x*0.5+0.5)*wrap.clientWidth)+'px';
+    valueWrapEl.style.top = ((-tmpV.y*0.5+0.5)*wrap.clientHeight - 34)+'px';
+    valueWrapEl.style.display = 'flex';
+    valueWrapEl.dataset.dirKey = d.key;
+    valueInputEl.value = model3DHandleRealValue(d).toFixed(2);
+    valueUnitEl.textContent = model3DHandleUnitLabel(d);
+  }
+  function hideModel3DValueInputMaybe(){
+    if(document.activeElement===valueInputEl) return; // não esconde enquanto o usuário está digitando
+    valueWrapEl.style.display = 'none';
+  }
+  valueInputEl.addEventListener('keydown', e=>{
+    if(e.key==='Enter'){
+      const d = DIRS.find(x=>x.key===valueWrapEl.dataset.dirKey);
+      const val = parseFloat(valueInputEl.value);
+      if(d && isFinite(val)) model3DSetHandleRealValue(d, val);
+      valueInputEl.blur();
+    } else if(e.key==='Escape'){
+      valueInputEl.blur();
+    }
+    e.stopPropagation();
+  });
+  valueInputEl.addEventListener('blur', ()=>{ valueWrapEl.style.display='none'; });
+
   function updateHoverFromPointer(cx,cy){
     setMouseNDC(cx,cy); raycaster.setFromCamera(mouseNDC,camera);
     const hits = raycaster.intersectObjects(ALL_HANDLES,true);
     const alvo = hits.length? dirFromObj(hits[0].object): null;
-    if(alvo!==hoveredHandle){ if(hoveredHandle) setHi(hoveredHandle,false); if(alvo) setHi(alvo,true); hoveredHandle=alvo; }
+    if(alvo!==hoveredHandle){
+      if(hoveredHandle) setHi(hoveredHandle,false);
+      if(alvo) setHi(alvo,true);
+      hoveredHandle=alvo;
+      if(alvo && model3DGeo) showModel3DValueInput(alvo); else hideModel3DValueInputMaybe();
+    }
     if(!dragging) controls.enabled=!alvo;
     renderer.domElement.style.cursor = dragging?'grabbing':(alvo?'grab':'default');
 
@@ -5043,6 +5300,7 @@ function ensureModel3DScene(){
     const raw = dragPoint[AXIS_PROP[dragging.axisIdx]];
     setCutPos(dragging, Math.max(-half, Math.min(half, raw)));
     updateHandlePositions();
+    showModel3DValueInput(dragging); // mostra o valor mudando junto com o arrasto, em tempo real
   });
   function endDrag(e){
     if(dragging) refreshModel3DCut(dragging.key); // recalcula a interpolação AO VIVO só ao soltar
@@ -5071,14 +5329,20 @@ function ensureModel3DScene(){
       t.el.style.left = ((tmpV.x*0.5+0.5)*wrap.clientWidth)+'px';
       t.el.style.top = ((-tmpV.y*0.5+0.5)*wrap.clientHeight)+'px';
     });
+    (model3D.furoLabels||[]).forEach(t=>{
+      tmpV.copy(t.pos).project(camera);
+      t.el.style.left = ((tmpV.x*0.5+0.5)*wrap.clientWidth)+'px';
+      t.el.style.top = ((-tmpV.y*0.5+0.5)*wrap.clientHeight)+'px';
+    });
     renderer.render(scene,camera);
   }
 
   model3D = {
     scene, camera, renderer, controls, wrap, DIRS,
     dirByKey(key){ return DIRS.find(d=>d.key===key); },
-    getCutPos, setCutPos, edges, gridHelper, layerGroup, otherAxesClips, ALL_CLIPS,
+    getCutPos, setCutPos, edges, gridHelper, layerGroup, furoMarkersGroup, otherAxesClips, ALL_CLIPS,
     axisTicks: [],
+    showModel3DValueInput,
     updateHandlePositions,
     resize(){
       if(!wrap.clientWidth || !wrap.clientHeight) return;
@@ -5092,10 +5356,34 @@ function ensureModel3DScene(){
 }
 
 // tooltip flutuante (X, Y, cota, N-SPT) do ponto exato sob o cursor, sobre o maciço/corte
+// lê/escreve a posição de corte de uma direção em UNIDADE REAL (metros — distância desde a
+// borda mínima do bloco pros eixos horizontais, cota absoluta pra profundidade), pra permitir
+// digitar um valor exato em vez de só arrastar
+function model3DHandleRealValue(d){
+  const { xyRange, sceneOrigin, scaleH, scaleV } = model3DGeo;
+  const cutPos = model3D.getCutPos(d);
+  if(d.axisIdx===0) return (sceneOrigin.x + cutPos/scaleH) - xyRange.minX;
+  if(d.axisIdx===2) return (sceneOrigin.z - cutPos/scaleH) - xyRange.minY;
+  return sceneOrigin.y + cutPos/scaleV;
+}
+function model3DSetHandleRealValue(d, val){
+  const { xyRange, sceneOrigin, scaleH, scaleV, halfX, halfZ, halfV } = model3DGeo;
+  let scenePos;
+  if(d.axisIdx===0) scenePos = (xyRange.minX+val-sceneOrigin.x)*scaleH;
+  else if(d.axisIdx===2) scenePos = (sceneOrigin.z-(xyRange.minY+val))*scaleH;
+  else scenePos = (val-sceneOrigin.y)*scaleV;
+  const half = d.axisIdx===0?halfX : d.axisIdx===2?halfZ : halfV;
+  scenePos = Math.max(-half-MODEL3D_CLIP_EPS, Math.min(half+MODEL3D_CLIP_EPS, scenePos));
+  model3D.setCutPos(d, scenePos);
+  model3D.updateHandlePositions();
+  refreshModel3DCut(d.key);
+}
+function model3DHandleUnitLabel(d){ return d.axisIdx===1 ? 'm (cota)' : 'm'; }
+
 function updateModel3DHoverTip(scenePoint, screenX, screenY, wrap){
   const { xyRange, block, templateFuro, sceneOrigin, scaleH, scaleV, gridData } = model3DGeo;
   const realX = sceneOrigin.x + scenePoint.x/scaleH;
-  const realY = sceneOrigin.z + scenePoint.z/scaleH; // "Y" geotécnico (mapeado no eixo Z da cena)
+  const realY = sceneOrigin.z - scenePoint.z/scaleH; // "Y" geotécnico (Norte) — eixo Z da cena invertido, pra Norte ficar "se afastando" da câmera como um mapa padrão, não "vindo em direção" a ela
   const realElev = sceneOrigin.y + scenePoint.y/scaleV;
   const { horizonElev, sptAt } = model3DQueryPoint(block, templateFuro, realX, realY);
   let k=0, achou=false;
@@ -5143,7 +5431,7 @@ function buildModel3DLayerGeometry(k){
   function sceneXZ(ix,iz){
     const x = model3DGridPos(ix, xyRange.minX, xyRange.maxX, gridN);
     const z = model3DGridPos(iz, xyRange.minY, xyRange.maxY, gridN);
-    return [ (x-sceneOrigin.x)*scaleH, (z-sceneOrigin.z)*scaleH ];
+    return [ (x-sceneOrigin.x)*scaleH, (sceneOrigin.z-z)*scaleH ]; // Z invertido: Norte real (z crescente) -> scene Z decrescente
   }
   function sceneY(elev){ return (elev-sceneOrigin.y)*scaleV; }
   function colorFor(surfaceHorizonIdx, layerIdx, ix, iz){
@@ -5200,7 +5488,7 @@ function buildModel3DVerticalCutMesh(d){
   const { block, templateFuro, xyRange, gridN, sceneOrigin, scaleH, scaleV } = model3DGeo;
   const cutPosScene = model3D.getCutPos(d);
   // posição REAL (coordenada local do bloco) do corte, convertendo de volta de cena pra real
-  const cutPosReal = d.axisIdx===0 ? sceneOrigin.x + cutPosScene/scaleH : sceneOrigin.z + cutPosScene/scaleH;
+  const cutPosReal = d.axisIdx===0 ? sceneOrigin.x + cutPosScene/scaleH : sceneOrigin.z - cutPosScene/scaleH;
   const group = d.cutMeshGroup;
   model3DClearGroup(group);
   const nLayers = model3DGeo.gridData.nLayers;
@@ -5215,7 +5503,7 @@ function buildModel3DVerticalCutMesh(d){
       const realX = d.axisIdx===0 ? cutPosReal : tReal;
       const realY = d.axisIdx===0 ? tReal : cutPosReal;
       const {horizonElev, sptAt} = model3DQueryPoint(block, templateFuro, realX, realY);
-      const sceneVar = (tReal - (d.axisIdx===0 ? sceneOrigin.z : sceneOrigin.x)) * scaleH;
+      const sceneVar = d.axisIdx===0 ? (sceneOrigin.z-tReal)*scaleH : (tReal-sceneOrigin.x)*scaleH;
       const sy1 = (horizonElev[k]-sceneOrigin.y)*scaleV, sy2=(horizonElev[k+1]-sceneOrigin.y)*scaleV;
       const col1 = model3DMode==='material'? new THREE.Color(model3DLayerColorHex(k)) : model3DSptColor(sptAt[k]);
       const col2 = model3DMode==='material'? new THREE.Color(model3DLayerColorHex(k)) : model3DSptColor(sptAt[k+1]);
@@ -5281,7 +5569,7 @@ function buildModel3DDepthCutMesh(d){
       const c = nodeColor[ix][iz];
       if(!c){ row.push(-1); continue; }
       const z = model3DGridPos(iz, xyRange.minY, xyRange.maxY, nSeg);
-      const sx=(x-sceneOrigin.x)*scaleH, sz=(z-sceneOrigin.z)*scaleH;
+      const sx=(x-sceneOrigin.x)*scaleH, sz=(sceneOrigin.z-z)*scaleH;
       row.push(positions.length/3);
       positions.push(sx, elevScene, sz);
       colors.push(c.r, c.g, c.b);
@@ -5321,7 +5609,7 @@ function refreshModel3DCut(dirKey){
 
 // recalcula geometria/escala do cubo pro bloco atual — chamado toda vez que o popup abre
 function rebuildModel3DGeometry(block){
-  const templateFuro = pickModel3DTemplateFuro(block);
+  const templateFuro = buildUnionTemplate(block);
   const xyRange = computeBlockXYRange(block);
   const gridN = 36; // resolução da malha — mais alta que antes (22), pra reduzir o aspecto "quadriculado"
   const gridData = computeModel3DHorizonGrid(block, templateFuro, xyRange, gridN);
@@ -5396,6 +5684,45 @@ function rebuildModel3DGeometry(block){
     addTick(-halfXc-0.3, -halfVc + (1-t)*targetDepth, -halfZc-0.3, (maxElev-t*(maxElev-minElev)).toFixed(1)+'m'); // eixo Z (cota)
   }
   model3D.axisTicks = axisTicks;
+
+  // posição real dos furos de origem — uma linha vertical fina (da cota real até a profundidade
+  // final do próprio furo) mais uma esfera no topo e um rótulo com o nome, pra o usuário conferir
+  // onde os dados de campo realmente estão dentro do volume interpolado
+  const furoLayer = document.getElementById('model3d-axis-layer'); // reaproveita a mesma camada de rótulos flutuantes
+  model3DClearGroup(model3D.furoMarkersGroup);
+  const furoLabelEls = Array.from(document.querySelectorAll('.furo-marker3d-label'));
+  furoLabelEls.forEach(el=>el.remove());
+  const furoLabels = [];
+  const srcFuros = block.furoIds.map(id=>furos.find(f=>f.id===id)).filter(Boolean);
+  srcFuros.forEach(f=>{
+    const cotaF = parseFloat(f.ident.cota);
+    if(!isFinite(cotaF)) return;
+    const profFinalF = f.camadas && f.camadas.length ? f.camadas[f.camadas.length-1].profFinal : 1;
+    const xyF = localXY(f.lat, f.lng, block.refLat, block.refLng);
+    const sx = (xyF.x-sceneOrigin.x)*scaleH, sz = (sceneOrigin.z-xyF.y)*scaleH;
+    const syTop = (cotaF-sceneOrigin.y)*scaleV, syBot = (cotaF-profFinalF-sceneOrigin.y)*scaleV;
+
+    const lineGeo = new THREE.BufferGeometry();
+    lineGeo.setAttribute('position', new THREE.Float32BufferAttribute([sx,syTop+0.15,sz, sx,syBot,sz], 3));
+    const lineMat = new THREE.LineBasicMaterial({color:0x1a1a1a, transparent:true, opacity:0.85, depthTest:false});
+    const line = new THREE.LineSegments(lineGeo, lineMat);
+    line.renderOrder = 999; // sempre por cima do maciço, senão fica escondido dentro do sólido
+    model3D.furoMarkersGroup.add(line);
+
+    const ballGeo = new THREE.SphereGeometry(0.045, 10, 10);
+    const ballMat = new THREE.MeshBasicMaterial({color:f._interpolado?0x8a4fc9:0x1a1a1a, depthTest:false});
+    const ball = new THREE.Mesh(ballGeo, ballMat);
+    ball.position.set(sx, syTop+0.15, sz);
+    ball.renderOrder = 999;
+    model3D.furoMarkersGroup.add(ball);
+
+    const labelEl = document.createElement('div');
+    labelEl.className = 'furo-marker3d-label';
+    labelEl.textContent = f.ident.sondagemNum||'furo';
+    furoLayer.appendChild(labelEl);
+    furoLabels.push({pos:new THREE.Vector3(sx,syTop+0.32,sz), el:labelEl});
+  });
+  model3D.furoLabels = furoLabels;
 }
 
 function updateModel3DLegend(){
@@ -5422,7 +5749,7 @@ function updateModel3DLegend(){
 function openModel3DView(blockId){
   const block = interpBlocks.find(b=>b.id===blockId); if(!block) return;
   if(!block.furoIds || block.furoIds.length<2){ toast('Bloco precisa de pelo menos 2 furos pra gerar o modelo 3D'); return; }
-  const template = pickModel3DTemplateFuro(block);
+  const template = pickBlockTemplateFuro(block);
   if(!template || !template.camadas || !template.camadas.length){ toast('Nenhum furo do bloco tem camadas cadastradas'); return; }
   document.getElementById('model3d-view-overlay').classList.add('open');
   document.body.style.overflow='hidden';
@@ -5430,6 +5757,11 @@ function openModel3DView(blockId){
   model3DBlockId = blockId;
   rebuildModel3DGeometry(block);
   updateModel3DLegend();
+  // respeita o checkbox de mostrar/ocultar sondagens mesmo depois de reconstruir a geometria
+  // (a reconstrução recria os marcadores sempre visíveis por padrão)
+  const showFuros = document.getElementById('model3d-show-furos').checked;
+  model3D.furoMarkersGroup.visible = showFuros;
+  document.querySelectorAll('.furo-marker3d-label').forEach(el=>{ el.style.display = showFuros?'':'none'; });
   setTimeout(()=> model3D.resize(), 50);
 }
 function closeModel3DView(){
@@ -5445,6 +5777,12 @@ document.getElementById('model3d-reset-btn').addEventListener('click', ()=>{
     d.cutMeshGroup.visible = false;
   });
   model3D.updateHandlePositions();
+});
+document.getElementById('model3d-show-furos').addEventListener('change', e=>{
+  if(!model3D) return;
+  const on = e.target.checked;
+  model3D.furoMarkersGroup.visible = on;
+  document.querySelectorAll('.furo-marker3d-label').forEach(el=>{ el.style.display = on?'':'none'; });
 });
 document.querySelectorAll('#model3d-mode-toggle .loc-mode-btn').forEach(btn=>{
   btn.addEventListener('click', ()=>{
@@ -5630,22 +5968,30 @@ document.getElementById('file-input').addEventListener('change', async e=>{
       geojson = parsed;
     }
     const collections = Array.isArray(geojson) ? geojson : [geojson];
-    let nPts=0, nShp=0, nDup=0, nSemPermissao=0;
+    let nPts=0, nShp=0;
+    const pontosColetados = [];
     collections.forEach(fc=>{
       (fc.features||[]).forEach(feat=>{
-        const status = importFeature(feat);
-        if(feat.geometry.type==='Point'){
-          if(status==='ok') nPts++;
-          else if(status==='duplicado') nDup++;
-          else if(status==='sem_permissao') nSemPermissao++;
-        } else nShp++;
+        if(feat.geometry && feat.geometry.type==='Point'){
+          pontosColetados.push(parsePointFeatureAsPoint(feat));
+          nPts++;
+        } else {
+          importFeature(feat);
+          nShp++;
+        }
       });
     });
+    if(pontosColetados.length){
+      const nCamadasPontos = shapes.filter(x=>x.geomType==='MultiPoint').length;
+      const todasChaves = new Set();
+      pontosColetados.forEach(pt=> Object.keys(pt.props||{}).forEach(k=>todasChaves.add(k)));
+      const s = { id:newShapeId(), name:'Pontos importados '+(nCamadasPontos+1), type:'Pontos',
+        color:'#c2410c', symbol:'circle', geomType:'MultiPoint', points:pontosColetados,
+        labelField: pickDefaultLabelField(Array.from(todasChaves)) };
+      shapes.push(s); drawShape(s);
+    }
     renderFuroList(); renderShapeList(); fitAll(); scheduleSave();
-    if(nPts>0) toggleFuroTable(true);
-    let msg = `Importado: ${nPts} furo(s), ${nShp} área/linha(s)`;
-    if(nDup>0) msg += ` · ${nDup} furo(s) já existia(m), ignorado(s)`;
-    if(nSemPermissao>0) msg += ` · ${nSemPermissao} furo(s) ignorado(s) (só o Administrador importa furos)`;
+    let msg = `Importado: ${nPts} ponto(s) (nova camada de pontos, não são furos de sondagem), ${nShp} área/linha(s)`;
     toast(msg);
   }catch(err){ console.error(err); alert('Não foi possível ler o arquivo. Verifique se é um .zip de shapefile válido (com .shp, .shx, .dbf), um GeoJSON, ou um JSON de campanha completa (formato {"furos":[...]}).'); }
   e.target.value='';
@@ -5790,42 +6136,30 @@ function findProp(props, keys){
   return '';
 }
 
+// pontos de um GeoJSON/shapefile importado NÃO viram furo de sondagem automaticamente — antes
+// isso acontecia sempre, mas nem todo shapefile de pontos representa sondagens (pode ser
+// qualquer coisa: poços, amostras, pontos de referência…). Agora entram como uma CAMADA DE
+// PONTOS separada (com símbolo/cor editáveis), e furos de verdade só entram pelo formato de
+// campanha estruturado ({"furos":[...]}) ou cadastro manual — ver função abaixo e o handler
+// do <input type=file>.
+function parsePointFeatureAsPoint(feat){
+  const g = feat.geometry, p = feat.properties||{};
+  const [lng,lat] = g.coordinates;
+  const label = String(findProp(p,['name','nome','id','furo','ponto','sondagem','label']) || '');
+  return {lat, lng, label, props:p};
+}
+
 function importFeature(feat){
   const g = feat.geometry, p = feat.properties||{};
   if(!g) return 'ok';
-  if(g.type==='Point'){
-    if(!isAdmin()) return 'sem_permissao';
-    const [lng,lat] = g.coordinates;
-    const nome = String(findProp(p,['name','nome','id','furo','ponto','sondagem']) || '');
-    const obraVal = String(findProp(p,['obra','projeto','project']) || '');
-    const cotaVal = String(findProp(p,['cota','cota_boca','elevation','z','elev']) || '');
-    const candidateHash = computeFuroHash(nome, obraVal, lat, lng, cotaVal);
-    const dup = furos.some(f=>!f._interpolado && f.hash===candidateHash);
-    if(dup) return 'duplicado';
-    const f = blankFuro(lat,lng);
-    f.ident.sondagemNum = nome || f.ident.sondagemNum;
-    f.ident.obra = obraVal;
-    f.ident.cliente = String(findProp(p,['cliente','client']) || '');
-    f.ident.cota = cotaVal;
-    f.ident.datum = String(findProp(p,['datum']) || f.ident.datum);
-    f.ident.zonaUTM = String(findProp(p,['zona_utm','zonautm','utm_zone']) || '');
-    f.ident.responsavel = String(findProp(p,['responsavel','responsible']) || '');
-    const naVal = findProp(p,['na','nivel_agua','nivel_dagua','water_level']);
-    if(naVal) f.agua=[{data:'', prof:String(naVal)}];
-    const nsptResumo = findProp(p,['nspt','n_spt','n']);
-    if(nsptResumo) f.golpes=[{prof:'', g1:'', g2:'', g3:String(nsptResumo)}];
-    f.obs = Object.keys(p).length? ('Importado — atributos originais: '+JSON.stringify(p)) : '';
-    f.hash = candidateHash;
-    furos.push(f); drawFuro(f);
-    return 'ok';
-  } else if(g.type==='Polygon'||g.type==='MultiPolygon'||g.type==='LineString'||g.type==='MultiLineString'){
+  if(g.type==='Polygon'||g.type==='MultiPolygon'||g.type==='LineString'||g.type==='MultiLineString'){
     const name = findProp(p,['name','nome','id']) || ('Importado '+(shapes.length+1));
     const s = {id:newShapeId(), name:String(name), type:'Outro', color:'#2a5a8c',
-      geomType:g.type, coords:g.coordinates};
+      geomType:g.type, coords:g.coordinates, rawProps:p, labelField: pickDefaultLabelField(Object.keys(p))};
     shapes.push(s); drawShape(s);
     return 'ok';
   }
-  return 'ok';
+  return 'ok'; // Point é tratado à parte pelo chamador (vira camada de pontos, não mais furo)
 }
 
 /* ══════════════════ EXPORTAR ══════════════════ */
@@ -5850,7 +6184,8 @@ function buildGeoJSON(furoIds, shapeIds){
   });
   shapes.forEach(s=>{
     if(sIds && !sIds.has(s.id)) return;
-    features.push({type:'Feature', geometry:{type:s.geomType, coordinates:s.coords},
+    const coords = s.geomType==='MultiPoint' ? (s.points||[]).map(pt=>[pt.lng,pt.lat]) : s.coords;
+    features.push({type:'Feature', geometry:{type:s.geomType, coordinates:coords},
       properties:{id:s.id, nome:s.name, tipo:s.type}});
   });
   return {type:'FeatureCollection', features};
@@ -5892,7 +6227,7 @@ async function exportShapefileFromGeoJSON(gj){
   toast('Gerando shapefile…');
   let base64;
   try{
-    base64 = await shpwrite.zip(gj, {types:{point:'furos_spt', polygon:'areas', polyline:'linhas'}});
+    base64 = await shpwrite.zip(gj, {types:{point:'pontos', polygon:'areas', polyline:'linhas'}});
   }catch(e){
     console.error('erro ao gerar shapefile', e);
     toast('Erro ao gerar o shapefile — veja o console para detalhes');

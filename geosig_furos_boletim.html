@@ -225,6 +225,12 @@ hr{border:none;border-top:1px solid var(--bdr);margin:2px 0}
   white-space:nowrap; box-shadow:0 1px 3px rgba(0,0,0,.3); border:1px solid rgba(0,0,0,.15);
   font-family:var(--mono);
 }
+/* marcações dos eixos X/Y/Z (com valor real) nas bordas do modelo 3D */
+.axis-tick3d{
+  position:absolute; transform:translate(-50%,-50%); pointer-events:none;
+  font-size:9.5px; font-family:var(--mono); color:#4a453e;
+  background:rgba(250,248,243,.75); padding:1px 4px; border-radius:3px;
+}
 
 /* legenda flutuante sobre o mapa — aparece sozinha quando há pelo menos um raster visível,
    embaixo do mapa, no mesmo estilo da legenda mostrada dentro do popup de gerar o raster
@@ -779,6 +785,10 @@ table.edit-tbl input:focus,table.edit-tbl select:focus{outline:none;border-color
       <div id="model3d-canvas-wrap" style="position:relative;margin-top:10px;height:64vh;min-height:420px;
         border:1px solid var(--bo-border);border-radius:10px;overflow:hidden;background:#dfe6e0;">
         <div id="model3d-labels-layer" style="position:absolute;inset:0;pointer-events:none;z-index:2;"></div>
+        <div id="model3d-axis-layer" style="position:absolute;inset:0;pointer-events:none;z-index:1;"></div>
+        <div id="model3d-hover-tip" style="position:absolute;pointer-events:none;z-index:4;display:none;
+          background:rgba(40,36,32,.92);color:#fff;font-family:var(--mono);font-size:11px;line-height:1.5;
+          padding:6px 9px;border-radius:6px;white-space:nowrap;transform:translate(12px,12px);"></div>
         <div id="model3d-loading" class="hint" style="position:absolute;left:12px;top:12px;background:rgba(250,248,243,.9);
           padding:6px 10px;border-radius:6px;display:none;z-index:3;">Calculando corte…</div>
       </div>
@@ -4810,6 +4820,12 @@ const MODEL3D_SCENE_MAX_DIM = 8; // maior dimensão horizontal da cena, em unida
 // parte delas acaba do lado "cortado fora" da própria borda — some justo as paredes, deixando
 // só as superfícies de cima/baixo visíveis (parecendo "folhas" soltas, sem conexão sólida)
 const MODEL3D_CLIP_EPS = 0.02;
+// resolução (só) da face de corte de profundidade — bem mais fina que a grade geral usada na
+// superfície externa/cortes verticais (essas têm contorno preciso porque a posição em si já
+// varia; a face de profundidade é um plano achatado, então o contorno entre materiais depende
+// só da cor — precisa de mais pontos pra parecer tão suave quanto o resto). Só recalcula ao
+// soltar o arrasto (não a cada quadro), então vale pagar mais custo aqui.
+const MODEL3D_DEPTHCUT_GRID_N = 90;
 
 /* ══════════════════════════════════════════════════════════════════════
    MODELO 3D DA INTERPOLAÇÃO — v2: camadas como SUPERFÍCIES ONDULADAS REAIS
@@ -4927,7 +4943,10 @@ function ensureModel3DScene(){
   const edges = new THREE.LineSegments(edgesGeo, new THREE.LineBasicMaterial({color:0x282420, transparent:true, opacity:0.35, clippingPlanes:ALL_CLIPS}));
   scene.add(edges);
   const gridHelper = new THREE.GridHelper(40,40,0xbdb8ae,0xd8d3c5);
-  scene.add(gridHelper);
+  scene.add(gridHelper); // posição (abaixo do bloco) só é definida em rebuildModel3DGeometry,
+                          // quando o tamanho do bloco já é conhecido — por padrão nasce em Y=0,
+                          // o que atravessaria bem no meio do maciço (causava o efeito "quadriculado":
+                          // linhas da grade do chão aparecendo cruzando a própria superfície)
 
   const layerGroup = new THREE.Group(); scene.add(layerGroup); // superfícies onduladas (exterior)
   DIRS.forEach(d=>{ d.cutMeshGroup = new THREE.Group(); d.cutMeshGroup.visible=false; scene.add(d.cutMeshGroup); });
@@ -4970,8 +4989,35 @@ function ensureModel3DScene(){
     if(alvo!==hoveredHandle){ if(hoveredHandle) setHi(hoveredHandle,false); if(alvo) setHi(alvo,true); hoveredHandle=alvo; }
     if(!dragging) controls.enabled=!alvo;
     renderer.domElement.style.cursor = dragging?'grabbing':(alvo?'grab':'default');
+
+    // se o mouse não está em cima de uma alça, testa o próprio maciço/face de corte, pra
+    // mostrar um resumo (X, Y, cota, N-SPT) do ponto exato sob o cursor
+    if(!alvo && model3DGeo && !dragging){
+      const solids = [...layerGroup.children];
+      DIRS.forEach(dd=>{ if(dd.cutMeshGroup.visible) solids.push(...dd.cutMeshGroup.children); });
+      const hitsSolid = raycaster.intersectObjects(solids, false);
+      if(hitsSolid.length) updateModel3DHoverTip(hitsSolid[0].point, cx, cy, wrap);
+      else hideModel3DHoverTip();
+    } else {
+      hideModel3DHoverTip();
+    }
   }
-  function updateHandlePositions(){ DIRS.forEach(d=>{ d.handle.position.setComponent(d.axisIdx, getCutPos(d)); }); }
+  function updateHandlePositions(){
+    // cada alça fica na posição do próprio corte (no eixo dela) e no CENTRO da face atual nos
+    // outros dois eixos — sem isso, ao cortar em outro eixo a face encolhe mas a alça ficava
+    // sempre no centro do bloco ORIGINAL, podendo sobrar fora da parte que ainda existe
+    DIRS.forEach(d=>{
+      const outros = [0,1,2].filter(a=>a!==d.axisIdx);
+      const pos = [0,0,0];
+      pos[d.axisIdx] = getCutPos(d);
+      outros.forEach(axisIdx=>{
+        const dPos = DIRS.find(x=>x.axisIdx===axisIdx && x.sign===1);
+        const dNeg = DIRS.find(x=>x.axisIdx===axisIdx && x.sign===-1);
+        pos[axisIdx] = (getCutPos(dPos)+getCutPos(dNeg))/2;
+      });
+      d.handle.position.set(pos[0], pos[1], pos[2]);
+    });
+  }
 
   renderer.domElement.addEventListener('pointerdown', e=>{
     setMouseNDC(e.clientX,e.clientY); raycaster.setFromCamera(mouseNDC,camera);
@@ -5007,6 +5053,7 @@ function ensureModel3DScene(){
   renderer.domElement.addEventListener('pointerleave', ()=>{
     if(hoveredHandle){ setHi(hoveredHandle,false); hoveredHandle=null; }
     renderer.domElement.style.cursor='default';
+    hideModel3DHoverTip();
     endDrag();
   });
 
@@ -5015,13 +5062,23 @@ function ensureModel3DScene(){
     const w=wrap.clientWidth, h=wrap.clientHeight;
     DIRS.forEach(d=>{ tmpV.copy(d.handle.position).project(camera); d.label3d.style.left=((tmpV.x*0.5+0.5)*w)+'px'; d.label3d.style.top=((-tmpV.y*0.5+0.5)*h-30)+'px'; });
   }
-  function animate(){ requestAnimationFrame(animate); controls.update(); updateHandleLabels(); renderer.render(scene,camera); }
-  animate();
+  function animate(){
+    requestAnimationFrame(animate);
+    controls.update();
+    updateHandleLabels();
+    (model3D.axisTicks||[]).forEach(t=>{
+      tmpV.copy(t.pos).project(camera);
+      t.el.style.left = ((tmpV.x*0.5+0.5)*wrap.clientWidth)+'px';
+      t.el.style.top = ((-tmpV.y*0.5+0.5)*wrap.clientHeight)+'px';
+    });
+    renderer.render(scene,camera);
+  }
 
   model3D = {
     scene, camera, renderer, controls, wrap, DIRS,
     dirByKey(key){ return DIRS.find(d=>d.key===key); },
-    getCutPos, setCutPos, edges, layerGroup, otherAxesClips, ALL_CLIPS,
+    getCutPos, setCutPos, edges, gridHelper, layerGroup, otherAxesClips, ALL_CLIPS,
+    axisTicks: [],
     updateHandlePositions,
     resize(){
       if(!wrap.clientWidth || !wrap.clientHeight) return;
@@ -5031,6 +5088,30 @@ function ensureModel3DScene(){
     }
   };
   window.addEventListener('resize', model3D.resize);
+  animate(); // só depois de "model3D" já estar atribuído — a própria animate() lê model3D.axisTicks
+}
+
+// tooltip flutuante (X, Y, cota, N-SPT) do ponto exato sob o cursor, sobre o maciço/corte
+function updateModel3DHoverTip(scenePoint, screenX, screenY, wrap){
+  const { xyRange, block, templateFuro, sceneOrigin, scaleH, scaleV, gridData } = model3DGeo;
+  const realX = sceneOrigin.x + scenePoint.x/scaleH;
+  const realY = sceneOrigin.z + scenePoint.z/scaleH; // "Y" geotécnico (mapeado no eixo Z da cena)
+  const realElev = sceneOrigin.y + scenePoint.y/scaleV;
+  const { horizonElev, sptAt } = model3DQueryPoint(block, templateFuro, realX, realY);
+  let k=0, achou=false;
+  for(;k<gridData.nLayers;k++){ if(realElev<=horizonElev[k] && realElev>=horizonElev[k+1]){ achou=true; break; } }
+  const tipoTxt = achou ? (TIPOS_SOLO.find(t=>t[0]===gridData.tipos[k])||[gridData.tipos[k],gridData.tipos[k]])[1] : '—';
+  const sptTxt = achou ? sptAt[k].toFixed(1) : '—';
+  const tip = document.getElementById('model3d-hover-tip');
+  const rect = wrap.getBoundingClientRect();
+  tip.style.left = (screenX-rect.left)+'px';
+  tip.style.top = (screenY-rect.top)+'px';
+  tip.innerHTML = `X: ${(realX-xyRange.minX).toFixed(1)} m &nbsp;|&nbsp; Y: ${(realY-xyRange.minY).toFixed(1)} m<br>Cota (Z): ${realElev.toFixed(2)} m<br>Material: ${esc(tipoTxt)} &nbsp;|&nbsp; N-SPT: ${sptTxt}`;
+  tip.style.display = 'block';
+}
+function hideModel3DHoverTip(){
+  const tip = document.getElementById('model3d-hover-tip');
+  if(tip) tip.style.display = 'none';
 }
 
 // cor de uma camada k, no modo atual (sólida por material, ou gradiente N-SPT por vértice)
@@ -5038,10 +5119,17 @@ function model3DLayerColorHex(k){
   const tipo = model3DGeo.tipos[k];
   return parseInt((SOIL_FILL[tipo]||SOIL_FILL.outro).replace('#',''), 16);
 }
+const MODEL3D_SPT_BINS = 6; // faixas discretas de N-SPT no modelo 3D (não mais gradiente contínuo)
 function model3DSptColor(sptVal){
   const { sptMin, sptMax } = model3DGeo.gridData;
-  const t = (sptVal-sptMin)/(sptMax-sptMin);
-  const [r,g,b] = continuousColor(t);
+  let t = (sptVal-sptMin)/(sptMax-sptMin);
+  t = Math.max(0, Math.min(1, t));
+  // discretiza em faixas (não mais gradiente contínuo) — cada faixa usa a cor do seu ponto
+  // médio, dando transições nítidas entre valores de N-SPT bem diferentes, mais fácil de
+  // distinguir visualmente do que um degradê suave onde valores próximos ficam quase iguais
+  const bin = Math.min(MODEL3D_SPT_BINS-1, Math.floor(t*MODEL3D_SPT_BINS));
+  const tBinCenter = (bin+0.5)/MODEL3D_SPT_BINS;
+  const [r,g,b] = continuousColor(tBinCenter);
   return new THREE.Color(r/255,g/255,b/255);
 }
 
@@ -5154,40 +5242,64 @@ function buildModel3DVerticalCutMesh(d){
 // compartilhados entre células, pra não misturar cor de camadas vizinhas), consultando a
 // interpolação ao vivo em cada célula na cota exata do corte
 function buildModel3DDepthCutMesh(d){
-  const { block, templateFuro, xyRange, gridN, sceneOrigin, scaleH, scaleV } = model3DGeo;
+  const { block, templateFuro, xyRange, sceneOrigin, scaleH, scaleV } = model3DGeo;
   const elevScene = model3D.getCutPos(d);
   const elevReal = sceneOrigin.y + elevScene/scaleV;
   const group = d.cutMeshGroup;
   model3DClearGroup(group);
   const nLayers = model3DGeo.gridData.nLayers;
-  const nSeg = gridN;
-  const positions = new Float32Array(nSeg*nSeg*4*3);
-  const colors = new Float32Array(nSeg*nSeg*4*3);
-  const indices = [];
-  let qi=0;
-  for(let ix=0; ix<nSeg; ix++){
-    for(let iz=0; iz<nSeg; iz++){
-      const x0=model3DGridPos(ix,xyRange.minX,xyRange.maxX,gridN), x1=model3DGridPos(ix+1,xyRange.minX,xyRange.maxX,gridN);
-      const z0=model3DGridPos(iz,xyRange.minY,xyRange.maxY,gridN), z1=model3DGridPos(iz+1,xyRange.minY,xyRange.maxY,gridN);
-      const xm=(x0+x1)/2, zm=(z0+z1)/2;
-      const {horizonElev, sptAt} = model3DQueryPoint(block, templateFuro, xm, zm);
+  // resolução própria, bem mais fina que a grade geral (usada na superfície externa/cortes
+  // verticais) — só é recalculada quando o corte é solto (não a cada quadro do arrasto), então
+  // pode pagar um pouco mais de custo aqui em troca de um contorno bem mais fiel ao que já
+  // aparece (com posição/geometria de verdade, não só cor) durante o próprio arrasto
+  const nSeg = MODEL3D_DEPTHCUT_GRID_N;
+
+  // calcula, em cada NÓ da grade (não mais no centro de cada célula), qual camada está ativa ali
+  // — usar o nó, com vértices compartilhados entre células vizinhas, deixa o GPU suavizar a
+  // transição de cor entre nós com materiais diferentes, no lugar do "degrau" que aparecia
+  // quando cada célula inteira era pintada de uma cor sólida só a partir do seu centro
+  const nodeColor = [];
+  for(let ix=0; ix<=nSeg; ix++){
+    const rowC=[];
+    const x = model3DGridPos(ix, xyRange.minX, xyRange.maxX, nSeg);
+    for(let iz=0; iz<=nSeg; iz++){
+      const z = model3DGridPos(iz, xyRange.minY, xyRange.maxY, nSeg);
+      const {horizonElev, sptAt} = model3DQueryPoint(block, templateFuro, x, z);
       let k=0, achou=false;
       for(;k<nLayers;k++){ if(elevReal<=horizonElev[k] && elevReal>=horizonElev[k+1]){ achou=true; break; } }
-      const cor = achou ? (model3DMode==='material'? new THREE.Color(model3DLayerColorHex(k)) : model3DSptColor(sptAt[k])) : new THREE.Color(0xf0ece0);
-      const sx0=(x0-sceneOrigin.x)*scaleH, sx1=(x1-sceneOrigin.x)*scaleH, sz0=(z0-sceneOrigin.z)*scaleH, sz1=(z1-sceneOrigin.z)*scaleH;
-      const base=qi*4;
-      positions[base*3+0]=sx0; positions[base*3+1]=elevScene; positions[base*3+2]=sz0;
-      positions[(base+1)*3+0]=sx1; positions[(base+1)*3+1]=elevScene; positions[(base+1)*3+2]=sz0;
-      positions[(base+2)*3+0]=sx1; positions[(base+2)*3+1]=elevScene; positions[(base+2)*3+2]=sz1;
-      positions[(base+3)*3+0]=sx0; positions[(base+3)*3+1]=elevScene; positions[(base+3)*3+2]=sz1;
-      for(let vv=0; vv<4; vv++){ colors[(base+vv)*3+0]=cor.r; colors[(base+vv)*3+1]=cor.g; colors[(base+vv)*3+2]=cor.b; }
-      indices.push(base,base+1,base+2, base,base+2,base+3);
-      qi++;
+      rowC.push(achou ? (model3DMode==='material'? new THREE.Color(model3DLayerColorHex(k)) : model3DSptColor(sptAt[k])) : null);
+    }
+    nodeColor.push(rowC);
+  }
+
+  const positions = [], colors = [], indices = [];
+  const vertIdx = []; // vertIdx[ix][iz] -> índice do vértice, ou -1 se o nó está fora do terreno ali
+  for(let ix=0; ix<=nSeg; ix++){
+    const row = [];
+    const x = model3DGridPos(ix, xyRange.minX, xyRange.maxX, nSeg);
+    for(let iz=0; iz<=nSeg; iz++){
+      const c = nodeColor[ix][iz];
+      if(!c){ row.push(-1); continue; }
+      const z = model3DGridPos(iz, xyRange.minY, xyRange.maxY, nSeg);
+      const sx=(x-sceneOrigin.x)*scaleH, sz=(z-sceneOrigin.z)*scaleH;
+      row.push(positions.length/3);
+      positions.push(sx, elevScene, sz);
+      colors.push(c.r, c.g, c.b);
+    }
+    vertIdx.push(row);
+  }
+  for(let ix=0; ix<nSeg; ix++){
+    for(let iz=0; iz<nSeg; iz++){
+      const a=vertIdx[ix][iz], b=vertIdx[ix+1][iz], c=vertIdx[ix+1][iz+1], e=vertIdx[ix][iz+1];
+      // só desenha a célula se os 4 cantos têm dado — evita esticar a malha até uma área sem
+      // terreno naquela cota (mesma correção de antes, agora por nó em vez de por célula)
+      if(a<0||b<0||c<0||e<0) continue;
+      indices.push(a,b,c, a,c,e);
     }
   }
   const geo = new THREE.BufferGeometry();
-  geo.setAttribute('position', new THREE.BufferAttribute(positions,3));
-  geo.setAttribute('color', new THREE.BufferAttribute(colors,3));
+  geo.setAttribute('position', new THREE.Float32BufferAttribute(positions,3));
+  geo.setAttribute('color', new THREE.Float32BufferAttribute(colors,3));
   geo.setIndex(indices);
   const mat = new THREE.MeshBasicMaterial({vertexColors:true, side:THREE.DoubleSide, clippingPlanes:model3D.otherAxesClips(1), clipShadows:true});
   group.add(new THREE.Mesh(geo, mat));
@@ -5211,7 +5323,7 @@ function refreshModel3DCut(dirKey){
 function rebuildModel3DGeometry(block){
   const templateFuro = pickModel3DTemplateFuro(block);
   const xyRange = computeBlockXYRange(block);
-  const gridN = 22;
+  const gridN = 36; // resolução da malha — mais alta que antes (22), pra reduzir o aspecto "quadriculado"
   const gridData = computeModel3DHorizonGrid(block, templateFuro, xyRange, gridN);
 
   const realSpanX = Math.max(1, xyRange.maxX-xyRange.minX);
@@ -5234,8 +5346,9 @@ function rebuildModel3DGeometry(block){
     tipos: gridData.tipos,
   };
 
-  const { edges, layerGroup, DIRS, camera, controls } = model3D;
+  const { edges, gridHelper, layerGroup, DIRS, camera, controls } = model3D;
   edges.scale.set(sceneX, targetDepth, sceneZ);
+  gridHelper.position.y = -targetDepth/2 - 0.4; // sempre abaixo do bloco, nunca atravessando-o
 
   model3DClearGroup(layerGroup);
   for(let k=0;k<gridData.nLayers;k++){
@@ -5261,6 +5374,28 @@ function rebuildModel3DGeometry(block){
   controls.maxDistance = dist*4;
 
   document.getElementById('model3d-exagero').textContent = exaggeration.toFixed(1)+'×';
+
+  // eixos com valores reais — algumas marcações ao longo de 3 arestas do bloco (X, Y em
+  // distância relativa desde a borda; Z como cota absoluta, mais útil geotecnicamente)
+  const axisLayer = document.getElementById('model3d-axis-layer');
+  axisLayer.innerHTML = '';
+  const axisTicks = [];
+  function addTick(x,y,z,text){
+    const el = document.createElement('div');
+    el.className = 'axis-tick3d';
+    el.textContent = text;
+    axisLayer.appendChild(el);
+    axisTicks.push({pos:new THREE.Vector3(x,y,z), el});
+  }
+  const halfXc = sceneX/2, halfZc = sceneZ/2, halfVc = targetDepth/2;
+  const N_TICKS = 4;
+  for(let i=0;i<=N_TICKS;i++){
+    const t = i/N_TICKS;
+    addTick(-halfXc + t*sceneX, -halfVc, -halfZc-0.3, (t*realSpanX).toFixed(0)+'m');       // eixo X
+    addTick(-halfXc-0.3, -halfVc, -halfZc + t*sceneZ, (t*realSpanZ).toFixed(0)+'m');        // eixo Y (geotécnico)
+    addTick(-halfXc-0.3, -halfVc + (1-t)*targetDepth, -halfZc-0.3, (maxElev-t*(maxElev-minElev)).toFixed(1)+'m'); // eixo Z (cota)
+  }
+  model3D.axisTicks = axisTicks;
 }
 
 function updateModel3DLegend(){
@@ -5270,8 +5405,17 @@ function updateModel3DLegend(){
     const tiposUnicos = Array.from(new Set(model3DGeo.tipos));
     el.innerHTML = buildRasterLegendHtml({key:'material', label:'Material predominante'}, 0, 0, new Set(tiposUnicos));
   } else {
+    // legenda em faixas discretas (não mais uma barra de gradiente contínuo), combinando com
+    // a cor discretizada usada agora no maciço
     const { sptMin, sptMax } = model3DGeo.gridData;
-    el.innerHTML = buildRasterLegendHtml({key:'spt', label:'N-SPT interpolado', unidade:'golpes'}, sptMin, sptMax, null);
+    let chips = '';
+    for(let i=0;i<MODEL3D_SPT_BINS;i++){
+      const lo = sptMin + (sptMax-sptMin)*i/MODEL3D_SPT_BINS;
+      const hi = sptMin + (sptMax-sptMin)*(i+1)/MODEL3D_SPT_BINS;
+      const [r,g,b] = continuousColor((i+0.5)/MODEL3D_SPT_BINS);
+      chips += `<span class="tag-chip" style="background:rgb(${r},${g},${b});border-color:rgba(0,0,0,.2)">${lo.toFixed(0)}–${hi.toFixed(0)}</span>`;
+    }
+    el.innerHTML = `<div class="tag-list">${chips}</div><div style="font-size:10px;color:var(--mu);margin-top:4px;">N-SPT interpolado (golpes) — faixas discretas</div>`;
   }
 }
 

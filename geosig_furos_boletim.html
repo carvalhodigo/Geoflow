@@ -108,6 +108,23 @@ input,select,textarea{font-family:inherit;font-size:12px}
 .ft-search-clear.show{visibility:visible}
 .ft-search-clear:hover{background:var(--red);color:#fff;border-color:var(--red)}
 #furo-table-body{flex:1;overflow-y:auto;padding:8px 12px;min-height:80px;position:relative}
+#furo-table-content{display:flex; flex:1; min-height:0; overflow:hidden;}
+#furo-table-content #furo-table-body{flex:1}
+/* painel lateral de filtros avançados — some do lado da tabela (não sobrepõe), com sua própria
+   rolagem se a lista de valores de algum campo for grande */
+#furo-table-filters-panel{width:220px;flex-shrink:0;border-right:1px solid var(--bdr);
+  background:var(--surf);overflow-y:auto;padding:10px 12px}
+#furo-table-filters-panel.hidden{display:none}
+.ftf-group{margin-bottom:14px}
+.ftf-group-title{display:flex;align-items:center;justify-content:space-between;
+  font-family:var(--mono);font-size:9.5px;font-weight:700;text-transform:uppercase;
+  letter-spacing:.4px;color:var(--mu);margin-bottom:5px}
+.ftf-clear-one{border:none;background:none;color:var(--green);font-size:9.5px;cursor:pointer;
+  text-decoration:underline;padding:0}
+.ftf-option{display:flex;align-items:center;gap:6px;font-size:11.5px;padding:2px 0;cursor:pointer}
+.ftf-option input{flex-shrink:0}
+.ftf-empty{font-size:10.5px;color:var(--mu);font-style:italic}
+.ftf-footer{padding-top:6px;border-top:1px solid var(--bdr)}
 .ft-group{margin-bottom:14px}
 .ft-group-header{font-family:var(--mono);font-size:11px;font-weight:700;color:var(--green);
   margin-bottom:5px;display:flex;align-items:center;gap:6px}
@@ -526,6 +543,7 @@ table.edit-tbl input:focus,table.edit-tbl select:focus{outline:none;border-color
 <div id="furo-table-panel" class="hidden">
   <div id="furo-table-header">
     <b>📋 Furos por estado</b>
+    <button class="mini-btn" type="button" id="furo-table-filter-btn" title="Filtros avançados (Local, Obra, UO, Data)">🔎 Filtros</button>
     <span class="ft-search-wrap">
       <input id="furo-table-search" placeholder="Buscar por obra…" list="furo-local-datalist" autocomplete="off">
       <button type="button" id="furo-table-search-clear" class="ft-search-clear" title="Limpar filtro" aria-label="Limpar filtro">✕</button>
@@ -535,7 +553,10 @@ table.edit-tbl input:focus,table.edit-tbl select:focus{outline:none;border-color
     <button class="mini-btn" type="button" id="furo-table-float" title="Alternar entre fixo no topo e janela flutuante">🗗 Flutuante</button>
     <button class="mini-btn" type="button" id="furo-table-close" style="margin-left:auto">✕ Fechar</button>
   </div>
-  <div id="furo-table-body"></div>
+  <div id="furo-table-content">
+    <div id="furo-table-filters-panel" class="hidden"></div>
+    <div id="furo-table-body"></div>
+  </div>
   <div class="resize-handle-h" id="furo-table-resize" title="Arraste para redimensionar a altura"></div>
   <div id="furo-table-resize-corner" title="Arraste para redimensionar"></div>
 </div>
@@ -619,6 +640,7 @@ table.edit-tbl input:focus,table.edit-tbl select:focus{outline:none;border-color
         <div class="input-grid">
           <div class="field"><label>Cliente</label><input id="bo-f-cliente" type="text" placeholder="Ex: Vision Engenharia"></div>
           <div class="field"><label>Obra</label><input id="bo-f-obra" type="text" placeholder="Ex: SE CAC3"></div>
+          <div class="field"><label>Unidade Operacional (UO)</label><input id="bo-f-uo" type="text" placeholder="Ex: UO-Sul"></div>
           <div class="field"><label>Local</label><input id="bo-f-local" type="text" placeholder="Ex: Cachoeirinha - RS"></div>
           <div class="field"><label>Sondagem N°</label><input id="bo-f-sondagem-num" type="text" placeholder="Ex: SPT-01"></div>
           <div class="field"><label>Início</label><input id="bo-f-data-inicio" type="text" placeholder="dd/mm/aa"></div>
@@ -926,7 +948,7 @@ function blankFuro(lat,lng){
   return {
     id:newFuroId(), lat, lng, hash: computeFuroHash(sondagemNum, '', lat, lng, ''),
     ident:{
-      cliente:'', obra:'', local:'', sondagemNum,
+      cliente:'', obra:'', unidadeOperacional:'', local:'', sondagemNum,
       dataInicio:'', dataFim:'', cota:'', datum:'SIRGAS2000', zonaUTM:'', coordN:'', coordE:'',
       responsavel:'', sondador:'', desenhista:'',
       amDiamInt:'34.9', amDiamExt:'50.8', amPeso:'65', amAltura:'75'
@@ -1770,6 +1792,86 @@ function extrairEstadoDoLocal(local){
    faz trabalho de verdade quando o painel está aberto (evita custo de render a cada mudança). */
 let furoTableOpen = false;
 let furoTableSearch = '';
+// filtros avançados — cada campo guarda um Set de valores MARCADOS; Set vazio = "sem filtro
+// nesse campo" (mostra tudo), igual a uma lista de checkbox onde nada marcado = tudo passa
+let furoTableFiltersOpen = false;
+let furoTableFilters = { uf: new Set(), obra: new Set(), uo: new Set(), data: new Set() };
+function toggleFuroTableFilters(forceState){
+  furoTableFiltersOpen = (forceState!==undefined) ? forceState : !furoTableFiltersOpen;
+  document.getElementById('furo-table-filters-panel').classList.toggle('hidden', !furoTableFiltersOpen);
+  document.getElementById('furo-table-filter-btn').classList.toggle('on', furoTableFiltersOpen);
+  if(furoTableFiltersOpen) renderFuroTableFiltersPanel();
+}
+document.getElementById('furo-table-filter-btn').addEventListener('click', ()=> toggleFuroTableFilters());
+
+function furoPassaFiltros(f){
+  const uf = extrairEstadoDoLocal(f.ident.local) || '';
+  if(furoTableFilters.uf.size && !furoTableFilters.uf.has(uf)) return false;
+  if(furoTableFilters.obra.size && !furoTableFilters.obra.has((f.ident.obra||'').trim())) return false;
+  if(furoTableFilters.uo.size && !furoTableFilters.uo.has((f.ident.unidadeOperacional||'').trim())) return false;
+  if(furoTableFilters.data.size && !furoTableFilters.data.has((f.ident.dataInicio||'').trim())) return false;
+  return true;
+}
+// monta a lista de opções (valor real + rótulo pra exibir quando vazio) de um campo, a partir
+// de TODOS os furos (não só os já filtrados por outros campos) — assim o usuário sempre vê
+// todas as opções disponíveis pra escolher, marcando/desmarcando à vontade
+function furoFilterFieldOptions(getter){
+  const vals = furos.map(f=>{ const v=getter(f); return (v||'').trim(); });
+  return Array.from(new Set(vals)).sort((a,b)=>{
+    if(!a) return 1; if(!b) return -1;
+    return a.localeCompare(b,'pt-BR',{numeric:true});
+  });
+}
+function renderFuroTableFiltersPanel(){
+  if(!furoTableFiltersOpen) return;
+  const el = document.getElementById('furo-table-filters-panel');
+  const campos = [
+    {key:'uf', titulo:'Local (UF)', getter:f=>extrairEstadoDoLocal(f.ident.local)},
+    {key:'obra', titulo:'Obra', getter:f=>f.ident.obra},
+    {key:'uo', titulo:'Unidade Operacional (UO)', getter:f=>f.ident.unidadeOperacional},
+    {key:'data', titulo:'Data', getter:f=>f.ident.dataInicio},
+  ];
+  let html = '';
+  campos.forEach(c=>{
+    const opts = furoFilterFieldOptions(c.getter);
+    const marcados = furoTableFilters[c.key];
+    html += `<div class="ftf-group">
+      <div class="ftf-group-title">${esc(c.titulo)} ${marcados.size? `<button type="button" class="ftf-clear-one" data-clear="${c.key}">limpar</button>`:''}</div>`;
+    if(!opts.length){
+      html += `<div class="ftf-empty">Nenhum valor cadastrado</div>`;
+    } else {
+      opts.forEach(v=>{
+        const label = v || '(vazio)';
+        const checked = marcados.has(v) ? 'checked' : '';
+        html += `<label class="ftf-option"><input type="checkbox" data-field="${c.key}" data-value="${escAttr(v)}" ${checked}> ${esc(label)}</label>`;
+      });
+    }
+    html += `</div>`;
+  });
+  const totalMarcados = campos.reduce((a,c)=>a+furoTableFilters[c.key].size,0);
+  html += `<div class="ftf-footer"><button type="button" class="mini-btn" id="ftf-clear-all" ${totalMarcados?'':'disabled'}>Limpar todos os filtros</button></div>`;
+  el.innerHTML = html;
+
+  el.querySelectorAll('input[type=checkbox]').forEach(cb=>{
+    cb.addEventListener('change', ()=>{
+      const field = cb.dataset.field, value = cb.dataset.value;
+      if(cb.checked) furoTableFilters[field].add(value); else furoTableFilters[field].delete(value);
+      renderFuroTableFiltersPanel(); renderFuroTable();
+    });
+  });
+  el.querySelectorAll('.ftf-clear-one').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      furoTableFilters[btn.dataset.clear].clear();
+      renderFuroTableFiltersPanel(); renderFuroTable();
+    });
+  });
+  const clearAllBtn = document.getElementById('ftf-clear-all');
+  if(clearAllBtn) clearAllBtn.addEventListener('click', ()=>{
+    campos.forEach(c=>furoTableFilters[c.key].clear());
+    renderFuroTableFiltersPanel(); renderFuroTable();
+  });
+}
+
 function toggleFuroTable(forceState){
   furoTableOpen = (forceState!==undefined) ? forceState : !furoTableOpen;
   document.getElementById('furo-table-panel').classList.toggle('hidden', !furoTableOpen);
@@ -1795,7 +1897,7 @@ function renderFuroTable(){
   const datalist = document.getElementById('furo-local-datalist');
   datalist.innerHTML = obrasUnicas.map(o=>`<option value="${esc(o)}">`).join('');
 
-  const filtrados = term ? furos.filter(f=>(f.ident.obra||'').toLowerCase().includes(term)) : furos;
+  const filtrados = furos.filter(f=> (!term || (f.ident.obra||'').toLowerCase().includes(term)) && furoPassaFiltros(f));
 
   const groups = {};
   filtrados.forEach(f=>{
@@ -1807,7 +1909,7 @@ function renderFuroTable(){
   hint.textContent = estadoNames.length+' estado(s) · '+filtrados.length+' furo(s)';
 
   if(estadoNames.length===0){
-    el.innerHTML = '<div class="sb-empty">Nenhuma obra corresponde a "'+esc(furoTableSearch)+'".</div>';
+    el.innerHTML = '<div class="sb-empty">Nenhum furo corresponde à busca/filtros atuais.</div>';
     return;
   }
 
@@ -1846,7 +1948,18 @@ function renderFuroTable(){
       const f = furos.find(x=>x.id===id); if(!f) return;
       if(interpSelectMode){ toggleInterpFuroSelect(id); renderFuroTable(); return; }
       if(exportSelectMode){ toggleExportFuroSelect(id); renderFuroTable(); return; }
-      selectFuro(id); map.setView([f.lat,f.lng], Math.max(map.getZoom(),15));
+      selectFuro(id);
+      // selectFuro() acabou de abrir o painel lateral do boletim — como #panel é um item flex
+      // de verdade (não um overlay flutuante), isso ENCOLHE de fato a largura do container do
+      // mapa. O Leaflet não recalcula esse tamanho sozinho quando o container muda por CSS;
+      // sem invalidateSize(), ele ainda centraliza usando a largura ANTIGA (tela toda), fazendo
+      // o ponto ficar desalinhado da área que sobra visível depois que o painel abre.
+      map.invalidateSize();
+      // zoom decisivo e centralizado no furo — antes só garantia "pelo menos 15", o que num
+      // zoom bem afastado (ex.: vendo o Brasil todo) mal dava pra notar o ponto de verdade.
+      // flyTo() anima a transição, deixando claro que a ação "achou e foi até o furo",
+      // não só um salto abrupto de posição/zoom.
+      map.flyTo([f.lat,f.lng], Math.max(map.getZoom(),17), {duration:0.6});
     });
   });
 }
@@ -2131,6 +2244,7 @@ function openFuroPanel(id){
         <div><label>Data de execução</label><input class="f-input" id="pf-data" value="${escAttr(f.ident.dataInicio)}" placeholder="dd/mm/aa"></div>
       </div>
       <div class="f-row"><label>Obra / Projeto</label><input class="f-input" id="pf-obra" value="${escAttr(f.ident.obra)}"></div>
+      <div class="f-row"><label>Unidade Operacional (UO)</label><input class="f-input" id="pf-uo" value="${escAttr(f.ident.unidadeOperacional)}"></div>
       <div class="f-row"><label>Cliente</label><input class="f-input" id="pf-cliente" value="${escAttr(f.ident.cliente)}"></div>
       <div class="f-row two">
         <div><label>Responsável técnico</label><input class="f-input" id="pf-resp" value="${escAttr(f.ident.responsavel)}"></div>
@@ -2169,6 +2283,7 @@ function openFuroPanel(id){
     f.ident.sondagemNum = document.getElementById('pf-num').value.trim() || f.ident.sondagemNum;
     f.ident.dataInicio = document.getElementById('pf-data').value;
     f.ident.obra = document.getElementById('pf-obra').value;
+    f.ident.unidadeOperacional = document.getElementById('pf-uo').value;
     f.ident.cliente = document.getElementById('pf-cliente').value;
     f.ident.responsavel = document.getElementById('pf-resp').value;
     f.ident.cota = document.getElementById('pf-cota').value;
@@ -2250,6 +2365,7 @@ function openBoletimEditor(id){
   const set=(elId,v)=>{ const el=document.getElementById(elId); if(el) el.value=(v===undefined||v===null)?'':v; };
   set('bo-f-cliente', f.ident.cliente);
   set('bo-f-obra', f.ident.obra);
+  set('bo-f-uo', f.ident.unidadeOperacional);
   set('bo-f-local', f.ident.local);
   set('bo-f-sondagem-num', f.ident.sondagemNum);
   set('bo-f-data-inicio', f.ident.dataInicio);
@@ -2339,7 +2455,7 @@ function saveBoletimEditor(){
   }
 
   f.ident = {
-    cliente: val('bo-f-cliente'), obra: val('bo-f-obra'), local: val('bo-f-local'),
+    cliente: val('bo-f-cliente'), obra: val('bo-f-obra'), unidadeOperacional: val('bo-f-uo'), local: val('bo-f-local'),
     sondagemNum: val('bo-f-sondagem-num').trim() || f.ident.sondagemNum,
     dataInicio: val('bo-f-data-inicio'), dataFim: val('bo-f-data-fim'),
     cota: val('bo-f-cota'), datum: val('bo-f-datum'), zonaUTM: val('bo-f-zona-utm'),
@@ -6028,6 +6144,7 @@ function buildFuroFromImportData(fd){
   if(fd.id) f.id = fd.id;
   f.ident.sondagemNum = fd.sondagemNum || f.ident.sondagemNum;
   f.ident.obra = fd.obra || '';
+  f.ident.unidadeOperacional = fd.unidadeOperacional || fd.uo || fd.unidade_operacional || '';
   f.ident.cliente = fd.cliente || '';
   f.ident.local = fd.local || '';
   f.ident.dataInicio = fd.dataInicio || '';
@@ -6173,7 +6290,7 @@ function buildGeoJSON(furoIds, shapeIds){
     const golpesTxt = f.golpes.map(g=>`${g.prof}m G1=${g.g1} G2=${g.g2} G3=${g.g3}`).join(' | ');
     const naTxt = f.agua.map(r=>`${r.data||'-'}: ${r.prof}m`).join(' | ');
     features.push({type:'Feature', geometry:{type:'Point', coordinates:[f.lng,f.lat]},
-      properties:{id:f.id, nome:f.ident.sondagemNum, obra:f.ident.obra, cliente:f.ident.cliente, local:f.ident.local,
+      properties:{id:f.id, nome:f.ident.sondagemNum, obra:f.ident.obra, uo:f.ident.unidadeOperacional||'', cliente:f.ident.cliente, local:f.ident.local,
         data_inicio:f.ident.dataInicio, data_fim:f.ident.dataFim, cota:f.ident.cota, datum:f.ident.datum, zona_utm:f.ident.zonaUTM,
         coord_n:f.ident.coordN, coord_e:f.ident.coordE, responsavel:f.ident.responsavel,
         sondador:f.ident.sondador, desenhista:f.ident.desenhista,
@@ -6343,13 +6460,13 @@ function selectExportItemsInBounds(bounds){
 
 document.getElementById('btn-export-csv').onclick=()=>{
   if(furos.length===0){ toast('Nenhum furo para exportar'); return; }
-  let csv = 'id;nome;obra;cliente;local;data_inicio;data_fim;lat;lng;utm_e;utm_n;zona_utm;cota;datum;responsavel;sondador;desenhista;metodo;equipamento;nivel_agua;prof_final;camadas;golpes_spt;obs\n';
+  let csv = 'id;nome;obra;uo;cliente;local;data_inicio;data_fim;lat;lng;utm_e;utm_n;zona_utm;cota;datum;responsavel;sondador;desenhista;metodo;equipamento;nivel_agua;prof_final;camadas;golpes_spt;obs\n';
   furos.forEach(f=>{
     const u = toUTM(f.lat,f.lng,crsZone);
     const camadasTxt = f.camadas.map(c=>`${c.profFinal}m:${c.descricao}[${c.tipo}]`).join(' | ').replace(/;/g,',');
     const golpesTxt = f.golpes.map(g=>`${g.prof}m(${g.g1}/${g.g2}/${g.g3})`).join(' | ').replace(/;/g,',');
     const naTxt = f.agua.map(r=>`${r.data||'-'}:${r.prof}m`).join(' | ').replace(/;/g,',');
-    csv += [f.id,f.ident.sondagemNum,f.ident.obra,f.ident.cliente,f.ident.local,f.ident.dataInicio,f.ident.dataFim,
+    csv += [f.id,f.ident.sondagemNum,f.ident.obra,f.ident.unidadeOperacional||'',f.ident.cliente,f.ident.local,f.ident.dataInicio,f.ident.dataFim,
       f.lat.toFixed(6),f.lng.toFixed(6),u.e.toFixed(2),u.n.toFixed(2),crsZone+'S',f.ident.cota,f.ident.datum,
       f.ident.responsavel,f.ident.sondador,f.ident.desenhista,f.metodo,f.equipamento,naTxt,profFinal(f).toFixed(1),
       camadasTxt,golpesTxt,(f.obs||'').replace(/;/g,',').replace(/\n/g,' ')].join(';')+'\n';

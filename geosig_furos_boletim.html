@@ -99,32 +99,38 @@ input,select,textarea{font-family:inherit;font-size:12px}
   background:var(--surf);border-bottom:1px solid var(--bdr);flex-shrink:0;user-select:none}
 #furo-table-header b{font-family:var(--mono);font-size:11px;letter-spacing:.5px;
   text-transform:uppercase;color:var(--tx);white-space:nowrap}
-#furo-table-search{height:26px;border-radius:var(--r);border:1px solid var(--bdr);background:#fff;
-  font-size:11px;padding:0 8px;width:220px;flex-shrink:0}
-.ft-search-wrap{display:inline-flex;align-items:center;gap:4px;flex-shrink:0}
-.ft-search-clear{width:20px;height:20px;border-radius:50%;border:1px solid var(--bdr);background:#fff;
-  color:var(--mu);font-size:10px;line-height:1;display:flex;align-items:center;justify-content:center;
-  padding:0;cursor:pointer;flex-shrink:0;visibility:hidden;transition:all .12s}
-.ft-search-clear.show{visibility:visible}
-.ft-search-clear:hover{background:var(--red);color:#fff;border-color:var(--red)}
 #furo-table-body{flex:1;overflow-y:auto;padding:8px 12px;min-height:80px;position:relative}
 #furo-table-content{display:flex; flex:1; min-height:0; overflow:hidden;}
 #furo-table-content #furo-table-body{flex:1}
-/* painel lateral de filtros avançados — some do lado da tabela (não sobrepõe), com sua própria
-   rolagem se a lista de valores de algum campo for grande */
-#furo-table-filters-panel{width:220px;flex-shrink:0;border-right:1px solid var(--bdr);
-  background:var(--surf);overflow-y:auto;padding:10px 12px}
-#furo-table-filters-panel.hidden{display:none}
-.ftf-group{margin-bottom:14px}
-.ftf-group-title{display:flex;align-items:center;justify-content:space-between;
-  font-family:var(--mono);font-size:9.5px;font-weight:700;text-transform:uppercase;
-  letter-spacing:.4px;color:var(--mu);margin-bottom:5px}
-.ftf-clear-one{border:none;background:none;color:var(--green);font-size:9.5px;cursor:pointer;
-  text-decoration:underline;padding:0}
-.ftf-option{display:flex;align-items:center;gap:6px;font-size:11.5px;padding:2px 0;cursor:pointer}
-.ftf-option input{flex-shrink:0}
-.ftf-empty{font-size:10.5px;color:var(--mu);font-style:italic}
-.ftf-footer{padding-top:6px;border-top:1px solid var(--bdr)}
+/* chips compactos de filtro, direto no cabeçalho da tabela (Proposta B) — cada um abre um
+   dropdown ancorado embaixo, com busca, selecionar todos/limpar, e aplicar/cancelar */
+#furo-table-chips{display:flex;gap:8px;flex-wrap:wrap}
+.ft-chip-wrap{position:relative}
+.ft-chip{display:inline-flex;align-items:center;gap:7px;height:30px;padding:0 14px;border-radius:15px;
+  border:1px solid var(--bdr-s);background:#fff;cursor:pointer;font-size:12px;font-family:var(--mono);
+  font-weight:700;color:var(--tx)}
+.ft-chip:hover{background:var(--surf)}
+.ft-chip.has-filter{background:#e2ecdf;border-color:var(--green);color:var(--green)}
+.ft-chip-label{font-weight:700}
+.ft-chip-count{font-weight:400;color:var(--mu)}
+.ft-chip.has-filter .ft-chip-count{color:var(--green);font-weight:700}
+.ft-dd{position:absolute;top:calc(100% + 6px);left:0;width:220px;background:#fff;
+  border:1px solid var(--bdr-s);border-radius:var(--r-lg);box-shadow:0 6px 18px rgba(0,0,0,.18);z-index:200}
+.ft-dd-search-wrap{padding:8px 8px 5px}
+.ft-dd-search{width:100%;height:26px;padding:0 8px;border:1px solid var(--bdr);border-radius:var(--r);font-size:11px}
+.ft-dd-bulk{display:flex;gap:10px;padding:2px 8px 7px;font-size:10px}
+.ft-dd-bulk button{border:none;background:none;color:var(--green);cursor:pointer;text-decoration:underline;
+  font-size:10px;padding:0;font-family:inherit}
+.ft-dd-list{max-height:170px;overflow-y:auto;padding:0 4px 4px}
+.ft-dd-opt{display:flex;align-items:center;gap:6px;padding:4px 6px;border-radius:var(--r);font-size:11px;cursor:pointer}
+.ft-dd-opt:hover{background:var(--surf)}
+.ft-dd-opt input{flex-shrink:0}
+.ft-dd-empty{padding:10px;font-size:10.5px;color:var(--mu);text-align:center;font-style:italic}
+.ft-dd-footer{display:flex;justify-content:flex-end;gap:6px;padding:8px;border-top:1px solid var(--bdr)}
+.ft-dd-footer button{height:24px;padding:0 10px;border-radius:var(--r);font-size:10px;font-weight:700;
+  font-family:var(--mono);cursor:pointer}
+.ft-dd-cancel{background:var(--surf);border:1px solid var(--bdr)}
+.ft-dd-apply{background:var(--green);border:1px solid var(--green);color:#fff}
 .ft-group{margin-bottom:14px}
 .ft-group-header{font-family:var(--mono);font-size:11px;font-weight:700;color:var(--green);
   margin-bottom:5px;display:flex;align-items:center;gap:6px}
@@ -543,18 +549,12 @@ table.edit-tbl input:focus,table.edit-tbl select:focus{outline:none;border-color
 <div id="furo-table-panel" class="hidden">
   <div id="furo-table-header">
     <b>📋 Furos por estado</b>
-    <button class="mini-btn" type="button" id="furo-table-filter-btn" title="Filtros avançados (Local, Obra, UO, Data)">🔎 Filtros</button>
-    <span class="ft-search-wrap">
-      <input id="furo-table-search" placeholder="Buscar por obra…" list="furo-local-datalist" autocomplete="off">
-      <button type="button" id="furo-table-search-clear" class="ft-search-clear" title="Limpar filtro" aria-label="Limpar filtro">✕</button>
-    </span>
-    <datalist id="furo-local-datalist"></datalist>
+    <div id="furo-table-chips"></div>
     <span class="hint" id="furo-table-hint" style="font-size:10.5px;color:var(--mu);"></span>
     <button class="mini-btn" type="button" id="furo-table-float" title="Alternar entre fixo no topo e janela flutuante">🗗 Flutuante</button>
     <button class="mini-btn" type="button" id="furo-table-close" style="margin-left:auto">✕ Fechar</button>
   </div>
   <div id="furo-table-content">
-    <div id="furo-table-filters-panel" class="hidden"></div>
     <div id="furo-table-body"></div>
   </div>
   <div class="resize-handle-h" id="furo-table-resize" title="Arraste para redimensionar a altura"></div>
@@ -818,6 +818,11 @@ table.edit-tbl input:focus,table.edit-tbl select:focus{outline:none;border-color
       <label style="display:flex;align-items:center;gap:6px;margin-top:8px;font-size:12.5px;cursor:pointer;">
         <input type="checkbox" id="model3d-show-furos" checked>
         Mostrar posição das sondagens de origem
+      </label>
+      <label style="display:flex;align-items:center;gap:6px;margin-top:6px;font-size:12.5px;cursor:pointer;">
+        <input type="checkbox" id="model3d-show-satelite">
+        Mostrar imagem de satélite no topo
+        <span id="model3d-satelite-status" class="hint" style="margin-left:4px;"></span>
       </label>
       <div id="model3d-canvas-wrap" style="position:relative;margin-top:10px;height:64vh;min-height:420px;
         border:1px solid var(--bo-border);border-radius:10px;overflow:hidden;background:#dfe6e0;">
@@ -1361,19 +1366,6 @@ function toast(msg){ const t=document.getElementById('hint-toast'); t.textConten
 
 document.getElementById('btn-toggle-table').addEventListener('click', ()=>toggleFuroTable());
 document.getElementById('furo-table-close').addEventListener('click', ()=>toggleFuroTable(false));
-document.getElementById('furo-table-search').addEventListener('input', e=>{
-  furoTableSearch = e.target.value;
-  document.getElementById('furo-table-search-clear').classList.toggle('show', furoTableSearch.length>0);
-  renderFuroTable();
-});
-document.getElementById('furo-table-search-clear').addEventListener('click', ()=>{
-  furoTableSearch = '';
-  const input = document.getElementById('furo-table-search');
-  input.value = '';
-  document.getElementById('furo-table-search-clear').classList.remove('show');
-  renderFuroTable();
-  input.focus();
-});
 
 /* ── redimensionamento por arrasto: barra lateral (largura), painel de edição (largura) e
    tabela de furos (altura) — arrasta a alça, solta, e a preferência fica salva ── */
@@ -1788,89 +1780,112 @@ function extrairEstadoDoLocal(local){
 
 /* ── tabela de furos no topo da tela, agrupada por estado ──
    Complementa a lista lateral: dá uma visão tabular de todos os furos de uma vez, agrupados
-   pelo estado (UF) extraído do campo "local" da identificação, com busca/filtro por obra. Só
-   faz trabalho de verdade quando o painel está aberto (evita custo de render a cada mudança). */
+   pelo estado (UF) extraído do campo "local" da identificação, com filtros por chip no
+   cabeçalho. Só faz trabalho de verdade quando o painel está aberto (evita custo de render a
+   cada mudança). */
 let furoTableOpen = false;
-let furoTableSearch = '';
 // filtros avançados — cada campo guarda um Set de valores MARCADOS; Set vazio = "sem filtro
 // nesse campo" (mostra tudo), igual a uma lista de checkbox onde nada marcado = tudo passa
-let furoTableFiltersOpen = false;
-let furoTableFilters = { uf: new Set(), obra: new Set(), uo: new Set(), data: new Set() };
-function toggleFuroTableFilters(forceState){
-  furoTableFiltersOpen = (forceState!==undefined) ? forceState : !furoTableFiltersOpen;
-  document.getElementById('furo-table-filters-panel').classList.toggle('hidden', !furoTableFiltersOpen);
-  document.getElementById('furo-table-filter-btn').classList.toggle('on', furoTableFiltersOpen);
-  if(furoTableFiltersOpen) renderFuroTableFiltersPanel();
-}
-document.getElementById('furo-table-filter-btn').addEventListener('click', ()=> toggleFuroTableFilters());
-
-function furoPassaFiltros(f){
+let furoTableFilters = { uf: new Set(), obra: new Set(), uo: new Set() };
+// campos disponíveis pra filtro — ícone, rótulo, e como extrair o valor de um furo. Usado
+// tanto pra montar os chips quanto pra aplicar o filtro em si (furoPassaFiltros)
+const FURO_FILTER_CAMPOS = [
+  {key:'uf', icon:'📍', titulo:'UF', getter:f=>extrairEstadoDoLocal(f.ident.local)},
+  {key:'obra', icon:'🏗', titulo:'Obra', getter:f=>f.ident.obra},
+  {key:'uo', icon:'⚙', titulo:'UO', getter:f=>f.ident.unidadeOperacional},
+];
+function furoPassaFiltros(f, keyExcluida){
   const uf = extrairEstadoDoLocal(f.ident.local) || '';
-  if(furoTableFilters.uf.size && !furoTableFilters.uf.has(uf)) return false;
-  if(furoTableFilters.obra.size && !furoTableFilters.obra.has((f.ident.obra||'').trim())) return false;
-  if(furoTableFilters.uo.size && !furoTableFilters.uo.has((f.ident.unidadeOperacional||'').trim())) return false;
-  if(furoTableFilters.data.size && !furoTableFilters.data.has((f.ident.dataInicio||'').trim())) return false;
+  if(keyExcluida!=='uf' && furoTableFilters.uf.size && !furoTableFilters.uf.has(uf)) return false;
+  if(keyExcluida!=='obra' && furoTableFilters.obra.size && !furoTableFilters.obra.has((f.ident.obra||'').trim())) return false;
+  if(keyExcluida!=='uo' && furoTableFilters.uo.size && !furoTableFilters.uo.has((f.ident.unidadeOperacional||'').trim())) return false;
   return true;
 }
-// monta a lista de opções (valor real + rótulo pra exibir quando vazio) de um campo, a partir
-// de TODOS os furos (não só os já filtrados por outros campos) — assim o usuário sempre vê
-// todas as opções disponíveis pra escolher, marcando/desmarcando à vontade
-function furoFilterFieldOptions(getter){
-  const vals = furos.map(f=>{ const v=getter(f); return (v||'').trim(); });
+// monta a lista de opções de um campo — em cascata: considera só os furos que já passam nos
+// OUTROS filtros já aplicados (excluindo o filtro do próprio campo, senão o campo nunca
+// mostraria mais de uma opção depois de escolhida). Ex.: filtrar por UF="MS" faz o pill de
+// Obra listar só as obras que existem entre os furos do MS, e vice-versa.
+function furoFilterFieldOptions(getter, keyDoCampo){
+  const base = furos.filter(f=>furoPassaFiltros(f, keyDoCampo));
+  const vals = base.map(f=>{ const v=getter(f); return (v||'').trim(); });
   return Array.from(new Set(vals)).sort((a,b)=>{
     if(!a) return 1; if(!b) return -1;
     return a.localeCompare(b,'pt-BR',{numeric:true});
   });
 }
-function renderFuroTableFiltersPanel(){
-  if(!furoTableFiltersOpen) return;
-  const el = document.getElementById('furo-table-filters-panel');
-  const campos = [
-    {key:'uf', titulo:'Local (UF)', getter:f=>extrairEstadoDoLocal(f.ident.local)},
-    {key:'obra', titulo:'Obra', getter:f=>f.ident.obra},
-    {key:'uo', titulo:'Unidade Operacional (UO)', getter:f=>f.ident.unidadeOperacional},
-    {key:'data', titulo:'Data', getter:f=>f.ident.dataInicio},
-  ];
-  let html = '';
-  campos.forEach(c=>{
-    const opts = furoFilterFieldOptions(c.getter);
-    const marcados = furoTableFilters[c.key];
-    html += `<div class="ftf-group">
-      <div class="ftf-group-title">${esc(c.titulo)} ${marcados.size? `<button type="button" class="ftf-clear-one" data-clear="${c.key}">limpar</button>`:''}</div>`;
-    if(!opts.length){
-      html += `<div class="ftf-empty">Nenhum valor cadastrado</div>`;
-    } else {
-      opts.forEach(v=>{
-        const label = v || '(vazio)';
-        const checked = marcados.has(v) ? 'checked' : '';
-        html += `<label class="ftf-option"><input type="checkbox" data-field="${c.key}" data-value="${escAttr(v)}" ${checked}> ${esc(label)}</label>`;
-      });
-    }
-    html += `</div>`;
-  });
-  const totalMarcados = campos.reduce((a,c)=>a+furoTableFilters[c.key].size,0);
-  html += `<div class="ftf-footer"><button type="button" class="mini-btn" id="ftf-clear-all" ${totalMarcados?'':'disabled'}>Limpar todos os filtros</button></div>`;
-  el.innerHTML = html;
-
-  el.querySelectorAll('input[type=checkbox]').forEach(cb=>{
-    cb.addEventListener('change', ()=>{
-      const field = cb.dataset.field, value = cb.dataset.value;
-      if(cb.checked) furoTableFilters[field].add(value); else furoTableFilters[field].delete(value);
-      renderFuroTableFiltersPanel(); renderFuroTable();
+function furoFilterLabelContagem(campo, opts){
+  const n = furoTableFilters[campo.key].size;
+  return n===0 ? 'todos' : `${n} de ${opts.length}`;
+}
+// chips compactos no cabeçalho da tabela — cada um abre um dropdown com busca, selecionar
+// todos/limpar, e aplicar/cancelar (só grava o filtro de verdade ao clicar "Aplicar" — até lá
+// as marcações ficam num rascunho à parte, sem afetar a tabela)
+function renderFuroTableChips(){
+  const el = document.getElementById('furo-table-chips');
+  el.innerHTML = '';
+  FURO_FILTER_CAMPOS.forEach(campo=>{
+    const opts = furoFilterFieldOptions(campo.getter, campo.key);
+    const wrap = document.createElement('div');
+    wrap.className = 'ft-chip-wrap';
+    const chip = document.createElement('button');
+    chip.type = 'button';
+    chip.className = 'ft-chip' + (furoTableFilters[campo.key].size ? ' has-filter' : '');
+    chip.innerHTML = `<span>${campo.icon}</span><span class="ft-chip-label">${esc(campo.titulo)}</span><span class="ft-chip-count">${esc(furoFilterLabelContagem(campo, opts))}</span>`;
+    chip.title = campo.titulo;
+    wrap.appendChild(chip);
+    chip.addEventListener('click', e=>{
+      e.stopPropagation();
+      const jaAberto = wrap.querySelector('.ft-dd');
+      document.querySelectorAll('.ft-dd').forEach(d=>d.remove());
+      if(jaAberto) return; // clicar de novo no mesmo chip fecha
+      wrap.appendChild(buildFuroFilterDropdown(campo, opts));
     });
-  });
-  el.querySelectorAll('.ftf-clear-one').forEach(btn=>{
-    btn.addEventListener('click', ()=>{
-      furoTableFilters[btn.dataset.clear].clear();
-      renderFuroTableFiltersPanel(); renderFuroTable();
-    });
-  });
-  const clearAllBtn = document.getElementById('ftf-clear-all');
-  if(clearAllBtn) clearAllBtn.addEventListener('click', ()=>{
-    campos.forEach(c=>furoTableFilters[c.key].clear());
-    renderFuroTableFiltersPanel(); renderFuroTable();
+    el.appendChild(wrap);
   });
 }
+function buildFuroFilterDropdown(campo, opts){
+  const draft = new Set(furoTableFilters[campo.key]); // rascunho — só grava de vez ao "Aplicar"
+  const dd = document.createElement('div');
+  dd.className = 'ft-dd';
+  dd.addEventListener('click', e=>e.stopPropagation());
+  function renderLista(termo){
+    const filtrados = opts.filter(v=> (v||'(vazio)').toLowerCase().includes((termo||'').toLowerCase()));
+    if(!filtrados.length) return '<div class="ft-dd-empty">Nenhum valor encontrado</div>';
+    return filtrados.map(v=>{
+      const checked = draft.has(v) ? 'checked' : '';
+      return `<label class="ft-dd-opt"><input type="checkbox" value="${escAttr(v)}" ${checked}> ${esc(v||'(vazio)')}</label>`;
+    }).join('');
+  }
+  dd.innerHTML = `
+    <div class="ft-dd-search-wrap"><input class="ft-dd-search" placeholder="Buscar…"></div>
+    <div class="ft-dd-bulk"><button type="button" data-act="all">Selecionar todos</button><button type="button" data-act="clear">Limpar</button></div>
+    <div class="ft-dd-list">${renderLista('')}</div>
+    <div class="ft-dd-footer"><button type="button" class="ft-dd-cancel">Cancelar</button><button type="button" class="ft-dd-apply">Aplicar</button></div>
+  `;
+  const lista = dd.querySelector('.ft-dd-list');
+  dd.querySelector('.ft-dd-search').addEventListener('input', e=>{ lista.innerHTML = renderLista(e.target.value); });
+  lista.addEventListener('change', e=>{
+    if(e.target.type!=='checkbox') return;
+    if(e.target.checked) draft.add(e.target.value); else draft.delete(e.target.value);
+  });
+  dd.querySelector('[data-act="all"]').addEventListener('click', ()=>{
+    opts.forEach(v=>draft.add(v));
+    lista.innerHTML = renderLista(dd.querySelector('.ft-dd-search').value);
+  });
+  dd.querySelector('[data-act="clear"]').addEventListener('click', ()=>{
+    draft.clear();
+    lista.innerHTML = renderLista(dd.querySelector('.ft-dd-search').value);
+  });
+  dd.querySelector('.ft-dd-cancel').addEventListener('click', ()=> dd.remove());
+  dd.querySelector('.ft-dd-apply').addEventListener('click', ()=>{
+    furoTableFilters[campo.key] = draft;
+    dd.remove();
+    renderFuroTableChips();
+    renderFuroTable();
+  });
+  return dd;
+}
+document.addEventListener('click', ()=>{ document.querySelectorAll('.ft-dd').forEach(d=>d.remove()); });
 
 function toggleFuroTable(forceState){
   furoTableOpen = (forceState!==undefined) ? forceState : !furoTableOpen;
@@ -1883,7 +1898,7 @@ function renderFuroTable(){
   if(!furoTableOpen) return;
   const el = document.getElementById('furo-table-body');
   const hint = document.getElementById('furo-table-hint');
-  const term = furoTableSearch.trim().toLowerCase();
+  renderFuroTableChips();
 
   if(furos.length===0){
     el.innerHTML = '<div class="sb-empty">Nenhum furo cadastrado ainda.<br>Use "＋ Furo SPT" e clique no mapa, ou importe uma campanha.</div>';
@@ -1891,13 +1906,7 @@ function renderFuroTable(){
     return;
   }
 
-  // popula a combobox pesquisável (datalist) com as obras já cadastradas, não só as que batem
-  // com o filtro atual — assim o usuário sempre vê as opções disponíveis pra escolher
-  const obrasUnicas = Array.from(new Set(furos.map(f=>(f.ident.obra||'').trim()).filter(Boolean))).sort((a,b)=>a.localeCompare(b,'pt-BR'));
-  const datalist = document.getElementById('furo-local-datalist');
-  datalist.innerHTML = obrasUnicas.map(o=>`<option value="${esc(o)}">`).join('');
-
-  const filtrados = furos.filter(f=> (!term || (f.ident.obra||'').toLowerCase().includes(term)) && furoPassaFiltros(f));
+  const filtrados = furos.filter(f=> furoPassaFiltros(f));
 
   const groups = {};
   filtrados.forEach(f=>{
@@ -2229,7 +2238,6 @@ function renderFuroBoletimHtml(state){
    ══════════════════════════════════════════════════════════════ */
 function openFuroPanel(id){
   const f = furos.find(x=>x.id===id); if(!f) return;
-  const u = toUTM(f.lat,f.lng,crsZone);
   const panel = document.getElementById('panel');
   panel.classList.remove('hidden');
   const boletimHtml = renderFuroBoletimHtml(prepareBoletimState(f));
@@ -2238,38 +2246,7 @@ function openFuroPanel(id){
     <div class="p-hdr"><b>Boletim de Sondagem</b><button class="p-close" onclick="closePanel()">✕</button></div>
     <div class="p-body">
 
-      <div class="sec-title">Identificação rápida</div>
-      <div class="f-row two">
-        <div><label>Sondagem N°</label><input class="f-input" id="pf-num" value="${escAttr(f.ident.sondagemNum)}"></div>
-        <div><label>Data de execução</label><input class="f-input" id="pf-data" value="${escAttr(f.ident.dataInicio)}" placeholder="dd/mm/aa"></div>
-      </div>
-      <div class="f-row"><label>Obra / Projeto</label><input class="f-input" id="pf-obra" value="${escAttr(f.ident.obra)}"></div>
-      <div class="f-row"><label>Unidade Operacional (UO)</label><input class="f-input" id="pf-uo" value="${escAttr(f.ident.unidadeOperacional)}"></div>
-      <div class="f-row"><label>Cliente</label><input class="f-input" id="pf-cliente" value="${escAttr(f.ident.cliente)}"></div>
-      <div class="f-row two">
-        <div><label>Responsável técnico</label><input class="f-input" id="pf-resp" value="${escAttr(f.ident.responsavel)}"></div>
-        <div><label>Cota da boca (m)</label><input class="f-input" id="pf-cota" value="${escAttr(f.ident.cota)}"></div>
-      </div>
-
-      <div class="sec-title">Execução (dados de campo)</div>
-      <div class="f-row two">
-        <div><label>Método</label><input class="f-input" id="pf-metodo" value="${escAttr(f.metodo)}"></div>
-        <div><label>Equipamento</label><input class="f-input" id="pf-equip" value="${escAttr(f.equipamento)}"></div>
-      </div>
-      <div class="f-row two">
-        <div><label>Revestimento / diâmetro</label><input class="f-input" id="pf-revest" value="${escAttr(f.revestimento)}"></div>
-        <div><label>Arquivo original (nome/link)</label><input class="f-input" id="pf-arq" value="${escAttr(f.arquivo_ref)}"></div>
-      </div>
-
-      <div class="sec-title">Localização</div>
-      <div class="utm-box"><span>E ${u.e.toFixed(2)}</span><span>N ${u.n.toFixed(2)}</span><span>UTM ${crsZone}S</span></div>
-      <div class="utm-box"><span>${f.lat.toFixed(6)}</span><span>${f.lng.toFixed(6)}</span><span>lat/long</span></div>
-
-      <div class="sec-title">Observações</div>
-      <textarea class="f-input" id="pf-obs">${esc(f.obs)}</textarea>
-
       <div class="btn-row" style="margin-top:6px">
-        <button class="mini-btn primary" id="pf-save">Salvar dados rápidos</button>
         <button class="mini-btn" id="pf-edit-full">✏️ Editor completo (NA · camadas · golpes)</button>
         <button class="mini-btn" id="pf-print">🖨 Imprimir boletim NBR 6484</button>
         <button class="mini-btn danger" id="pf-del">Excluir furo</button>
@@ -2279,22 +2256,6 @@ function openFuroPanel(id){
       <div class="boletim-preview-wrap" id="furo-boletim-preview">${boletimHtml}</div>
     </div>`;
 
-  document.getElementById('pf-save').onclick=()=>{
-    f.ident.sondagemNum = document.getElementById('pf-num').value.trim() || f.ident.sondagemNum;
-    f.ident.dataInicio = document.getElementById('pf-data').value;
-    f.ident.obra = document.getElementById('pf-obra').value;
-    f.ident.unidadeOperacional = document.getElementById('pf-uo').value;
-    f.ident.cliente = document.getElementById('pf-cliente').value;
-    f.ident.responsavel = document.getElementById('pf-resp').value;
-    f.ident.cota = document.getElementById('pf-cota').value;
-    f.metodo = document.getElementById('pf-metodo').value;
-    f.equipamento = document.getElementById('pf-equip').value;
-    f.revestimento = document.getElementById('pf-revest').value;
-    f.arquivo_ref = document.getElementById('pf-arq').value;
-    f.obs = document.getElementById('pf-obs').value;
-    if(markers[f.id]) markers[f.id].setTooltipContent(f.ident.sondagemNum || '(sem nome)');
-    scheduleSave(); renderFuroList(); toast('Dados salvos');
-  };
   document.getElementById('pf-edit-full').onclick=()=> openBoletimEditor(f.id);
   document.getElementById('pf-print').onclick=()=> printFuroBoletim(f);
   document.getElementById('pf-del').onclick=()=>{ if(confirm('Excluir furo "'+f.ident.sondagemNum+'"?')) deleteFuro(id); };
@@ -2644,7 +2605,33 @@ function drawShape(s){
   shapeLayers[s.id]=layer;
 }
 
-function selectShape(id){ selected={kind:'shape', id}; renderShapeList(); openShapePanel(id); }
+// extrai todos os pontos [lat,lng] de uma forma (área, linha ou camada de pontos), qualquer
+// que seja o tipo de geometria — usado só pra calcular os limites geográficos ao centralizar
+function shapeToLatLngPoints(s){
+  const pts = [];
+  if(s.geomType==='MultiPoint'){
+    (s.points||[]).forEach(pt=> pts.push([pt.lat, pt.lng]));
+  } else if(s.geomType==='Polygon'){
+    (s.coords||[]).forEach(ring=> ring.forEach(c=> pts.push([c[1],c[0]])));
+  } else if(s.geomType==='MultiPolygon'){
+    (s.coords||[]).forEach(poly=> poly.forEach(ring=> ring.forEach(c=> pts.push([c[1],c[0]]))));
+  } else if(s.geomType==='LineString'){
+    (s.coords||[]).forEach(c=> pts.push([c[1],c[0]]));
+  } else if(s.geomType==='MultiLineString'){
+    (s.coords||[]).forEach(line=> line.forEach(c=> pts.push([c[1],c[0]])));
+  }
+  return pts;
+}
+function selectShape(id){
+  selected={kind:'shape', id};
+  renderShapeList();
+  openShapePanel(id);
+  const s = shapes.find(x=>x.id===id);
+  if(s){
+    const pts = shapeToLatLngPoints(s);
+    if(pts.length) mapFitBoundsConsiderandoPainel(L.latLngBounds(pts), {padding:[40,40], maxZoom:18});
+  }
+}
 
 function openShapePanel(id){
   const s = shapes.find(x=>x.id===id); if(!s) return;
@@ -2836,6 +2823,159 @@ function xyToLatLng(x,y,refLat,refLng){
   const lat = refLat + y/111320;
   const lng = refLng + x/(111320*Math.cos(refLat*Math.PI/180));
   return [lat,lng];
+}
+
+/* ══════════════════════════════════════════════════════════════
+   IMAGEM DE SATÉLITE (tiles XYZ) — busca e "costura" tiles de um
+   provedor de mapa (Google/Esri) numa única imagem cobrindo uma
+   área geográfica, pra usar como textura no topo do modelo 3D.
+   ══════════════════════════════════════════════════════════════ */
+// posição FRACIONÁRIA (não inteira) de um ponto lat/lng na grade de tiles, no esquema Web
+// Mercator padrão (o mesmo usado por Google/Esri/OSM) — a parte inteira é o índice do tile, a
+// fração é a posição dentro dele (usada pra saber onde recortar depois de juntar os tiles)
+function lonLatToTileFrac(lon, lat, zoom){
+  const n = Math.pow(2, zoom);
+  const x = (lon+180)/360*n;
+  const latRad = lat*Math.PI/180;
+  const y = (1 - Math.log(Math.tan(latRad)+1/Math.cos(latRad))/Math.PI)/2*n;
+  return {x, y};
+}
+// escolhe o maior zoom (mais detalhe) que ainda cobre a área desejada com uma quantidade
+// razoável de tiles (evita buscar dezenas de tiles pra uma área pequena, ou um tile só —
+// baixa resolução — pra uma área grande)
+function pickSatelliteZoomForSpan(spanMeters, lat){
+  const MAX_TILES_ACROSS = 5;
+  // zoom 20+ raramente tem cobertura de imagem de verdade fora de grandes centros urbanos —
+  // pedir um zoom além do que o provedor realmente tem devolve tile em branco/cinza (não é
+  // erro de rede nem de CORS, o servidor simplesmente não tem aquele nível de detalhe pra
+  // aquele lugar). 18 é um teto bem mais seguro e amplamente disponível.
+  const ZOOM_MAX_SEGURO = 18;
+  for(let z=ZOOM_MAX_SEGURO; z>=1; z--){
+    const metersPerPixel = 156543.03392*Math.cos(lat*Math.PI/180)/Math.pow(2,z);
+    const tileMeters = metersPerPixel*256;
+    if(spanMeters/tileMeters <= MAX_TILES_ACROSS) return z;
+  }
+  return 10;
+}
+function loadTileImage(url){
+  return new Promise((resolve,reject)=>{
+    const img = new Image();
+    img.crossOrigin = 'anonymous'; // necessário pra depois poder usar a imagem como textura
+                                    // WebGL — sem isso o canvas fica "contaminado" e nem carrega
+                                    // (se o servidor não permitir CORS) nem funciona como textura
+    img.onload = ()=>resolve(img);
+    img.onerror = ()=>reject(new Error('falha ao carregar tile: '+url));
+    img.src = url;
+  });
+}
+// true se o canvas está "contaminado" (não dá pra ler os pixels, geralmente porque alguma
+// imagem desenhada nele veio de um servidor sem CORS habilitado) — usado pra detectar se o
+// provedor de tiles escolhido realmente dá pra usar como textura, e cair pro outro se não der
+function isCanvasTainted(canvas){
+  try{ canvas.getContext('2d').getImageData(0,0,1,1); return false; }
+  catch(e){ return true; }
+}
+// busca e junta os tiles necessários pra cobrir [minLng,minLat,maxLng,maxLat], recorta pro
+// retângulo exato pedido (os tiles buscados quase sempre são um pouco maiores que a área),
+// e devolve um canvas pronto — ou lança erro se algum tile falhar ao carregar
+async function buildSatelliteCanvasForBounds(minLng, minLat, maxLng, maxLat, urlTemplate){
+  const midLat = (minLat+maxLat)/2;
+  // bug real encontrado aqui: o Math.max(1, ...) estava aplicado na DIFERENÇA EM GRAUS (que
+  // pra um bloco pequeno é algo como 0.0005) em vez de no resultado final em METROS — isso
+  // fazia QUALQUER bloco geotécnico (cuja diferença de longitude é sempre bem menor que 1
+  // grau) ser tratado como se tivesse 111km de vão, escolhendo um zoom bem baixo e cobrindo a
+  // área toda com um recorte de poucos pixels — daí a aparência de "cor uniforme esticada".
+  const spanMetersLng = Math.max(1, (maxLng-minLng)*111320*Math.cos(midLat*Math.PI/180));
+  const spanMetersLat = Math.max(1, (maxLat-minLat)*111320);
+  const spanMeters = Math.max(spanMetersLng, spanMetersLat, 10);
+  const zoom = pickSatelliteZoomForSpan(spanMeters, midLat);
+  console.log('[satelite 3D] área:', spanMeters.toFixed(1)+'m de vão, zoom escolhido:', zoom);
+
+  const pMin = lonLatToTileFrac(minLng, maxLat, zoom); // canto noroeste (lat maior -> tile-y menor)
+  const pMax = lonLatToTileFrac(maxLng, minLat, zoom); // canto sudeste
+  const txMin = Math.floor(pMin.x), txMax = Math.floor(pMax.x);
+  const tyMin = Math.floor(pMin.y), tyMax = Math.floor(pMax.y);
+  const nTilesX = txMax-txMin+1, nTilesY = tyMax-tyMin+1;
+  console.log('[satelite 3D] tiles necessários:', nTilesX, 'x', nTilesY, `(x:${txMin}..${txMax}, y:${tyMin}..${tyMax})`);
+
+  const canvasCompleto = document.createElement('canvas');
+  canvasCompleto.width = nTilesX*256; canvasCompleto.height = nTilesY*256;
+  const ctx = canvasCompleto.getContext('2d');
+
+  const jobs = [];
+  for(let tx=txMin; tx<=txMax; tx++){
+    for(let ty=tyMin; ty<=tyMax; ty++){
+      // urlTemplate pode ser um texto simples (com {s}/{x}/{y}/{z} pra substituir) ou uma
+      // função — usada quando a URL final precisa ser MONTADA (ex.: envolvendo a URL real
+      // inteira dentro de um proxy CORS, não só encaixando x/y/z num modelo fixo)
+      const url = (typeof urlTemplate==='function')
+        ? urlTemplate(tx,ty,zoom)
+        : urlTemplate.replace('{s}',['0','1','2','3'][Math.abs(tx+ty)%4]).replace('{z}',zoom).replace('{x}',tx).replace('{y}',ty);
+      jobs.push(loadTileImage(url).then(img=>{
+        console.log('[satelite 3D] tile carregado:', url, '-', img.naturalWidth||img.width, 'x', img.naturalHeight||img.height, 'px');
+        ctx.drawImage(img, (tx-txMin)*256, (ty-tyMin)*256);
+      }));
+    }
+  }
+  await Promise.all(jobs);
+
+  const pixMinX = (pMin.x-txMin)*256, pixMinY = (pMin.y-tyMin)*256;
+  const pixMaxX = (pMax.x-txMin)*256, pixMaxY = (pMax.y-tyMin)*256;
+  const cropW = Math.max(1, Math.round(pixMaxX-pixMinX)), cropH = Math.max(1, Math.round(pixMaxY-pixMinY));
+  const recortado = document.createElement('canvas');
+  recortado.width = cropW; recortado.height = cropH;
+  recortado.getContext('2d').drawImage(canvasCompleto, pixMinX, pixMinY, cropW, cropH, 0, 0, cropW, cropH);
+  console.log('[satelite 3D] canvas costurado:', canvasCompleto.width+'x'+canvasCompleto.height,
+    '| recortado pra:', cropW+'x'+cropH, `(a partir de ${pixMinX.toFixed(1)},${pixMinY.toFixed(1)})`);
+  logCanvasSample(recortado, 'recortado final');
+  return recortado;
+}
+// imprime no console uma amostra de alguns pixels do canvas, pra confirmar se realmente tem
+// variação de cor (uma foto de verdade) ou se é essencialmente uma cor só (algo deu errado
+// antes de chegar aqui) — usado só como diagnóstico, não afeta o resultado
+function logCanvasSample(canvas, label){
+  try{
+    const ctx = canvas.getContext('2d');
+    const w = canvas.width, h = canvas.height;
+    const pontos = [[0,0],[Math.floor(w/2),Math.floor(h/2)],[w-1,h-1],[Math.floor(w/4),Math.floor(h*3/4)]];
+    const amostras = pontos.map(([x,y])=>{
+      const d = ctx.getImageData(Math.min(x,w-1),Math.min(y,h-1),1,1).data;
+      return `(${x},${y})=rgb(${d[0]},${d[1]},${d[2]})`;
+    });
+    console.log('[satelite 3D] amostra de pixels do canvas "'+label+'" ('+w+'x'+h+'):', amostras.join(' | '));
+  }catch(e){
+    console.log('[satelite 3D] não foi possível amostrar pixels do canvas "'+label+'" (provavelmente contaminado/sem CORS):', e.message);
+  }
+}
+// tenta o Google primeiro (o que foi pedido); se falhar ao carregar OU o canvas ficar
+// contaminado (sem CORS), cai automaticamente pro Esri (já usado em outro lugar do app, com
+// CORS habilitado) — devolve também qual provedor deu certo, pra avisar o usuário se precisou
+// trocar
+async function buildSatelliteTextureCanvas(minLng, minLat, maxLng, maxLat){
+  // só Esri — é o único que funciona de forma confiável e rápida (CORS habilitado direto no
+  // servidor, sem precisar passar por nenhum proxy de terceiros). O Google (direto ou via
+  // proxy CORS) foi removido daqui: o direto não funciona por falta de CORS no servidor deles,
+  // e o via-proxy, embora funcionasse, deixava o carregamento bem mais lento (depende de um
+  // serviço externo extra no meio do caminho) — não valia a troca.
+  const provedores = [
+    {nome:'Esri', url:'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'},
+  ];
+  let ultimoErro = null;
+  for(const prov of provedores){
+    try{
+      const canvas = await buildSatelliteCanvasForBounds(minLng,minLat,maxLng,maxLat,prov.url);
+      if(isCanvasTainted(canvas)){
+        ultimoErro = new Error(prov.nome+': imagem carregou mas sem CORS habilitado nesse servidor (não dá pra usar como textura 3D)');
+        console.warn('satelite 3D —', ultimoErro.message);
+        continue;
+      }
+      return {canvas, provedor:prov.nome};
+    }catch(e){
+      ultimoErro = new Error(prov.nome+': '+(e.message||'falha ao buscar tiles'));
+      console.warn('satelite 3D —', ultimoErro.message);
+    }
+  }
+  throw ultimoErro || new Error('nenhum provedor de satélite disponível');
 }
 
 // retângulo envolvente (bounding box) dos furos selecionados, expandido pela distância
@@ -3423,8 +3563,8 @@ function selectInterpBlock(id){
   selected={kind:'interp', id};
   renderInterpList();
   const block = interpBlocks.find(b=>b.id===id);
-  if(block && block.hull && block.hull.length) map.fitBounds(L.latLngBounds(block.hull), {padding:[40,40], maxZoom:18});
   openInterpBlockPanel(id);
+  if(block && block.hull && block.hull.length) mapFitBoundsConsiderandoPainel(L.latLngBounds(block.hull), {padding:[40,40], maxZoom:18});
 }
 function openInterpBlockPanel(id){
   const b = interpBlocks.find(x=>x.id===id); if(!b) return;
@@ -4531,8 +4671,8 @@ function renderProfileList(){
     div.className = 'item';
     div.innerHTML = `<div class="item-title">📐 ${esc(p.nome)}</div><div class="item-sub">${p.samples.length} amostras · ${p.totalLength.toFixed(0)} m de extensão</div>`;
     div.onclick = ()=>{
-      if(p.line && p.line.length) map.fitBounds(L.latLngBounds(p.line), {padding:[60,60], maxZoom:18});
       showProfileView(p, true);
+      if(p.line && p.line.length) mapFitBoundsConsiderandoPainel(L.latLngBounds(p.line), {padding:[60,60], maxZoom:18});
     };
     el.appendChild(div);
   });
@@ -4664,7 +4804,7 @@ function renderRasterLayersList(){
 }
 function zoomToRasterLayer(id){
   const r = rasterLayers.find(x=>x.id===id); if(!r || !r.bounds) return;
-  map.fitBounds(r.bounds, {padding:[40,40], maxZoom:18});
+  mapFitBoundsConsiderandoPainel(r.bounds, {padding:[40,40], maxZoom:18});
 }
 
 // checa se o raster está dentro da área atualmente visível do mapa (não só "ligado" pela
@@ -5284,6 +5424,7 @@ function ensureModel3DScene(){
 
   const layerGroup = new THREE.Group(); scene.add(layerGroup); // superfícies onduladas (exterior)
   const furoMarkersGroup = new THREE.Group(); scene.add(furoMarkersGroup); // posição real dos furos de origem
+  const satelliteGroup = new THREE.Group(); satelliteGroup.visible=false; scene.add(satelliteGroup); // imagem de satélite no topo
   DIRS.forEach(d=>{ d.cutMeshGroup = new THREE.Group(); d.cutMeshGroup.visible=false; scene.add(d.cutMeshGroup); });
 
   function makeArrowHandle(cor, direction){
@@ -5456,7 +5597,7 @@ function ensureModel3DScene(){
   model3D = {
     scene, camera, renderer, controls, wrap, DIRS,
     dirByKey(key){ return DIRS.find(d=>d.key===key); },
-    getCutPos, setCutPos, edges, gridHelper, layerGroup, furoMarkersGroup, otherAxesClips, ALL_CLIPS,
+    getCutPos, setCutPos, edges, gridHelper, layerGroup, furoMarkersGroup, satelliteGroup, otherAxesClips, ALL_CLIPS,
     axisTicks: [],
     showModel3DValueInput,
     updateHandlePositions,
@@ -5595,6 +5736,88 @@ function buildModel3DLayerGeometry(k){
   geo.setIndex(indices);
   geo.computeVertexNormals();
   return geo;
+}
+
+// geometria da "capa" de satélite — segue EXATAMENTE o mesmo relevo do horizonte 0 (topo do
+// terreno) já calculado pro maciço, só que com coordenadas de textura (UV) em vez de cor por
+// vértice, e um pouco acima da superfície de material (evita brigar visualmente na mesma
+// posição — "z-fighting")
+function buildModel3DSatelliteDrapeGeometry(){
+  const { xyRange, gridN, gridData, sceneOrigin, scaleH, scaleV } = model3DGeo;
+  const { horizons } = gridData;
+  const positions=[], uvs=[]; const indices=[];
+  const idx=[];
+  let vi=0;
+  for(let ix=0; ix<=gridN; ix++){
+    const row=[];
+    const x = model3DGridPos(ix, xyRange.minX, xyRange.maxX, gridN);
+    const u = ix/gridN;
+    for(let iz=0; iz<=gridN; iz++){
+      const z = model3DGridPos(iz, xyRange.minY, xyRange.maxY, gridN);
+      const v = 1 - iz/gridN;
+      const sx = (x-sceneOrigin.x)*scaleH, sz = (sceneOrigin.z-z)*scaleH;
+      const sy = (horizons[0][ix][iz]-sceneOrigin.y)*scaleV + 0.03;
+      positions.push(sx,sy,sz); uvs.push(u,v);
+      row.push(vi++);
+    }
+    idx.push(row);
+  }
+  for(let ix=0; ix<gridN; ix++){
+    for(let iz=0; iz<gridN; iz++){
+      const a=idx[ix][iz], b=idx[ix+1][iz], c=idx[ix+1][iz+1], d=idx[ix][iz+1];
+      indices.push(a,b,c, a,c,d);
+    }
+  }
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.Float32BufferAttribute(positions,3));
+  geo.setAttribute('uv', new THREE.Float32BufferAttribute(uvs,2));
+  geo.setIndex(indices);
+  return geo;
+}
+
+// busca a imagem de satélite (com fallback automático Google -> Esri) cobrindo a área do
+// bloco, monta a "capa" seguindo o relevo real, e coloca no lugar — chamado ao marcar o
+// checkbox pela primeira vez em cada bloco; guarda em cache pra não buscar de novo se
+// desmarcar/marcar de novo o mesmo bloco
+async function loadModel3DSatellite(){
+  if(!model3DGeo) return;
+  const statusEl = document.getElementById('model3d-satelite-status');
+  if(model3DGeo.satelliteMesh){
+    // já carregado pra esse bloco — só reaproveita, sem buscar de novo
+    model3DClearGroup(model3D.satelliteGroup);
+    model3D.satelliteGroup.add(model3DGeo.satelliteMesh);
+    model3D.satelliteGroup.visible = true;
+    statusEl.textContent = '';
+    return;
+  }
+  statusEl.textContent = '(carregando…)';
+  try{
+    const { xyRange, block } = model3DGeo;
+    const [latSW,lngSW] = xyToLatLng(xyRange.minX, xyRange.minY, block.refLat, block.refLng);
+    const [latNE,lngNE] = xyToLatLng(xyRange.maxX, xyRange.maxY, block.refLat, block.refLng);
+    const { canvas, provedor } = await buildSatelliteTextureCanvas(lngSW, latSW, lngNE, latNE);
+    if(!model3DGeo) return; // o popup pode ter sido fechado/trocado de bloco enquanto buscava
+    const tex = new THREE.CanvasTexture(canvas);
+    tex.flipY = false; // ver explicação de orientação no comentário da função de UV acima
+    tex.generateMipmaps = false;
+    tex.minFilter = THREE.LinearFilter; tex.magFilter = THREE.LinearFilter;
+    tex.wrapS = THREE.ClampToEdgeWrapping; tex.wrapT = THREE.ClampToEdgeWrapping;
+    tex.needsUpdate = true;
+    // clippingPlanes com os mesmos planos de corte da camada de material do topo — sem isso, a
+    // capa de satélite continuaria mostrando a imagem inteira mesmo depois de cortar o cubo
+    // pelas setas laterais, "flutuando" acima da parte que já devia ter sumido
+    const mat = new THREE.MeshBasicMaterial({map:tex, side:THREE.DoubleSide, clippingPlanes:model3D.ALL_CLIPS, clipShadows:true});
+    const mesh = new THREE.Mesh(buildModel3DSatelliteDrapeGeometry(), mat);
+    model3DGeo.satelliteMesh = mesh;
+    model3DClearGroup(model3D.satelliteGroup);
+    model3D.satelliteGroup.add(mesh);
+    model3D.satelliteGroup.visible = true;
+    statusEl.textContent = '';
+  }catch(e){
+    console.error('satelite 3D:', e);
+    statusEl.textContent = '(falhou: '+(e.message||'erro desconhecido')+')';
+    document.getElementById('model3d-show-satelite').checked = false;
+  }
 }
 
 // face de corte vertical (X ou Y geotécnico) — consulta a interpolação AO VIVO na posição
@@ -5753,6 +5976,12 @@ function rebuildModel3DGeometry(block){
   const { edges, gridHelper, layerGroup, DIRS, camera, controls } = model3D;
   edges.scale.set(sceneX, targetDepth, sceneZ);
   gridHelper.position.y = -targetDepth/2 - 0.4; // sempre abaixo do bloco, nunca atravessando-o
+  // bloco novo/trocado -> a imagem de satélite (se alguma já tiver sido carregada) não vale
+  // mais aqui; esconde e reseta o checkbox, forçando buscar de novo se o usuário marcar
+  model3DClearGroup(model3D.satelliteGroup);
+  model3D.satelliteGroup.visible = false;
+  document.getElementById('model3d-show-satelite').checked = false;
+  document.getElementById('model3d-satelite-status').textContent = '';
 
   model3DClearGroup(layerGroup);
   for(let k=0;k<gridData.nLayers;k++){
@@ -5899,6 +6128,11 @@ document.getElementById('model3d-show-furos').addEventListener('change', e=>{
   const on = e.target.checked;
   model3D.furoMarkersGroup.visible = on;
   document.querySelectorAll('.furo-marker3d-label').forEach(el=>{ el.style.display = on?'':'none'; });
+});
+document.getElementById('model3d-show-satelite').addEventListener('change', e=>{
+  if(!model3D || !model3DGeo) return;
+  if(e.target.checked) loadModel3DSatellite();
+  else model3D.satelliteGroup.visible = false;
 });
 document.querySelectorAll('#model3d-mode-toggle .loc-mode-btn').forEach(btn=>{
   btn.addEventListener('click', ()=>{
@@ -6540,6 +6774,17 @@ function userKeyFor(name){
 document.getElementById('btn-publish-furos').addEventListener('click', publishFurosJson);
 
 /* ══════════════════ HELPERS ══════════════════ */
+// centraliza/dá zoom pra caber os limites (bounds) informados, considerando a largura
+// REALMENTE visível do mapa — se o painel lateral direito (#panel) estiver ou for ficar
+// aberto, o container do mapa fica mais estreito de verdade (é um item flex, não um overlay),
+// mas o Leaflet só recalcula esse tamanho quando avisado explicitamente. Sem isso, o objeto
+// fica descentralizado, "puxado" pra debaixo do painel. Usado em qualquer clique de item da
+// lista lateral esquerda (interpolação, perfis, rasters, áreas/linhas) que precise centralizar
+// algo no mapa.
+function mapFitBoundsConsiderandoPainel(bounds, options){
+  map.invalidateSize();
+  map.fitBounds(bounds, options);
+}
 function fitAll(){
   const group = [];
   Object.values(markers).forEach(m=>group.push(m));

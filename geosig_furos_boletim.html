@@ -58,6 +58,22 @@ input,select,textarea{font-family:inherit;font-size:12px}
 .item.sel{border-color:var(--green);background:#f2f7f4}
 .item-title{font-weight:700;font-size:12px}
 .item-sub{font-size:10px;color:var(--mu);margin-top:2px;font-family:var(--mono)}
+/* botão de mostrar/ocultar no mapa (ícone de olho) — usado em todos os tipos de item das
+   listas laterais (Áreas/Linhas, Interpolação, Perfis, Rasters) */
+.eye-btn{border:none;background:none;font-size:15px;line-height:1;cursor:pointer;padding:2px 4px;
+  flex-shrink:0;border-radius:var(--r);opacity:1}
+.eye-btn:hover{background:var(--surf)}
+.eye-btn.off{opacity:.32;filter:grayscale(1)}
+/* sub-itens colapsáveis de uma camada de pontos — lista os pontos individuais dentro do item,
+   cada um clicável pra centralizar o mapa naquele ponto específico */
+.expand-btn{border:none;background:none;font-size:11px;line-height:1;cursor:pointer;padding:2px 3px;
+  flex-shrink:0;color:var(--mu);width:16px;text-align:center}
+.expand-btn:hover{color:var(--tx)}
+.point-sublist{margin:6px 0 2px 30px;border-left:2px solid var(--bdr);padding-left:8px}
+.point-subitem{display:flex;align-items:center;gap:6px;padding:3px 4px;border-radius:var(--r);
+  font-size:11px;cursor:pointer}
+.point-subitem:hover{background:var(--surf)}
+.point-subitem-icon{font-size:9px;flex-shrink:0}
 
 /* alças de redimensionar os painéis laterais (arrastar horizontalmente) e a tabela de furos
    no topo (arrastar verticalmente) */
@@ -209,6 +225,11 @@ hr{border:none;border-top:1px solid var(--bdr);margin:2px 0}
   padding:1px 5px;font-family:var(--mono);font-size:10px;font-weight:700;color:#2a5a8c;
   box-shadow:0 1px 2px rgba(0,0,0,.2)}
 .shape-label::before{display:none}
+/* controle de visibilidade de rótulos por escala — evita poluir a tela com dezenas de rótulos
+   sobrepostos quando o mapa está bem afastado (zoom baixo). Uma classe no <body> (calculada em
+   JS a partir do zoom atual + modo escolhido) esconde todos os rótulos de uma vez; os pontos/
+   furos/linhas em si continuam visíveis, só o texto do rótulo some */
+body.labels-hidden .furo-label, body.labels-hidden .shape-label{display:none !important}
 
 /* ── janela de abertura (splash screen) — some sozinha 5s depois de carregar, ou no clique ── */
 #splash-screen{position:fixed;inset:0;z-index:99999;background:var(--bg);
@@ -536,6 +557,11 @@ table.edit-tbl input:focus,table.edit-tbl select:focus{outline:none;border-color
     <option value="gsat">Satélite (Google)</option>
     <option value="ghyb">Híbrido (Google)</option>
   </select>
+  <select class="tsel" id="sel-labels" title="Controla quando os rótulos (nomes dos furos, pontos, linhas e áreas) aparecem no mapa">
+    <option value="auto" selected>Rótulos: automático</option>
+    <option value="always">Rótulos: sempre visíveis</option>
+    <option value="never">Rótulos: sempre ocultos</option>
+  </select>
   <div class="sep"></div>
   <button class="tbtn" id="btn-load-sample" title="Carrega 9 furos de exemplo dispostos em malha 3×3, cobrindo uma área de 100×100 m">🧪 Exemplo (100×100m)</button>
   <button class="tbtn" id="btn-load-sample2" title="Carrega 11 furos de exemplo com terreno irregular, cotas variadas e número de camadas variável — bom para testar interpolação e perfis">🧪 Exemplo 2 (variado)</button>
@@ -823,6 +849,11 @@ table.edit-tbl input:focus,table.edit-tbl select:focus{outline:none;border-color
         <input type="checkbox" id="model3d-show-satelite">
         Mostrar imagem de satélite no topo
         <span id="model3d-satelite-status" class="hint" style="margin-left:4px;"></span>
+      </label>
+      <label style="display:flex;align-items:center;gap:6px;margin-top:6px;font-size:12.5px;cursor:pointer;">
+        <input type="checkbox" id="model3d-show-na">
+        Mostrar nível d'água (N.A.)
+        <span id="model3d-na-status" class="hint" style="margin-left:4px;"></span>
       </label>
       <div id="model3d-canvas-wrap" style="position:relative;margin-top:10px;height:64vh;min-height:420px;
         border:1px solid var(--bo-border);border-radius:10px;overflow:hidden;background:#dfe6e0;">
@@ -1321,6 +1352,23 @@ document.getElementById('sel-base').addEventListener('change', e=>{
   currentBase = e.target.value;
   baseLayers[currentBase].addTo(map);
 });
+
+// controle de visibilidade de rótulos por escala — evita poluir a tela quando o mapa está bem
+// afastado (muitos furos/pontos próximos uns dos outros, rótulos se sobrepondo ilegíveis).
+// "Automático" oculta os rótulos abaixo de um certo zoom e mostra a partir dele; as outras
+// duas opções (sempre visível/oculto) ignoram o zoom por completo.
+const LABELS_AUTO_MIN_ZOOM = 16;
+let labelsMode = 'auto'; // 'auto' | 'always' | 'never'
+function updateLabelsVisibility(){
+  const oculta = labelsMode==='never' || (labelsMode==='auto' && map.getZoom() < LABELS_AUTO_MIN_ZOOM);
+  document.body.classList.toggle('labels-hidden', oculta);
+}
+map.on('zoomend', updateLabelsVisibility);
+document.getElementById('sel-labels').addEventListener('change', e=>{
+  labelsMode = e.target.value;
+  updateLabelsVisibility();
+});
+updateLabelsVisibility();
 
 const drawnItems = new L.FeatureGroup().addTo(map);
 
@@ -2597,7 +2645,7 @@ function drawShape(s){
     const txt = getShapeLabelText(s);
     if(txt) layer.bindTooltip(txt, {permanent:true, direction:'center', className:'shape-label'});
   }
-  layer.addTo(map);
+  if(s.visible!==false) layer.addTo(map);
   layer.on('click', ()=>{
     if(exportSelectMode){ toggleExportShapeSelect(s.id); return; }
     selectShape(s.id);
@@ -2683,6 +2731,28 @@ function openShapePanel(id){
   };
 }
 
+function toggleShapeVisible(id){
+  const s = shapes.find(x=>x.id===id); if(!s) return;
+  s.visible = !(s.visible!==false);
+  const layer = shapeLayers[id];
+  if(layer){ if(s.visible) layer.addTo(map); else map.removeLayer(layer); }
+  renderShapeList();
+  scheduleSave();
+}
+// controla quais camadas de pontos estão "abertas" (mostrando a lista de pontos individuais)
+// na barra lateral — guardado à parte do objeto da camada, é só um estado de UI (não precisa
+// persistir entre sessões)
+let expandedPointShapes = new Set();
+function toggleShapeExpand(id){
+  if(expandedPointShapes.has(id)) expandedPointShapes.delete(id); else expandedPointShapes.add(id);
+  renderShapeList();
+}
+// centraliza/dá zoom no mapa num ponto específico dentro de uma camada de pontos — mesmo
+// padrão já usado ao clicar num furo na tabela (zoom decisivo + considera a largura do painel)
+function zoomToShapePoint(lat, lng){
+  map.invalidateSize();
+  map.flyTo([lat,lng], Math.max(map.getZoom(),17), {duration:0.6});
+}
 function renderShapeList(){
   const el = document.getElementById('list-shapes');
   if(shapes.length===0){ el.innerHTML='<div class="sb-empty">Nenhuma área/linha.<br>Use "＋ Polígono" ou "＋ Linha".</div>'; return; }
@@ -2692,12 +2762,42 @@ function renderShapeList(){
     const selCls = (selected&&selected.kind==='shape'&&selected.id===s.id) ? ' sel' : '';
     const exportCls = exportSelectMode && exportSelectedShapes.has(s.id) ? ' exportsel' : '';
     div.className='item'+selCls+exportCls;
-    const subLabel = s.geomType==='MultiPoint' ? `${(s.points||[]).length} pontos · camada de pontos` : `${esc(s.type)} · ${s.geomType}`;
-    div.innerHTML=`<div class="item-title">${esc(s.name)}</div><div class="item-sub">${subLabel}</div>`;
-    div.onclick=()=>{
+    const isPointLayer = s.geomType==='MultiPoint';
+    const subLabel = isPointLayer ? `${(s.points||[]).length} pontos · camada de pontos` : `${esc(s.type)} · ${s.geomType}`;
+    const visivel = s.visible!==false;
+    const expandido = expandedPointShapes.has(s.id);
+    const expandBtnHtml = isPointLayer
+      ? `<button type="button" class="expand-btn" title="${expandido?'Recolher':'Expandir'} lista de pontos">${expandido?'▾':'▸'}</button>`
+      : `<span style="width:16px;flex-shrink:0;"></span>`;
+    let subListHtml = '';
+    if(isPointLayer && expandido){
+      subListHtml = `<div class="point-sublist">${(s.points||[]).map((pt,i)=>{
+        const label = getPointLabelText(s, pt) || `Ponto ${i+1}`;
+        return `<div class="point-subitem" data-idx="${i}"><span class="point-subitem-icon">📍</span>${esc(label)}</div>`;
+      }).join('')}</div>`;
+    }
+    div.innerHTML=`<div style="display:flex;align-items:flex-start;gap:6px;">
+      ${expandBtnHtml}
+      <button type="button" class="eye-btn${visivel?'':' off'}" title="${visivel?'Ocultar':'Mostrar'} no mapa">👁</button>
+      <div style="flex:1;min-width:0;">
+        <div class="item-title">${esc(s.name)}</div><div class="item-sub">${subLabel}</div>
+      </div>
+    </div>${subListHtml}`;
+    if(isPointLayer){
+      div.querySelector('.expand-btn').addEventListener('click', e=>{ e.stopPropagation(); toggleShapeExpand(s.id); });
+    }
+    div.querySelector('.eye-btn').addEventListener('click', e=>{ e.stopPropagation(); toggleShapeVisible(s.id); });
+    div.querySelectorAll('.point-subitem').forEach(sub=>{
+      sub.addEventListener('click', e=>{
+        e.stopPropagation();
+        const pt = s.points[parseInt(sub.dataset.idx,10)];
+        zoomToShapePoint(pt.lat, pt.lng);
+      });
+    });
+    div.addEventListener('click', ()=>{
       if(exportSelectMode){ toggleExportShapeSelect(s.id); return; }
       selectShape(s.id);
-    };
+    });
     el.appendChild(div);
   });
 }
@@ -3085,7 +3185,8 @@ function createInterpBlock(){
     power: 2,
     extrapDist,
     hull: rect.map(p=> xyToLatLng(p.x,p.y,refLat,refLng)),
-    createdAt: Date.now()
+    createdAt: Date.now(),
+    visible: true
   };
   interpBlocks.push(block);
   drawInterpBlock(block);
@@ -3097,12 +3198,20 @@ function createInterpBlock(){
 
 function drawInterpBlock(block){
   const layer = L.polygon(block.hull, {color:'#7a3fa0', weight:2, dashArray:'6,4', fillColor:'#7a3fa0', fillOpacity:0.12});
-  layer.addTo(map);
+  if(block.visible!==false) layer.addTo(map);
   layer.on('click', e=>{
     if(e && e.originalEvent && L.DomEvent && L.DomEvent.stopPropagation) L.DomEvent.stopPropagation(e);
     handleInterpBlockClick(block.id, e.latlng);
   });
   interpLayers[block.id] = layer;
+}
+function toggleInterpBlockVisible(id){
+  const b = interpBlocks.find(x=>x.id===id); if(!b) return;
+  b.visible = !(b.visible!==false);
+  const layer = interpLayers[id];
+  if(layer){ if(b.visible) layer.addTo(map); else map.removeLayer(layer); }
+  renderInterpList();
+  scheduleSave();
 }
 
 // clique no bloco no mapa: se estiver no modo "criar ponto de sondagem interpolado" (ativado
@@ -3656,8 +3765,15 @@ function renderInterpList(){
   interpBlocks.forEach(b=>{
     const div = document.createElement('div');
     div.className = 'item'+(selected&&selected.kind==='interp'&&selected.id===b.id?' sel':'');
-    div.innerHTML = `<div class="item-title">🔮 ${esc(b.nome)}</div><div class="item-sub">${b.furoIds.length} furos de origem · IDW p=${b.power||2}</div>`;
-    div.onclick = ()=> selectInterpBlock(b.id);
+    const visivel = b.visible!==false;
+    div.innerHTML = `<div style="display:flex;align-items:flex-start;gap:8px;">
+      <button type="button" class="eye-btn${visivel?'':' off'}" title="${visivel?'Ocultar':'Mostrar'} no mapa">👁</button>
+      <div style="flex:1;min-width:0;">
+        <div class="item-title">🔮 ${esc(b.nome)}</div><div class="item-sub">${b.furoIds.length} furos de origem · IDW p=${b.power||2}</div>
+      </div>
+    </div>`;
+    div.querySelector('.eye-btn').addEventListener('click', e=>{ e.stopPropagation(); toggleInterpBlockVisible(b.id); });
+    div.addEventListener('click', ()=> selectInterpBlock(b.id));
     el.appendChild(div);
   });
 }
@@ -3775,7 +3891,8 @@ function generateGeotechProfile(blockId, latlngs){
     blockAvgCota,
     estruturaUniforme,
     profileTemplateNome: profileTemplate ? profileTemplate.ident.sondagemNum : '',
-    createdAt: Date.now()
+    createdAt: Date.now(),
+    visible: true
   };
   drawProfileLine(profile);
   showProfileView(profile, false);
@@ -3783,12 +3900,20 @@ function generateGeotechProfile(blockId, latlngs){
 
 function drawProfileLine(profile){
   const layer = L.polyline(profile.line, {color:'#1a4e7a', weight:3, opacity:0.85});
-  layer.addTo(map);
+  if(profile.visible!==false) layer.addTo(map);
   layer.on('click', e=>{
     if(e && L.DomEvent && L.DomEvent.stopPropagation) L.DomEvent.stopPropagation(e);
     showProfileView(profile, profiles.some(p=>p.id===profile.id));
   });
   profileLineLayers[profile.id] = layer;
+}
+function toggleProfileVisible(id){
+  const p = profiles.find(x=>x.id===id); if(!p) return;
+  p.visible = !(p.visible!==false);
+  const layer = profileLineLayers[id];
+  if(layer){ if(p.visible) layer.addTo(map); else map.removeLayer(layer); }
+  renderProfileList();
+  scheduleSave();
 }
 
 // padrões SVG replicando exatamente as texturas CSS .soil-* usadas no boletim de sondagem
@@ -4669,11 +4794,18 @@ function renderProfileList(){
   profiles.forEach(p=>{
     const div = document.createElement('div');
     div.className = 'item';
-    div.innerHTML = `<div class="item-title">📐 ${esc(p.nome)}</div><div class="item-sub">${p.samples.length} amostras · ${p.totalLength.toFixed(0)} m de extensão</div>`;
-    div.onclick = ()=>{
+    const visivel = p.visible!==false;
+    div.innerHTML = `<div style="display:flex;align-items:flex-start;gap:8px;">
+      <button type="button" class="eye-btn${visivel?'':' off'}" title="${visivel?'Ocultar':'Mostrar'} no mapa">👁</button>
+      <div style="flex:1;min-width:0;">
+        <div class="item-title">📐 ${esc(p.nome)}</div><div class="item-sub">${p.samples.length} amostras · ${p.totalLength.toFixed(0)} m de extensão</div>
+      </div>
+    </div>`;
+    div.querySelector('.eye-btn').addEventListener('click', e=>{ e.stopPropagation(); toggleProfileVisible(p.id); });
+    div.addEventListener('click', ()=>{
       showProfileView(p, true);
       if(p.line && p.line.length) mapFitBoundsConsiderandoPainel(L.latLngBounds(p.line), {padding:[60,60], maxZoom:18});
-    };
+    });
     el.appendChild(div);
   });
 }
@@ -4785,7 +4917,7 @@ function renderRasterLayersList(){
     const elevTxt = r.elev!=null && isFinite(r.elev) ? ` @ ${r.elev.toFixed(1)}m` : '';
     div.innerHTML = `
       <div style="display:flex;align-items:flex-start;gap:8px;">
-        <input type="checkbox" ${r.visible!==false?'checked':''} style="margin-top:3px;flex-shrink:0;" title="Mostrar/ocultar no mapa">
+        <button type="button" class="eye-btn${r.visible!==false?'':' off'}" title="${r.visible!==false?'Ocultar':'Mostrar'} no mapa">👁</button>
         <div style="flex:1;min-width:0;">
           <div class="item-title">🖼️ ${esc(r.paramLabel)}${elevTxt}</div>
           <div class="item-sub">Bloco: ${esc(r.blockNome)}</div>
@@ -4794,9 +4926,8 @@ function renderRasterLayersList(){
         <button type="button" class="mini-btn danger" title="Remover camada">🗑</button>
       </div>`;
     div.addEventListener('click', ()=> zoomToRasterLayer(r.id));
-    div.querySelector('input[type=checkbox]').addEventListener('click', e=>e.stopPropagation());
-    div.querySelector('input[type=checkbox]').addEventListener('change', ()=> toggleRasterLayerVisible(r.id));
-    const [btnEdit, btnDel] = div.querySelectorAll('button');
+    div.querySelector('.eye-btn').addEventListener('click', e=>{ e.stopPropagation(); toggleRasterLayerVisible(r.id); });
+    const [btnEdit, btnDel] = div.querySelectorAll('.mini-btn');
     btnEdit.addEventListener('click', (e)=>{ e.stopPropagation(); editRasterLayer(r.id); });
     btnDel.addEventListener('click', (e)=>{ e.stopPropagation(); if(confirm('Remover este raster do mapa?')) removeRasterLayer(r.id); });
     el.appendChild(div);
@@ -5345,7 +5476,15 @@ function model3DQueryPoint(block, templateFuro, x, y){
     const r = extractRasterValue(interp, 'spt', horizonElev[k]);
     sptAt.push(r.valid ? r.num : 0);
   }
-  return {horizonElev, sptAt};
+  // cota do nível d'água nesse ponto — mesma lógica já usada no raster ('na') e no perfil:
+  // profundidade medida (a partir do terreno) subtraída da cota interpolada nesse ponto. null
+  // quando não há como interpolar (nenhum furo de origem com leitura de N.A. registrada).
+  let naElev = null;
+  if(interp && interp.agua && interp.agua[0]){
+    const naProf = parseFloat(interp.agua[0].prof);
+    if(isFinite(naProf)) naElev = cota - naProf;
+  }
+  return {horizonElev, sptAt, naElev};
 }
 
 // pré-computa a grade de horizontes (alinhada nas bordas) — uma única vez, quando o bloco é
@@ -5355,22 +5494,26 @@ function computeModel3DHorizonGrid(block, templateFuro, xyRange, gridN){
   const nLayers = templateFuro.camadas.length;
   const horizons = Array.from({length:nLayers+1}, ()=> Array.from({length:gridN+1}, ()=> new Array(gridN+1).fill(0)));
   const spt = Array.from({length:nLayers+1}, ()=> Array.from({length:gridN+1}, ()=> new Array(gridN+1).fill(0)));
+  const naGrid = Array.from({length:gridN+1}, ()=> new Array(gridN+1).fill(null));
   let sptMin=Infinity, sptMax=-Infinity;
+  let naAnyValid = false;
   for(let ix=0; ix<=gridN; ix++){
     const x = xyRange.minX + ix*(xyRange.maxX-xyRange.minX)/gridN;
     for(let iz=0; iz<=gridN; iz++){
       const y = xyRange.minY + iz*(xyRange.maxY-xyRange.minY)/gridN;
-      const {horizonElev, sptAt} = model3DQueryPoint(block, templateFuro, x, y);
+      const {horizonElev, sptAt, naElev} = model3DQueryPoint(block, templateFuro, x, y);
       for(let k=0;k<=nLayers;k++){
         horizons[k][ix][iz] = horizonElev[k];
         spt[k][ix][iz] = sptAt[k];
         if(sptAt[k]>0){ sptMin=Math.min(sptMin,sptAt[k]); sptMax=Math.max(sptMax,sptAt[k]); }
       }
+      naGrid[ix][iz] = naElev;
+      if(naElev!=null) naAnyValid = true;
     }
   }
   if(!isFinite(sptMin)){ sptMin=0; sptMax=1; }
   if(sptMax<=sptMin) sptMax = sptMin+1;
-  return {horizons, spt, sptMin, sptMax, nLayers, tipos: templateFuro.camadas.map(c=>c.tipo)};
+  return {horizons, spt, sptMin, sptMax, nLayers, tipos: templateFuro.camadas.map(c=>c.tipo), naGrid, naAnyValid};
 }
 
 function model3DGridPos(i, min, max, gridN){ return min + i*(max-min)/gridN; }
@@ -5425,6 +5568,7 @@ function ensureModel3DScene(){
   const layerGroup = new THREE.Group(); scene.add(layerGroup); // superfícies onduladas (exterior)
   const furoMarkersGroup = new THREE.Group(); scene.add(furoMarkersGroup); // posição real dos furos de origem
   const satelliteGroup = new THREE.Group(); satelliteGroup.visible=false; scene.add(satelliteGroup); // imagem de satélite no topo
+  const waterTableGroup = new THREE.Group(); waterTableGroup.visible=false; scene.add(waterTableGroup); // superfície do N.A.
   DIRS.forEach(d=>{ d.cutMeshGroup = new THREE.Group(); d.cutMeshGroup.visible=false; scene.add(d.cutMeshGroup); });
 
   function makeArrowHandle(cor, direction){
@@ -5597,7 +5741,7 @@ function ensureModel3DScene(){
   model3D = {
     scene, camera, renderer, controls, wrap, DIRS,
     dirByKey(key){ return DIRS.find(d=>d.key===key); },
-    getCutPos, setCutPos, edges, gridHelper, layerGroup, furoMarkersGroup, satelliteGroup, otherAxesClips, ALL_CLIPS,
+    getCutPos, setCutPos, edges, gridHelper, layerGroup, furoMarkersGroup, satelliteGroup, waterTableGroup, otherAxesClips, ALL_CLIPS,
     axisTicks: [],
     showModel3DValueInput,
     updateHandlePositions,
@@ -5774,6 +5918,95 @@ function buildModel3DSatelliteDrapeGeometry(){
   geo.setIndex(indices);
   return geo;
 }
+// superfície do nível d'água (N.A.) — segue a cota interpolada da água em cada ponto da grade
+// (mesma lógica já usada no raster "Cota do N.A." e no perfil topo-geotécnico). Só desenha os
+// quadrados da grade onde os 4 cantos têm dado de verdade (evita "inventar" N.A. em áreas sem
+// nenhum furo de origem com essa leitura registrada, deixando um buraco na superfície ali).
+function buildModel3DWaterTableGeometry(){
+  const { xyRange, gridN, gridData, sceneOrigin, scaleH, scaleV } = model3DGeo;
+  const { naGrid } = gridData;
+  // pega a cota do N.A. de um ponto (ix,iz) já calculado na grade e converte pra posição de cena
+  function scenePointAt(ix, iz){
+    const naElev = naGrid[ix][iz];
+    if(naElev==null) return null;
+    const x = model3DGridPos(ix, xyRange.minX, xyRange.maxX, gridN);
+    const z = model3DGridPos(iz, xyRange.minY, xyRange.maxY, gridN);
+    return {
+      x: (x-sceneOrigin.x)*scaleH,
+      y: (naElev-sceneOrigin.y)*scaleV,
+      z: (sceneOrigin.z-z)*scaleH,
+    };
+  }
+  // percorre o perímetro do bloco (as 4 bordas da grade) — é aí que "as faces" do cubo ficam,
+  // então a linha do N.A. desenhada ao longo desse contorno aparece exatamente nas 4 paredes
+  // laterais do modelo. Pontos sem dado de N.A. (naGrid null) cortam o traçado, deixando um
+  // vão em vez de inventar uma cota ali.
+  const perimetroIdx = [];
+  for(let ix=0; ix<=gridN; ix++) perimetroIdx.push([ix,0]);
+  for(let iz=1; iz<=gridN; iz++) perimetroIdx.push([gridN,iz]);
+  for(let ix=gridN-1; ix>=0; ix--) perimetroIdx.push([ix,gridN]);
+  for(let iz=gridN-1; iz>=1; iz--) perimetroIdx.push([0,iz]);
+  perimetroIdx.push([0,0]); // fecha o laço
+
+  return buildDashedThickLineLoop(perimetroIdx.map(([ix,iz])=>scenePointAt(ix,iz)));
+}
+// monta uma linha tracejada com espessura de verdade (geometria real, não a propriedade
+// "linewidth" do WebGL — que a maioria dos navegadores simplesmente ignora, sempre desenhando
+// 1px independente do valor pedido). Cada trecho tracejado vira uma pequena "cruz" de 2
+// retângulos perpendiculares (um no plano horizontal, um vertical), o que garante uma linha
+// visivelmente grossa vista de praticamente qualquer ângulo de câmera.
+const NA_DASH_LEN = 0.16, NA_GAP_LEN = 0.09, NA_THICKNESS = 0.032;
+function buildDashedThickLineLoop(pontos){
+  const positions=[]; const indices=[];
+  function pushQuad(p1,p2,nx,ny,nz,h){
+    const b = positions.length/3;
+    positions.push(p1.x+nx*h, p1.y+ny*h, p1.z+nz*h);
+    positions.push(p1.x-nx*h, p1.y-ny*h, p1.z-nz*h);
+    positions.push(p2.x-nx*h, p2.y-ny*h, p2.z-nz*h);
+    positions.push(p2.x+nx*h, p2.y+ny*h, p2.z+nz*h);
+    indices.push(b,b+1,b+2, b,b+2,b+3);
+  }
+  function pushSegment(p1,p2){
+    const dx=p2.x-p1.x, dz=p2.z-p1.z;
+    const lenXZ = Math.hypot(dx,dz) || 1e-6;
+    const nx=-dz/lenXZ, nz=dx/lenXZ; // perpendicular horizontal, no plano XZ
+    const h = NA_THICKNESS/2;
+    pushQuad(p1,p2, nx,0,nz, h);  // "aba" horizontal
+    pushQuad(p1,p2, 0,1,0, h);    // "aba" vertical
+  }
+  // acumula distância ao longo de cada trecho contínuo (corta em null), e alterna dash/gap
+  let i=0;
+  while(i<pontos.length-1){
+    if(pontos[i]==null){ i++; continue; }
+    let distNoTrecho = 0, desenhando = true;
+    let j=i;
+    while(j<pontos.length-1 && pontos[j]!=null && pontos[j+1]!=null){
+      const p1=pontos[j], p2=pontos[j+1];
+      const segLen = Math.hypot(p2.x-p1.x, p2.y-p1.y, p2.z-p1.z);
+      let percorrido = 0;
+      while(percorrido < segLen){
+        const alvoTrecho = desenhando ? NA_DASH_LEN : NA_GAP_LEN;
+        const restanteAlvo = alvoTrecho - distNoTrecho;
+        const passo = Math.min(restanteAlvo, segLen-percorrido);
+        const t0 = percorrido/segLen, t1 = (percorrido+passo)/segLen;
+        if(desenhando){
+          const a = {x:p1.x+(p2.x-p1.x)*t0, y:p1.y+(p2.y-p1.y)*t0, z:p1.z+(p2.z-p1.z)*t0};
+          const b = {x:p1.x+(p2.x-p1.x)*t1, y:p1.y+(p2.y-p1.y)*t1, z:p1.z+(p2.z-p1.z)*t1};
+          pushSegment(a,b);
+        }
+        percorrido += passo;
+        distNoTrecho += passo;
+        if(distNoTrecho >= alvoTrecho - 1e-9){ distNoTrecho = 0; desenhando = !desenhando; }
+      }
+      j++;
+    }
+    i = j+1;
+  }
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.Float32BufferAttribute(positions,3));
+  geo.setIndex(indices);
+  return geo;
+}
 
 // busca a imagem de satélite (com fallback automático Google -> Esri) cobrindo a área do
 // bloco, monta a "capa" seguindo o relevo real, e coloca no lugar — chamado ao marcar o
@@ -5818,6 +6051,31 @@ async function loadModel3DSatellite(){
     statusEl.textContent = '(falhou: '+(e.message||'erro desconhecido')+')';
     document.getElementById('model3d-show-satelite').checked = false;
   }
+}
+
+// superfície do N.A. — diferente da imagem de satélite, é toda calculada localmente (nenhuma
+// busca de rede envolvida), então não precisa de estado de carregamento/cache: só constrói (ou
+// reconstrói, se ainda não tiver sido feito pra esse bloco) e mostra.
+function loadModel3DWaterTable(){
+  if(!model3DGeo) return;
+  const statusEl = document.getElementById('model3d-na-status');
+  if(!model3DGeo.gridData.naAnyValid){
+    statusEl.textContent = '(nenhum furo de origem com leitura de N.A. registrada)';
+    document.getElementById('model3d-show-na').checked = false;
+    return;
+  }
+  if(!model3DGeo.waterTableMesh){
+    // linha sólida (não transparente) — é um traçado fino, não uma superfície, então opacidade
+    // fracionária só deixaria mais difícil de enxergar. Mesmos planos de corte do resto do
+    // modelo, senão a linha continuaria aparecendo inteira mesmo depois de cortar o cubo.
+    const mat = new THREE.MeshBasicMaterial({color:0x2a6fb0,
+      side:THREE.DoubleSide, clippingPlanes:model3D.ALL_CLIPS, clipShadows:true});
+    model3DGeo.waterTableMesh = new THREE.Mesh(buildModel3DWaterTableGeometry(), mat);
+  }
+  model3DClearGroup(model3D.waterTableGroup);
+  model3D.waterTableGroup.add(model3DGeo.waterTableMesh);
+  model3D.waterTableGroup.visible = true;
+  statusEl.textContent = '';
 }
 
 // face de corte vertical (X ou Y geotécnico) — consulta a interpolação AO VIVO na posição
@@ -5976,12 +6234,17 @@ function rebuildModel3DGeometry(block){
   const { edges, gridHelper, layerGroup, DIRS, camera, controls } = model3D;
   edges.scale.set(sceneX, targetDepth, sceneZ);
   gridHelper.position.y = -targetDepth/2 - 0.4; // sempre abaixo do bloco, nunca atravessando-o
-  // bloco novo/trocado -> a imagem de satélite (se alguma já tiver sido carregada) não vale
-  // mais aqui; esconde e reseta o checkbox, forçando buscar de novo se o usuário marcar
+  // bloco novo/trocado -> a imagem de satélite e a superfície do N.A. (se já tivessem sido
+  // carregadas) não valem mais aqui; esconde e reseta os checkboxes, forçando reconstruir se o
+  // usuário marcar de novo pra esse bloco
   model3DClearGroup(model3D.satelliteGroup);
   model3D.satelliteGroup.visible = false;
   document.getElementById('model3d-show-satelite').checked = false;
   document.getElementById('model3d-satelite-status').textContent = '';
+  model3DClearGroup(model3D.waterTableGroup);
+  model3D.waterTableGroup.visible = false;
+  document.getElementById('model3d-show-na').checked = false;
+  document.getElementById('model3d-na-status').textContent = '';
 
   model3DClearGroup(layerGroup);
   for(let k=0;k<gridData.nLayers;k++){
@@ -6133,6 +6396,11 @@ document.getElementById('model3d-show-satelite').addEventListener('change', e=>{
   if(!model3D || !model3DGeo) return;
   if(e.target.checked) loadModel3DSatellite();
   else model3D.satelliteGroup.visible = false;
+});
+document.getElementById('model3d-show-na').addEventListener('change', e=>{
+  if(!model3D || !model3DGeo) return;
+  if(e.target.checked) loadModel3DWaterTable();
+  else model3D.waterTableGroup.visible = false;
 });
 document.querySelectorAll('#model3d-mode-toggle .loc-mode-btn').forEach(btn=>{
   btn.addEventListener('click', ()=>{

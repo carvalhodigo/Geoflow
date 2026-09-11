@@ -64,6 +64,26 @@ input,select,textarea{font-family:inherit;font-size:12px}
   flex-shrink:0;border-radius:var(--r);opacity:1}
 .eye-btn:hover{background:var(--surf)}
 .eye-btn.off{opacity:.32;filter:grayscale(1)}
+/* amostras clicáveis de hachura/textura, no modal de novo tipo de solo — reaproveita as
+   mesmas classes .soil-* já usadas no boletim, então a prévia é EXATAMENTE como vai aparecer */
+.nst-pattern-swatch{width:44px;height:34px;border-radius:var(--r);border:2px solid transparent;
+  cursor:pointer;box-shadow:inset 0 0 0 1px rgba(0,0,0,.15)}
+.nst-pattern-swatch:hover{box-shadow:inset 0 0 0 1px rgba(0,0,0,.3)}
+.nst-pattern-swatch.selected{border-color:var(--green)}
+.nst-pattern-label{font-size:9px;text-align:center;color:var(--mu);margin-top:2px;font-family:var(--mono)}
+.nst-pattern-item{display:flex;flex-direction:column;align-items:center}
+/* gerenciador de tipos de solo — lista de linhas editáveis, cada uma com amostra de hachura
+   clicável (abre um popover pra trocar), campo de nome, e botão de remover (só pros
+   customizados — os 6 de fábrica não podem ser apagados, só renomeados/re-texturizados) */
+.nst-row{display:flex;align-items:center;gap:8px;padding:6px 2px;border-bottom:1px solid var(--bdr)}
+.nst-row:last-child{border-bottom:none}
+.nst-row-name{flex:1;min-width:0}
+.nst-swatch-wrap{position:relative;flex-shrink:0}
+.nst-swatch-wrap .nst-pattern-swatch{width:34px;height:30px}
+.nst-picker-popover{position:absolute;top:calc(100% + 6px);left:0;z-index:10;background:var(--card);
+  border:1px solid var(--bdr-s);border-radius:var(--r-lg);box-shadow:0 6px 18px rgba(0,0,0,.22);
+  padding:8px;display:flex;gap:6px;flex-wrap:wrap;width:186px}
+
 /* sub-itens colapsáveis de uma camada de pontos — lista os pontos individuais dentro do item,
    cada um clicável pra centralizar o mapa naquele ponto específico */
 .expand-btn{border:none;background:none;font-size:11px;line-height:1;cursor:pointer;padding:2px 3px;
@@ -307,6 +327,12 @@ body.labels-hidden .furo-label, body.labels-hidden .shape-label{display:none !im
   z-index:950;gap:10px;align-items:center;box-shadow:0 6px 20px rgba(0,0,0,.25)
 }
 #interp-select-bar span{font-family:var(--mono);font-size:11px;color:var(--tx)}
+#topo-select-bar{
+  display:none;position:absolute;bottom:14px;left:50%;transform:translateX(-50%);
+  background:var(--card);border:1px solid var(--bdr-s);border-radius:10px;padding:10px 14px;
+  z-index:950;gap:10px;align-items:center;box-shadow:0 6px 20px rgba(0,0,0,.25)
+}
+#topo-select-bar span{font-family:var(--mono);font-size:11px;color:var(--tx)}
 
 /* ══════════════════════════════════════════════════════════════
    BOLETIM DE SONDAGEM — NBR 6484 (módulo unificado)
@@ -334,6 +360,9 @@ body.labels-hidden .furo-label, body.labels-hidden .shape-label{display:none !im
   z-index:2000;align-items:center;justify-content:center;padding:20px;backdrop-filter:blur(3px);
 }
 .popup-overlay.open{display:flex;}
+/* o popup de "novo tipo de solo" é aberto DE DENTRO do editor de boletim (outro popup) — sem
+   um z-index maior que o padrão, ele aparecia atrás, escondido pelo próprio editor */
+#new-soiltype-overlay{z-index:2100}
 .editor-box{
   background:var(--bo-card);border:1px solid var(--bo-border);border-radius:16px;
   max-width:920px;width:100%;max-height:88vh;overflow:hidden;
@@ -470,6 +499,9 @@ table.edit-tbl input:focus,table.edit-tbl select:focus{outline:none;border-color
 .soil-aterro{background:repeating-linear-gradient(45deg,#cdb06a,#cdb06a 4px,transparent 4px,transparent 8px),repeating-linear-gradient(-45deg,#cdb06a,#cdb06a 4px,transparent 4px,transparent 8px),#e6d6a4;}
 .soil-rocha{background:#8d8d8d;}
 .soil-outro{background:#d7d2c6;}
+.soil-pedregulho{background:#c9b896;background-image:radial-gradient(circle,#8a7654 3px,transparent 3.2px);background-size:16px 16px;}
+.soil-turfa{background-color:#3a2f20;background-image:repeating-linear-gradient(0deg,transparent,transparent 5px,#6b5738 5px,#6b5738 7px);}
+.soil-saprolito{background-color:#b5a179;background-image:repeating-linear-gradient(135deg,transparent,transparent 3px,rgba(94,74,42,.55) 3px,rgba(94,74,42,.55) 4px),repeating-linear-gradient(45deg,transparent,transparent 3px,rgba(94,74,42,.55) 3px,rgba(94,74,42,.55) 4px);}
 
 .desc-block{position:absolute;left:0;right:0;padding:4px 7px;border-top:1px dashed var(--bo-border);overflow:hidden;}
 .desc-block .desc-prof{font-family:var(--bo-mono);font-size:9px;color:var(--bo-accent);font-weight:700;}
@@ -545,9 +577,10 @@ table.edit-tbl input:focus,table.edit-tbl select:focus{outline:none;border-color
   <button class="tbtn" id="btn-add-line">＋ Linha</button>
   <div class="sep"></div>
   <button class="tbtn" id="btn-interp-mode" title="Selecione 3+ furos para gerar uma área interpolada (IDW)">🧭 Interpolar</button>
+  <button class="tbtn" id="btn-topo-mode" title="Selecione 3+ pontos (furos ou camada de pontos) com cota conhecida para gerar uma superfície topográfica (IDW)">🏔️ Topografia</button>
   <button class="tbtn" id="btn-import" title="Aceita shapefile (.zip), GeoJSON, ou campanha completa em JSON ({&quot;furos&quot;:[...]}, com camadas e golpes por profundidade)">⇪ Importar</button>
   <button class="tbtn" id="btn-export-shp">⇩ Shapefile</button>
-  <button class="tbtn" id="btn-export-gj">⇩ GeoJSON</button>
+  <button class="tbtn" id="btn-save-project" title="Salva o estudo deste projeto num arquivo: áreas/linhas, blocos interpolados, superfícies topográficas, perfis, rasters e furos interpolados. Não inclui os furos do banco principal — esses são publicados à parte via furos.json">💾 Salvar Projeto</button>
   <button class="tbtn" id="btn-export-csv">⇩ CSV</button>
   <div class="sep"></div>
   <select class="tsel" id="sel-crs" title="Zona UTM usada apenas para exibição/CSV"></select>
@@ -563,13 +596,34 @@ table.edit-tbl input:focus,table.edit-tbl select:focus{outline:none;border-color
     <option value="never">Rótulos: sempre ocultos</option>
   </select>
   <div class="sep"></div>
-  <button class="tbtn" id="btn-load-sample" title="Carrega 9 furos de exemplo dispostos em malha 3×3, cobrindo uma área de 100×100 m">🧪 Exemplo (100×100m)</button>
-  <button class="tbtn" id="btn-load-sample2" title="Carrega 11 furos de exemplo com terreno irregular, cotas variadas e número de camadas variável — bom para testar interpolação e perfis">🧪 Exemplo 2 (variado)</button>
   <button class="tbtn" id="btn-toggle-table" title="Mostra os furos em forma de tabela, agrupados por estado">📋 Tabela de furos</button>
   <button class="tbtn" id="btn-publish-furos" title="Baixa o furos.json atualizado — depois substitua o arquivo no repositório para publicar pra todo mundo" style="display:none">📤 Publicar furos.json</button>
   <button class="tbtn" id="btn-user" style="margin-left:auto"></button>
+  <button class="tbtn" id="btn-storage" title="Gerenciar os dados salvos neste navegador">🧹 Armazenamento</button>
   <button class="tbtn warn" id="btn-clear">🗑 Limpar</button>
   <input type="file" id="file-input" accept=".zip,.geojson,.json">
+</div>
+
+<div class="popup-overlay" id="storage-settings-overlay">
+  <div class="editor-box" style="max-width:460px;">
+    <div class="popup-header"><h3>🧹 Armazenamento do navegador</h3></div>
+    <div class="p-body">
+      <p class="hint">Os dados desta aba (furos, áreas/linhas, blocos interpolados, superfícies topográficas, perfis, rasters) ficam salvos no armazenamento local deste navegador — não em nenhum servidor. Eles se acumulam com o tempo, o que pode deixar o carregamento mais pesado.</p>
+
+      <label style="display:flex;align-items:flex-start;gap:8px;cursor:pointer;font-size:12.5px;margin-top:14px;">
+        <input type="checkbox" id="storage-clear-on-close" style="margin-top:2px;">
+        <span><b>Limpar automaticamente ao fechar a aba.</b><br>
+        <span style="color:var(--red);">Apaga tudo que está salvo neste navegador assim que você fecha ou recarrega a página — inclusive os furos, se você não tiver publicado o furos.json.</span> Só ative se estiver testando, ou se você sempre publica/exporta seus dados antes de fechar.</span>
+      </label>
+
+      <div class="sec-title">Limpar agora</div>
+      <p class="hint">Remove imediatamente tudo que está salvo neste navegador. Útil se o app estiver pesado ou lento por causa de dados acumulados de testes.</p>
+      <button class="mini-btn danger" id="storage-clear-now-btn">Limpar armazenamento agora</button>
+    </div>
+    <div class="popup-footer">
+      <button class="btn-primary" type="button" id="storage-settings-close">Fechar</button>
+    </div>
+  </div>
 </div>
 
 <div id="furo-table-panel" class="hidden">
@@ -592,11 +646,13 @@ table.edit-tbl input:focus,table.edit-tbl select:focus{outline:none;border-color
     <div class="sb-tabs">
       <div class="sb-tab on" data-tab="shapes">Áreas / Linhas</div>
       <div class="sb-tab" data-tab="interp">Interpolação</div>
+      <div class="sb-tab" data-tab="topo">Topografia</div>
       <div class="sb-tab" data-tab="profiles">Perfis</div>
       <div class="sb-tab" data-tab="rasters">Rasters</div>
     </div>
     <div class="sb-list" id="list-shapes"></div>
     <div class="sb-list" id="list-interp" style="display:none"></div>
+    <div class="sb-list" id="list-topo" style="display:none"></div>
     <div class="sb-list" id="list-profiles" style="display:none"></div>
     <div class="sb-list" id="list-rasters" style="display:none"></div>
   </div>
@@ -609,6 +665,11 @@ table.edit-tbl input:focus,table.edit-tbl select:focus{outline:none;border-color
     <button class="mini-btn" id="interp-btn-rect" type="button" title="Arraste um retângulo no mapa para selecionar vários furos de uma vez">▭ Selecionar por retângulo</button>
     <button class="mini-btn primary" id="interp-btn-confirm" disabled>Criar bloco interpolado</button>
     <button class="mini-btn" id="interp-btn-cancel">Cancelar</button>
+  </div>
+  <div id="topo-select-bar">
+    <span id="topo-select-count"></span>
+    <button class="mini-btn primary" id="topo-btn-confirm" disabled>Criar superfície topográfica</button>
+    <button class="mini-btn" id="topo-btn-cancel">Cancelar</button>
   </div>
   <div id="export-select-bar">
     <span id="export-select-count"></span>
@@ -642,6 +703,21 @@ table.edit-tbl input:focus,table.edit-tbl select:focus{outline:none;border-color
     </div>
     <div class="popup-footer">
       <button class="btn-primary" type="button" id="user-setup-confirm">Entrar</button>
+    </div>
+  </div>
+</div>
+
+<div class="popup-overlay" id="new-soiltype-overlay">
+  <div class="editor-box" style="max-width:540px;">
+    <div class="popup-header"><h3>🧱 Tipos de solo</h3></div>
+    <div class="p-body">
+      <p class="hint">Edite o nome ou a hachura de qualquer tipo (inclusive os 6 padrão), ou cadastre um novo — clique na amostra colorida pra trocar a hachura. Vale em todo o app: boletins, legendas, rasters.</p>
+      <div id="nst-list" style="max-height:320px;overflow-y:auto;"></div>
+      <button class="mini-btn" type="button" id="nst-add-new" style="margin-top:10px;">+ Adicionar tipo de solo</button>
+    </div>
+    <div class="popup-footer">
+      <button class="mini-btn" type="button" id="nst-cancel">Cancelar</button>
+      <button class="btn-primary" type="button" id="nst-confirm">Salvar</button>
     </div>
   </div>
 </div>
@@ -999,16 +1075,184 @@ function blankFuro(lat,lng){
 
 /* ══════════════════ TIPOS DE SOLO (textura do perfil) ══════════════════ */
 const TIPOS_SOLO = [
-  ['argila', 'Argila / Argila-arenosa'],
-  ['areia', 'Areia / Areia-siltosa'],
-  ['silte', 'Silte'],
-  ['aterro', 'Aterro'],
-  ['rocha', 'Rocha / Impenetrável'],
-  ['outro', 'Outro'],
+  ['argila', 'Argila / Argila-arenosa', 'argila'],
+  ['areia', 'Areia / Areia-siltosa', 'areia'],
+  ['silte', 'Silte', 'silte'],
+  ['aterro', 'Aterro', 'aterro'],
+  ['rocha', 'Rocha / Impenetrável', 'rocha'],
+  ['outro', 'Outro', 'outro'],
 ];
-function tipoOptionsHtml(sel) {
-  return TIPOS_SOLO.map(([k, lbl]) => `<option value="${k}" ${k === sel ? 'selected' : ''}>${lbl}</option>`).join('');
+// chaves dos tipos "de fábrica" — usado só pra saber quais são CUSTOMIZADOS na hora de salvar
+// (não precisa salvar os 6 padrão de novo, eles já vêm sempre no código)
+const TIPOS_SOLO_BASE_KEYS = new Set(TIPOS_SOLO.map(t=>t[0]));
+// tipos de solo cadastrados pelo usuário (além dos 6 padrão) — persistem entre sessões,
+// disponíveis em QUALQUER furo/camada, não só onde foram criados. Carregados na inicialização
+// e simplesmente ACRESCENTADOS a TIPOS_SOLO (assim todo o resto do código que já usa
+// TIPOS_SOLO.find(...) funciona sem precisar mudar nada em cada lugar)
+async function loadCustomSoilTypes(){
+  try{
+    const r = await window.storage.get('geosig:customSoilTypes');
+    if(r){
+      const custom = JSON.parse(r.value);
+      custom.forEach(([k,l,pat])=>{ if(!TIPOS_SOLO.some(t=>t[0]===k)) TIPOS_SOLO.push([k,l,pat||'outro']); });
+    }
+  }catch(e){}
 }
+async function saveCustomSoilTypes(){
+  const custom = TIPOS_SOLO.filter(([k])=>!TIPOS_SOLO_BASE_KEYS.has(k));
+  try{ await window.storage.set('geosig:customSoilTypes', JSON.stringify(custom)); }catch(e){}
+}
+function tipoOptionsHtml(sel) {
+  return TIPOS_SOLO.map(([k, lbl]) => `<option value="${k}" ${k === sel ? 'selected' : ''}>${lbl}</option>`).join('')
+    + `<option value="__new__">+ Novo tipo de solo…</option>`;
+}
+// gera uma chave técnica (slug) a partir do nome digitado — evita conflitar com chaves já
+// usadas na lista informada (aceita uma lista alternativa pra checar unicidade dentro de um
+// rascunho em edição, antes de aplicar de vez a TIPOS_SOLO)
+function slugifySoilType(nome, listaExistente){
+  let base = nome.trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'')
+    .replace(/[^a-z0-9]+/g,'_').replace(/^_+|_+$/g,'') || 'tipo';
+  const existentes = new Set((listaExistente||TIPOS_SOLO).map(t=>t[0]).filter(Boolean));
+  let key = base, n = 2;
+  while(existentes.has(key)){ key = base+'_'+n; n++; }
+  return key;
+}
+// atualiza TODOS os selects de tipo já na tela (mantém o valor selecionado de cada um, exceto
+// o que disparou a criação — esse recebe o tipo recém-criado/editado)
+function refreshAllTipoSelects(selectQueDisparou, novoValor){
+  document.querySelectorAll('select.c-tipo').forEach(sel=>{
+    const valorAtual = sel===selectQueDisparou ? novoValor : sel.value;
+    sel.innerHTML = tipoOptionsHtml(valorAtual);
+    sel.dataset.prevValue = valorAtual;
+  });
+}
+let novoTipoSolicitanteSelect = null;
+// as hachuras disponíveis pra escolher — os 6 de fábrica + as novas criadas por este pedido
+// (Pedregulho, Turfa/Orgânico, Saprolito), todas reaproveitando as mesmas classes .soil-*
+const PADROES_DISPONIVEIS = [
+  ['argila','Argila'], ['areia','Areia'], ['silte','Silte'],
+  ['aterro','Aterro'], ['rocha','Rocha'], ['outro','Outro'],
+  ['pedregulho','Pedregulho'], ['turfa','Turfa/Orgânico'], ['saprolito','Saprolito'],
+];
+
+/* ── gerenciador de tipos de solo (lista editável) ──
+   Abre com uma CÓPIA de trabalho de TIPOS_SOLO (nstDraftTipos) — toda edição de nome/hachura,
+   adição ou remoção de linha acontece nessa cópia; só é aplicada de vez a TIPOS_SOLO (e
+   persistida) ao clicar "Salvar". Cancelar simplesmente descarta a cópia, sem tocar em nada. */
+let nstDraftTipos = [];
+let nstOpenPickerIdx = null; // índice (no rascunho) da linha com o seletor de hachura aberto
+function renderNstList(){
+  const el = document.getElementById('nst-list');
+  el.innerHTML = nstDraftTipos.map((t,i)=>{
+    const [key, nome, pat] = t;
+    const ehDeFabrica = TIPOS_SOLO_BASE_KEYS.has(key);
+    const pickerHtml = nstOpenPickerIdx===i ? `
+      <div class="nst-picker-popover">
+        ${PADROES_DISPONIVEIS.map(([pk,pl])=>`
+          <div class="nst-pattern-item">
+            <div class="nst-pattern-swatch soil-${pk}${pk===pat?' selected':''}" data-pick-idx="${i}" data-pick-pat="${pk}" title="${pl}"></div>
+          </div>`).join('')}
+      </div>` : '';
+    return `
+      <div class="nst-row">
+        <div class="nst-swatch-wrap">
+          <div class="nst-pattern-swatch soil-${pat}" data-toggle-idx="${i}" title="Clique pra trocar a hachura"></div>
+          ${pickerHtml}
+        </div>
+        <input class="f-input nst-row-name" data-name-idx="${i}" value="${escAttr(nome)}" placeholder="Nome do tipo">
+        ${!ehDeFabrica ? `<button type="button" class="mini-btn danger nst-row-delete" data-del-idx="${i}" title="Remover">✕</button>`
+                       : `<span style="width:30px;flex-shrink:0;" title="Os 6 tipos de fábrica não podem ser removidos, só renomeados/re-texturizados"></span>`}
+      </div>`;
+  }).join('');
+  el.querySelectorAll('[data-toggle-idx]').forEach(sw=>{
+    sw.addEventListener('click', e=>{
+      e.stopPropagation();
+      const idx = parseInt(sw.dataset.toggleIdx,10);
+      nstOpenPickerIdx = nstOpenPickerIdx===idx ? null : idx;
+      renderNstList();
+    });
+  });
+  el.querySelectorAll('[data-pick-pat]').forEach(sw=>{
+    sw.addEventListener('click', e=>{
+      e.stopPropagation();
+      nstDraftTipos[parseInt(sw.dataset.pickIdx,10)][2] = sw.dataset.pickPat;
+      nstOpenPickerIdx = null;
+      renderNstList();
+    });
+  });
+  el.querySelectorAll('[data-name-idx]').forEach(inp=>{
+    inp.addEventListener('input', ()=>{ nstDraftTipos[parseInt(inp.dataset.nameIdx,10)][1] = inp.value; });
+  });
+  el.querySelectorAll('[data-del-idx]').forEach(btn=>{
+    btn.addEventListener('click', e=>{
+      e.stopPropagation();
+      nstDraftTipos.splice(parseInt(btn.dataset.delIdx,10),1);
+      nstOpenPickerIdx = null;
+      renderNstList();
+    });
+  });
+}
+// clicar em qualquer lugar da lista que não seja um dos elementos acima (nome, botão, amostra)
+// fecha um seletor de hachura que porventura esteja aberto — ex.: clicar no campo de nome de
+// OUTRA linha enquanto o popover de hachura de uma linha diferente está aberto
+document.getElementById('nst-list').addEventListener('click', ()=>{
+  if(nstOpenPickerIdx!==null){ nstOpenPickerIdx=null; renderNstList(); }
+});
+document.getElementById('nst-add-new').addEventListener('click', ()=>{
+  nstDraftTipos.push(['', '', 'outro']); // chave vazia = ainda não tem nome definido/slug gerado
+  nstOpenPickerIdx = null;
+  renderNstList();
+  const inputs = document.querySelectorAll('.nst-row-name');
+  if(inputs.length) inputs[inputs.length-1].focus();
+});
+function abrirNovoTipoSolo(selectQueDisparou){
+  novoTipoSolicitanteSelect = selectQueDisparou;
+  nstDraftTipos = TIPOS_SOLO.map(t=>[t[0], t[1], t[2]]); // cópia de trabalho
+  nstOpenPickerIdx = null;
+  renderNstList();
+  document.getElementById('new-soiltype-overlay').classList.add('open');
+}
+function fecharNovoTipoSolo(salvou){
+  document.getElementById('new-soiltype-overlay').classList.remove('open');
+  if(!salvou && novoTipoSolicitanteSelect){
+    // cancelou — o select tinha ficado em "__new__" (opção temporária), volta pro valor que
+    // estava selecionado antes de abrir o modal
+    const valorAnterior = novoTipoSolicitanteSelect.dataset.prevValue || TIPOS_SOLO[0][0];
+    refreshAllTipoSelects(novoTipoSolicitanteSelect, valorAnterior);
+  }
+  novoTipoSolicitanteSelect = null;
+}
+document.getElementById('nst-cancel').addEventListener('click', ()=> fecharNovoTipoSolo(false));
+document.getElementById('new-soiltype-overlay').addEventListener('click', e=>{
+  if(e.target.id==='new-soiltype-overlay') fecharNovoTipoSolo(false);
+});
+document.getElementById('nst-confirm').addEventListener('click', ()=>{
+  for(const t of nstDraftTipos){
+    if(!t[1] || !t[1].trim()){ alert('Todo tipo precisa de um nome. Preencha ou remova a linha vazia.'); return; }
+  }
+  // gera a chave técnica das linhas novas desta sessão (chave ainda vazia) — sequencialmente,
+  // pra duas linhas novas com nomes iguais não colidirem na mesma chave
+  let ultimaNovaKey = null;
+  nstDraftTipos.forEach(t=>{
+    if(!t[0]){ t[0] = slugifySoilType(t[1], nstDraftTipos); ultimaNovaKey = t[0]; }
+  });
+  TIPOS_SOLO.length = 0;
+  nstDraftTipos.forEach(t=> TIPOS_SOLO.push([t[0], t[1].trim(), t[2]]));
+  saveCustomSoilTypes();
+  const solicitante = novoTipoSolicitanteSelect;
+  if(solicitante){
+    const valorFinal = ultimaNovaKey || solicitante.dataset.prevValue || TIPOS_SOLO[0][0];
+    refreshAllTipoSelects(solicitante, valorFinal);
+  } else {
+    // aberto sem um select específico pedindo — só atualiza as opções de todos, sem mudar
+    // a seleção de nenhum (a menos que o tipo selecionado tenha sido removido/renomeado)
+    document.querySelectorAll('select.c-tipo').forEach(sel=>{
+      const aindaExiste = TIPOS_SOLO.some(t=>t[0]===sel.value);
+      sel.innerHTML = tipoOptionsHtml(aindaExiste ? sel.value : TIPOS_SOLO[0][0]);
+    });
+  }
+  fecharNovoTipoSolo(true);
+});
 function inferTipoSolo(desc){
   const d = (desc||'').toLowerCase();
   if(d.includes('areia')) return 'areia';
@@ -1018,315 +1262,6 @@ function inferTipoSolo(desc){
   if(d.includes('rocha')||d.includes('matacão')||d.includes('matacao')||d.includes('impenetr')) return 'rocha';
   return 'outro';
 }
-
-/* ══════════════════════════════════════════════════════════════
-   CAMPANHA DE EXEMPLO — 9 furos SPT em malha 3×3 (espaçamento
-   50 m), cobrindo uma área de 100×100 m. Perfil geotécnico
-   plausível para fins de demonstração: aterro → argila mole/média
-   → argila rija → areia média/compacta → impenetrável/rocha em
-   profundidades variáveis (heterogeneidade típica de campo).
-   Coordenadas de referência: canto SO em -23.550520, -46.633308.
-   ══════════════════════════════════════════════════════════════ */
-const SAMPLE_CAMPAIGN = [
-  {
-    num:'SP-01', lat:-23.55052, lng:-46.633308, cota:'742.3', na:1.8, dataInicio:'10/03/25',
-    camadas:[
-        {profFinal:1.0, tipo:'aterro', descricao:'Aterro compactado, areno-argiloso, cor marrom escuro, com fragmentos de material orgânico'},
-        {profFinal:2.7, tipo:'argila', descricao:'Argila-arenosa, mole a média, consistência mole, cor cinza escuro, pouco plástica'},
-        {profFinal:5.9, tipo:'argila', descricao:'Argila-arenosa, média a rija, consistência rija, cor marrom avermelhado, pouco plástica'},
-        {profFinal:8.1, tipo:'areia', descricao:'Areia média a grossa, compacidade média a compacta, cor cinza esbranquiçado, pouco siltosa'},
-        {profFinal:12.0, tipo:'rocha', descricao:'Impenetrável a percussão — provável topo rochoso'}
-    ],
-    golpes:[{prof:1, g1:2, g2:3, g3:3}, {prof:2, g1:1, g2:1, g3:2}, {prof:3, g1:2, g2:3, g3:4}, {prof:4, g1:3, g2:5, g3:5}, {prof:5, g1:5, g2:6, g3:8}, {prof:6, g1:4, g2:7, g3:8}, {prof:7, g1:9, g2:11, g3:13}, {prof:8, g1:9, g2:14, g3:17}, {prof:9, g1:13, g2:23, g3:27}, {prof:10, g1:14, g2:23, g3:27}, {prof:11, g1:13, g2:23, g3:27}, {prof:12, g1:17, g2:23, g3:27}]
-  },
-  {
-    num:'SP-02', lat:-23.55052, lng:-46.632818, cota:'741.9', na:1.6, dataInicio:'10/03/25',
-    camadas:[
-        {profFinal:0.9, tipo:'aterro', descricao:'Aterro compactado, areno-argiloso, cor marrom escuro, com fragmentos de material orgânico'},
-        {profFinal:2.8, tipo:'argila', descricao:'Argila-arenosa, mole a média, consistência mole, cor cinza escuro, pouco plástica'},
-        {profFinal:6.0, tipo:'argila', descricao:'Argila-arenosa, média a rija, consistência rija, cor marrom avermelhado, pouco plástica'},
-        {profFinal:8.4, tipo:'areia', descricao:'Areia média a grossa, compacidade média a compacta, cor cinza esbranquiçado, pouco siltosa'},
-        {profFinal:13.0, tipo:'rocha', descricao:'Impenetrável a percussão — provável topo rochoso'}
-    ],
-    golpes:[{prof:1, g1:1, g2:1, g3:1}, {prof:2, g1:1, g2:1, g3:2}, {prof:3, g1:3, g2:4, g3:5}, {prof:4, g1:3, g2:5, g3:6}, {prof:5, g1:4, g2:6, g3:8}, {prof:6, g1:6, g2:8, g3:10}, {prof:7, g1:7, g2:10, g3:11}, {prof:8, g1:10, g2:13, g3:16}, {prof:9, g1:14, g2:22, g3:26}, {prof:10, g1:13, g2:23, g3:27}, {prof:11, g1:17, g2:23, g3:27}, {prof:12, g1:15, g2:23, g3:27}, {prof:13, g1:16, g2:23, g3:27}]
-  },
-  {
-    num:'SP-03', lat:-23.55052, lng:-46.632328, cota:'741.5', na:2.4, dataInicio:'10/03/25',
-    camadas:[
-        {profFinal:1.2, tipo:'aterro', descricao:'Aterro compactado, areno-argiloso, cor marrom escuro, com fragmentos de material orgânico'},
-        {profFinal:3.1, tipo:'argila', descricao:'Argila-arenosa, mole a média, consistência mole, cor cinza escuro, pouco plástica'},
-        {profFinal:6.4, tipo:'argila', descricao:'Argila-arenosa, média a rija, consistência rija, cor marrom avermelhado, pouco plástica'},
-        {profFinal:8.8, tipo:'areia', descricao:'Areia média a grossa, compacidade média a compacta, cor cinza esbranquiçado, pouco siltosa'},
-        {profFinal:9.0, tipo:'areia', descricao:'Areia muito compacta a impenetrável a percussão, cor cinza, indícios de alteração de rocha'}
-    ],
-    golpes:[{prof:1, g1:2, g2:3, g3:3}, {prof:2, g1:1, g2:2, g3:2}, {prof:3, g1:2, g2:3, g3:4}, {prof:4, g1:4, g2:5, g3:5}, {prof:5, g1:4, g2:6, g3:6}, {prof:6, g1:6, g2:7, g3:9}, {prof:7, g1:6, g2:9, g3:11}, {prof:8, g1:9, g2:12, g3:14}, {prof:9, g1:9, g2:14, g3:17}]
-  },
-  {
-    num:'SP-04', lat:-23.550071, lng:-46.633308, cota:'741.55', na:2.0, dataInicio:'11/03/25',
-    camadas:[
-        {profFinal:0.9, tipo:'aterro', descricao:'Aterro compactado, areno-argiloso, cor marrom escuro, com fragmentos de material orgânico'},
-        {profFinal:2.6, tipo:'argila', descricao:'Argila-arenosa, mole a média, consistência mole, cor cinza escuro, pouco plástica'},
-        {profFinal:5.4, tipo:'argila', descricao:'Argila-arenosa, média a rija, consistência rija, cor marrom avermelhado, pouco plástica'},
-        {profFinal:8.1, tipo:'areia', descricao:'Areia média a grossa, compacidade média a compacta, cor cinza esbranquiçado, pouco siltosa'},
-        {profFinal:13.0, tipo:'rocha', descricao:'Impenetrável a percussão — provável topo rochoso'}
-    ],
-    golpes:[{prof:1, g1:1, g2:1, g3:1}, {prof:2, g1:2, g2:2, g3:2}, {prof:3, g1:3, g2:4, g3:4}, {prof:4, g1:5, g2:6, g3:7}, {prof:5, g1:6, g2:8, g3:9}, {prof:6, g1:5, g2:8, g3:10}, {prof:7, g1:9, g2:12, g3:13}, {prof:8, g1:9, g2:15, g3:18}, {prof:9, g1:13, g2:22, g3:25}, {prof:10, g1:15, g2:23, g3:27}, {prof:11, g1:14, g2:23, g3:27}, {prof:12, g1:15, g2:23, g3:27}, {prof:13, g1:16, g2:23, g3:27}]
-  },
-  {
-    num:'SP-05', lat:-23.550071, lng:-46.632818, cota:'741.15', na:1.9, dataInicio:'11/03/25',
-    camadas:[
-        {profFinal:1.3, tipo:'aterro', descricao:'Aterro compactado, areno-argiloso, cor marrom escuro, com fragmentos de material orgânico'},
-        {profFinal:3.3, tipo:'argila', descricao:'Argila-arenosa, mole a média, consistência mole, cor cinza escuro, pouco plástica'},
-        {profFinal:6.4, tipo:'argila', descricao:'Argila-arenosa, média a rija, consistência rija, cor marrom avermelhado, pouco plástica'},
-        {profFinal:9.0, tipo:'areia', descricao:'Areia média a grossa, compacidade média a compacta, cor cinza esbranquiçado, pouco siltosa'},
-        {profFinal:14.0, tipo:'rocha', descricao:'Impenetrável a percussão — provável topo rochoso'}
-    ],
-    golpes:[{prof:1, g1:2, g2:3, g3:3}, {prof:2, g1:1, g2:2, g3:3}, {prof:3, g1:2, g2:3, g3:4}, {prof:4, g1:3, g2:5, g3:5}, {prof:5, g1:4, g2:6, g3:6}, {prof:6, g1:4, g2:7, g3:8}, {prof:7, g1:5, g2:8, g3:10}, {prof:8, g1:7, g2:12, g3:13}, {prof:9, g1:8, g2:14, g3:17}, {prof:10, g1:14, g2:22, g3:25}, {prof:11, g1:18, g2:23, g3:27}, {prof:12, g1:14, g2:23, g3:27}, {prof:13, g1:15, g2:23, g3:27}, {prof:14, g1:13, g2:23, g3:27}]
-  },
-  {
-    num:'SP-06', lat:-23.550071, lng:-46.632328, cota:'740.75', na:2.6, dataInicio:'11/03/25',
-    camadas:[
-        {profFinal:1.2, tipo:'aterro', descricao:'Aterro compactado, areno-argiloso, cor marrom escuro, com fragmentos de material orgânico'},
-        {profFinal:3.4, tipo:'argila', descricao:'Argila-arenosa, mole a média, consistência mole, cor cinza escuro, pouco plástica'},
-        {profFinal:6.5, tipo:'argila', descricao:'Argila-arenosa, média a rija, consistência rija, cor marrom avermelhado, pouco plástica'},
-        {profFinal:9.0, tipo:'areia', descricao:'Areia média a grossa, compacidade média a compacta, cor cinza esbranquiçado, pouco siltosa'},
-        {profFinal:10.0, tipo:'areia', descricao:'Areia muito compacta a impenetrável a percussão, cor cinza, indícios de alteração de rocha'}
-    ],
-    golpes:[{prof:1, g1:1, g2:2, g3:2}, {prof:2, g1:1, g2:1, g3:2}, {prof:3, g1:2, g2:3, g3:3}, {prof:4, g1:3, g2:4, g3:4}, {prof:5, g1:4, g2:6, g3:7}, {prof:6, g1:4, g2:7, g3:9}, {prof:7, g1:6, g2:8, g3:10}, {prof:8, g1:9, g2:12, g3:14}, {prof:9, g1:9, g2:14, g3:17}, {prof:10, g1:10, g2:14, g3:17}]
-  },
-  {
-    num:'SP-07', lat:-23.549622, lng:-46.633308, cota:'740.8', na:2.2, dataInicio:'12/03/25',
-    camadas:[
-        {profFinal:1.1, tipo:'aterro', descricao:'Aterro compactado, areno-argiloso, cor marrom escuro, com fragmentos de material orgânico'},
-        {profFinal:3.2, tipo:'argila', descricao:'Argila-arenosa, mole a média, consistência mole, cor cinza escuro, pouco plástica'},
-        {profFinal:6.2, tipo:'argila', descricao:'Argila-arenosa, média a rija, consistência rija, cor marrom avermelhado, pouco plástica'},
-        {profFinal:8.5, tipo:'areia', descricao:'Areia média a grossa, compacidade média a compacta, cor cinza esbranquiçado, pouco siltosa'},
-        {profFinal:11.0, tipo:'rocha', descricao:'Areia muito compacta a impenetrável a percussão, cor cinza, indícios de alteração de rocha'}
-    ],
-    golpes:[{prof:1, g1:2, g2:3, g3:4}, {prof:2, g1:2, g2:2, g3:3}, {prof:3, g1:2, g2:3, g3:4}, {prof:4, g1:3, g2:5, g3:5}, {prof:5, g1:3, g2:6, g3:7}, {prof:6, g1:4, g2:7, g3:8}, {prof:7, g1:7, g2:9, g3:11}, {prof:8, g1:9, g2:14, g3:16}, {prof:9, g1:18, g2:23, g3:26}, {prof:10, g1:15, g2:23, g3:27}, {prof:11, g1:14, g2:23, g3:27}]
-  },
-  {
-    num:'SP-08', lat:-23.549622, lng:-46.632818, cota:'740.4', na:2.1, dataInicio:'12/03/25',
-    camadas:[
-        {profFinal:0.9, tipo:'aterro', descricao:'Aterro compactado, areno-argiloso, cor marrom escuro, com fragmentos de material orgânico'},
-        {profFinal:2.6, tipo:'argila', descricao:'Argila-arenosa, mole a média, consistência mole, cor cinza escuro, pouco plástica'},
-        {profFinal:5.8, tipo:'argila', descricao:'Argila-arenosa, média a rija, consistência rija, cor marrom avermelhado, pouco plástica'},
-        {profFinal:8.5, tipo:'areia', descricao:'Areia média a grossa, compacidade média a compacta, cor cinza esbranquiçado, pouco siltosa'},
-        {profFinal:12.0, tipo:'rocha', descricao:'Impenetrável a percussão — provável topo rochoso'}
-    ],
-    golpes:[{prof:1, g1:1, g2:1, g3:2}, {prof:2, g1:1, g2:2, g3:3}, {prof:3, g1:3, g2:4, g3:4}, {prof:4, g1:4, g2:6, g3:7}, {prof:5, g1:5, g2:7, g3:9}, {prof:6, g1:5, g2:7, g3:8}, {prof:7, g1:8, g2:10, g3:12}, {prof:8, g1:9, g2:14, g3:16}, {prof:9, g1:17, g2:22, g3:25}, {prof:10, g1:14, g2:23, g3:27}, {prof:11, g1:14, g2:23, g3:27}, {prof:12, g1:17, g2:23, g3:27}]
-  },
-  {
-    num:'SP-09', lat:-23.549622, lng:-46.632328, cota:'740.0', na:2.8, dataInicio:'12/03/25',
-    camadas:[
-        {profFinal:0.9, tipo:'aterro', descricao:'Aterro compactado, areno-argiloso, cor marrom escuro, com fragmentos de material orgânico'},
-        {profFinal:3.0, tipo:'argila', descricao:'Argila-arenosa, mole a média, consistência mole, cor cinza escuro, pouco plástica'},
-        {profFinal:6.4, tipo:'argila', descricao:'Argila-arenosa, média a rija, consistência rija, cor marrom avermelhado, pouco plástica'},
-        {profFinal:8.0, tipo:'areia', descricao:'Areia média a compacta, cor cinza esbranquiçado, pouco siltosa'}
-    ],
-    golpes:[{prof:1, g1:1, g2:1, g3:1}, {prof:2, g1:1, g2:1, g3:2}, {prof:3, g1:2, g2:3, g3:4}, {prof:4, g1:4, g2:5, g3:6}, {prof:5, g1:5, g2:6, g3:7}, {prof:6, g1:5, g2:8, g3:9}, {prof:7, g1:6, g2:10, g3:11}, {prof:8, g1:10, g2:14, g3:17}]
-  },
-];
-
-function loadSampleCampaign(){
-  if(furos.length>0 && !confirm('Isso adiciona 9 furos de exemplo (malha 3×3, 100×100 m) aos furos já cadastrados. Continuar?')) return;
-  SAMPLE_CAMPAIGN.forEach(o=>{
-    const f = blankFuro(o.lat, o.lng);
-    f.ident.sondagemNum = o.num;
-    f.ident.obra = 'Campanha de Sondagens — Lote Exemplo 100×100 m';
-    f.ident.cliente = 'Construtora Exemplo Ltda.';
-    f.ident.local = 'São Paulo - SP';
-    f.ident.dataInicio = o.dataInicio;
-    f.ident.dataFim = o.dataInicio;
-    f.ident.cota = o.cota;
-    f.ident.datum = 'SIRGAS2000';
-    f.ident.responsavel = 'Eng. Marcos Villela Pereira';
-    f.ident.sondador = 'Equipe Sondasolo Ltda.';
-    f.ident.desenhista = 'Camila R.';
-    f.agua = [{data:o.dataInicio, prof:String(o.na)}];
-    f.camadas = o.camadas.map(c=>({...c}));
-    f.golpes = o.golpes.map(g=>({...g}));
-    f.metodo = 'SPT (NBR 6484)';
-    f.equipamento = 'Sonda rotativa/percussão sobre esteira';
-    f.revestimento = 'Ø 2 1/2" (63,5 mm)';
-    f.obs = 'Furo de exemplo gerado automaticamente para demonstração do GEO·SIG — não representa dados de campo reais.';
-    furos.push(f);
-    drawFuro(f);
-  });
-  renderFuroList();
-  fitAll();
-  scheduleSave();
-  toggleFuroTable(true);
-  toast('9 furos de exemplo carregados (malha 100×100 m)');
-}
-document.getElementById('btn-load-sample').addEventListener('click', loadSampleCampaign);
-
-/* ══════════════════════════════════════════════════════════════
-   CAMPANHA DE EXEMPLO 2 — terreno irregular, 11 furos (malha
-   assimétrica, não é grid regular), cotas com relevo (738,5 a
-   748,0 m), número de camadas variável (3 a 6) e profundidade de
-   rocha muito variável (3,2 a 19,5 m — inclui um "paleocanal"
-   preenchido por sedimento mole). Inclui camadas de silte, que não
-   aparecem no primeiro exemplo. Pensada especificamente para testar
-   interpolação (IDW) e geração de perfis com dados mais heterogêneos.
-   ══════════════════════════════════════════════════════════════ */
-const SAMPLE_CAMPAIGN_2 = [
-  {
-    num:'SV-01', lat:-23.5545, lng:-46.6295, cota:'738.5', na:0.8, dataInicio:'10/06/25',
-    camadas:[
-        {profFinal:0.5, tipo:'aterro', descricao:'Aterro compactado, silto-argiloso, cor marrom escuro'},
-        {profFinal:2.5, tipo:'argila', descricao:'Argila orgânica, muito mole, turfosa, cor cinza escuro, odor característico'},
-        {profFinal:4.0, tipo:'areia', descricao:'Areia fina, saturada, fofa, cor cinza, lente entre camadas argilosas'},
-        {profFinal:7.5, tipo:'argila', descricao:'Argila-arenosa, média a rija, cor marrom avermelhado'},
-        {profFinal:10.5, tipo:'areia', descricao:'Areia média a grossa, compacta, cor cinza esbranquiçado'},
-        {profFinal:13.0, tipo:'rocha', descricao:'Impenetrável a percussão — provável topo rochoso'}
-    ],
-    golpes:[{prof:1, g1:1, g2:1, g3:1}, {prof:2, g1:1, g2:1, g3:1}, {prof:3, g1:2, g2:3, g3:4}, {prof:4, g1:4, g2:5, g3:5}, {prof:5, g1:5, g2:6, g3:6}, {prof:6, g1:4, g2:6, g3:8}, {prof:7, g1:5, g2:8, g3:9}, {prof:8, g1:8, g2:12, g3:13}, {prof:9, g1:9, g2:13, g3:15}, {prof:10, g1:10, g2:14, g3:17}, {prof:11, g1:13, g2:21, g3:24}, {prof:12, g1:15, g2:22, g3:26}, {prof:13, g1:15, g2:23, g3:27}]
-  },
-  {
-    num:'SV-02', lat:-23.55441, lng:-46.628912, cota:'741.0', na:1.6, dataInicio:'10/06/25',
-    camadas:[
-        {profFinal:1.0, tipo:'aterro', descricao:'Aterro compactado, areno-argiloso, cor marrom escuro'},
-        {profFinal:3.2, tipo:'argila', descricao:'Argila-arenosa, mole a média, cor cinza escuro'},
-        {profFinal:6.5, tipo:'argila', descricao:'Argila-arenosa, média a rija, cor marrom avermelhado'},
-        {profFinal:9.0, tipo:'areia', descricao:'Areia média, compacidade média, cor cinza esbranquiçado'},
-        {profFinal:11.5, tipo:'rocha', descricao:'Impenetrável a percussão — provável topo rochoso'}
-    ],
-    golpes:[{prof:1, g1:2, g2:3, g3:3}, {prof:2, g1:2, g2:3, g3:3}, {prof:3, g1:4, g2:6, g3:6}, {prof:4, g1:4, g2:5, g3:6}, {prof:5, g1:5, g2:6, g3:8}, {prof:6, g1:4, g2:7, g3:9}, {prof:7, g1:4, g2:7, g3:9}, {prof:8, g1:6, g2:9, g3:11}, {prof:9, g1:9, g2:12, g3:13}, {prof:10, g1:12, g2:21, g3:25}, {prof:11, g1:15, g2:22, g3:25}]
-  },
-  {
-    num:'SV-03', lat:-23.554455, lng:-46.628226, cota:'744.2', na:3.0, dataInicio:'10/06/25',
-    camadas:[
-        {profFinal:0.6, tipo:'aterro', descricao:'Aterro compactado, silto-arenoso, cor marrom'},
-        {profFinal:2.0, tipo:'argila', descricao:'Argila residual, siltosa, consistência média, cor variegada (marrom/amarelo)'},
-        {profFinal:3.5, tipo:'silte', descricao:'Silte residual de rocha, micáceo, cor amarelo-avermelhado'},
-        {profFinal:5.0, tipo:'rocha', descricao:'Impenetrável a percussão — topo rochoso raso'}
-    ],
-    golpes:[{prof:1, g1:2, g2:4, g3:4}, {prof:2, g1:3, g2:5, g3:6}, {prof:3, g1:3, g2:6, g3:7}, {prof:4, g1:14, g2:20, g3:24}, {prof:5, g1:17, g2:23, g3:26}]
-  },
-  {
-    num:'SV-04', lat:-23.553961, lng:-46.629304, cota:'739.8', na:1.9, dataInicio:'11/06/25',
-    camadas:[
-        {profFinal:0.9, tipo:'aterro', descricao:'Aterro compactado, areno-argiloso, cor marrom escuro'},
-        {profFinal:3.0, tipo:'argila', descricao:'Argila-arenosa, mole, cor cinza escuro'},
-        {profFinal:6.0, tipo:'argila', descricao:'Argila-arenosa, média a rija, cor marrom avermelhado'},
-        {profFinal:8.5, tipo:'areia', descricao:'Areia média a compacta, cor cinza esbranquiçado'},
-        {profFinal:12.0, tipo:'rocha', descricao:'Impenetrável a percussão — provável topo rochoso'}
-    ],
-    golpes:[{prof:1, g1:1, g2:1, g3:1}, {prof:2, g1:1, g2:1, g3:2}, {prof:3, g1:2, g2:3, g3:4}, {prof:4, g1:5, g2:6, g3:7}, {prof:5, g1:5, g2:6, g3:8}, {prof:6, g1:6, g2:8, g3:10}, {prof:7, g1:7, g2:10, g3:11}, {prof:8, g1:7, g2:12, g3:13}, {prof:9, g1:11, g2:19, g3:23}, {prof:10, g1:13, g2:21, g3:24}, {prof:11, g1:16, g2:22, g3:26}, {prof:12, g1:18, g2:23, g3:27}]
-  },
-  {
-    num:'SV-05', lat:-23.554006, lng:-46.628618, cota:'743.0', na:1.1, dataInicio:'11/06/25',
-    camadas:[
-        {profFinal:1.2, tipo:'aterro', descricao:'Aterro compactado, silto-argiloso, cor marrom escuro'},
-        {profFinal:4.5, tipo:'argila', descricao:'Argila orgânica, muito mole, cor cinza escuro, indícios de matéria orgânica'},
-        {profFinal:8.0, tipo:'argila', descricao:'Argila-arenosa, mole a média, cor cinza'},
-        {profFinal:11.0, tipo:'areia', descricao:'Areia fina a média, siltosa, fofa, cor cinza — provável preenchimento de paleocanal'},
-        {profFinal:15.0, tipo:'areia', descricao:'Areia média a grossa, compacidade média a compacta, cor cinza esbranquiçado'},
-        {profFinal:19.5, tipo:'rocha', descricao:'Impenetrável a percussão — topo rochoso profundo (paleocanal preenchido)'}
-    ],
-    golpes:[{prof:1, g1:2, g2:2, g3:2}, {prof:2, g1:1, g2:1, g3:1}, {prof:3, g1:1, g2:1, g3:1}, {prof:4, g1:1, g2:1, g3:1}, {prof:5, g1:2, g2:3, g3:3}, {prof:6, g1:2, g2:3, g3:4}, {prof:7, g1:2, g2:4, g3:5}, {prof:8, g1:5, g2:6, g3:6}, {prof:9, g1:2, g2:3, g3:4}, {prof:10, g1:3, g2:4, g3:4}, {prof:11, g1:4, g2:5, g3:5}, {prof:12, g1:7, g2:9, g3:10}, {prof:13, g1:7, g2:11, g3:12}, {prof:14, g1:9, g2:12, g3:14}, {prof:15, g1:7, g2:12, g3:15}, {prof:16, g1:11, g2:20, g3:24}, {prof:17, g1:17, g2:21, g3:24}, {prof:18, g1:15, g2:22, g3:25}, {prof:19, g1:18, g2:23, g3:27}]
-  },
-  {
-    num:'SV-06', lat:-23.554051, lng:-46.627932, cota:'747.5', na:2.8, dataInicio:'11/06/25',
-    camadas:[
-        {profFinal:0.4, tipo:'aterro', descricao:'Aterro delgado, silto-arenoso, cor marrom'},
-        {profFinal:1.8, tipo:'silte', descricao:'Silte residual de rocha, cor amarelo-avermelhado, micáceo'},
-        {profFinal:3.2, tipo:'rocha', descricao:'Impenetrável a percussão — topo rochoso raso (afloramento próximo)'}
-    ],
-    golpes:[{prof:1, g1:4, g2:6, g3:6}, {prof:2, g1:12, g2:20, g3:24}, {prof:3, g1:15, g2:23, g3:27}]
-  },
-  {
-    num:'SV-07', lat:-23.553512, lng:-46.629402, cota:'741.2', na:2.0, dataInicio:'12/06/25',
-    camadas:[
-        {profFinal:1.0, tipo:'aterro', descricao:'Aterro compactado, areno-argiloso, cor marrom escuro'},
-        {profFinal:2.8, tipo:'argila', descricao:'Argila-arenosa, mole, cor cinza escuro'},
-        {profFinal:5.5, tipo:'silte', descricao:'Silte arenoso, consistência média, cor cinza-amarelado'},
-        {profFinal:8.0, tipo:'argila', descricao:'Argila-arenosa, rija, cor marrom avermelhado'},
-        {profFinal:10.5, tipo:'areia', descricao:'Areia média a compacta, cor cinza esbranquiçado'},
-        {profFinal:13.5, tipo:'rocha', descricao:'Impenetrável a percussão — provável topo rochoso'}
-    ],
-    golpes:[{prof:1, g1:2, g2:3, g3:3}, {prof:2, g1:1, g2:2, g3:2}, {prof:3, g1:2, g2:3, g3:4}, {prof:4, g1:3, g2:5, g3:5}, {prof:5, g1:4, g2:5, g3:6}, {prof:6, g1:4, g2:5, g3:5}, {prof:7, g1:6, g2:7, g3:8}, {prof:8, g1:6, g2:8, g3:9}, {prof:9, g1:6, g2:9, g3:11}, {prof:10, g1:9, g2:12, g3:14}, {prof:11, g1:12, g2:20, g3:24}, {prof:12, g1:14, g2:22, g3:25}, {prof:13, g1:13, g2:22, g3:26}]
-  },
-  {
-    num:'SV-08', lat:-23.553422, lng:-46.628765, cota:'744.8', na:2.3, dataInicio:'12/06/25',
-    camadas:[
-        {profFinal:1.1, tipo:'aterro', descricao:'Aterro compactado, areno-argiloso, cor marrom escuro'},
-        {profFinal:3.5, tipo:'argila', descricao:'Argila-arenosa, mole a média, cor cinza escuro'},
-        {profFinal:6.8, tipo:'argila', descricao:'Argila-arenosa, média a rija, cor marrom avermelhado'},
-        {profFinal:9.5, tipo:'areia', descricao:'Areia média, compacidade média a compacta, cor cinza esbranquiçado'},
-        {profFinal:13.0, tipo:'rocha', descricao:'Impenetrável a percussão — provável topo rochoso'}
-    ],
-    golpes:[{prof:1, g1:2, g2:3, g3:3}, {prof:2, g1:2, g2:3, g3:4}, {prof:3, g1:3, g2:5, g3:5}, {prof:4, g1:3, g2:5, g3:6}, {prof:5, g1:4, g2:6, g3:6}, {prof:6, g1:5, g2:7, g3:9}, {prof:7, g1:6, g2:8, g3:9}, {prof:8, g1:7, g2:10, g3:12}, {prof:9, g1:7, g2:12, g3:14}, {prof:10, g1:11, g2:19, g3:23}, {prof:11, g1:15, g2:21, g3:24}, {prof:12, g1:15, g2:23, g3:26}, {prof:13, g1:16, g2:23, g3:27}]
-  },
-  {
-    num:'SV-09', lat:-23.553467, lng:-46.628128, cota:'748.0', na:3.5, dataInicio:'12/06/25',
-    camadas:[
-        {profFinal:0.5, tipo:'aterro', descricao:'Aterro delgado, silto-arenoso, cor marrom'},
-        {profFinal:1.5, tipo:'silte', descricao:'Silte residual, micáceo, cor amarelo-avermelhado'},
-        {profFinal:2.5, tipo:'argila', descricao:'Argila residual, siltosa, consistência média, cor variegada'},
-        {profFinal:4.0, tipo:'rocha', descricao:'Impenetrável a percussão — topo rochoso raso'}
-    ],
-    golpes:[{prof:1, g1:4, g2:6, g3:7}, {prof:2, g1:2, g2:3, g3:4}, {prof:3, g1:16, g2:21, g3:25}, {prof:4, g1:14, g2:23, g3:27}]
-  },
-  {
-    num:'SV-10', lat:-23.553242, lng:-46.629059, cota:'743.5', na:4.2, dataInicio:'13/06/25',
-    camadas:[
-        {profFinal:3.5, tipo:'aterro', descricao:'Aterro heterogêneo antigo, entulho e material argiloso, compacidade variável, cor variegada'},
-        {profFinal:5.0, tipo:'argila', descricao:'Argila-arenosa, mole, compressível sob o aterro, cor cinza escuro'},
-        {profFinal:8.0, tipo:'argila', descricao:'Argila-arenosa, média a rija, cor marrom avermelhado'},
-        {profFinal:10.5, tipo:'areia', descricao:'Areia média, compacidade média, cor cinza esbranquiçado'},
-        {profFinal:14.0, tipo:'rocha', descricao:'Impenetrável a percussão — provável topo rochoso'}
-    ],
-    golpes:[{prof:1, g1:1, g2:2, g3:3}, {prof:2, g1:2, g2:3, g3:3}, {prof:3, g1:4, g2:5, g3:5}, {prof:4, g1:1, g2:1, g3:2}, {prof:5, g1:1, g2:2, g3:3}, {prof:6, g1:3, g2:5, g3:6}, {prof:7, g1:5, g2:7, g3:9}, {prof:8, g1:7, g2:9, g3:10}, {prof:9, g1:6, g2:8, g3:9}, {prof:10, g1:7, g2:11, g3:12}, {prof:11, g1:11, g2:19, g3:23}, {prof:12, g1:14, g2:21, g3:24}, {prof:13, g1:13, g2:21, g3:25}, {prof:14, g1:15, g2:23, g3:27}]
-  },
-  {
-    num:'SV-11', lat:-23.553197, lng:-46.628422, cota:'746.0', na:2.6, dataInicio:'13/06/25',
-    camadas:[
-        {profFinal:0.9, tipo:'aterro', descricao:'Aterro compactado, areno-argiloso, cor marrom escuro'},
-        {profFinal:2.6, tipo:'argila', descricao:'Argila-arenosa, mole, cor cinza escuro'},
-        {profFinal:5.0, tipo:'argila', descricao:'Argila-arenosa, rija, cor marrom avermelhado'},
-        {profFinal:7.5, tipo:'silte', descricao:'Silte arenoso, consistência média a rija, cor cinza-amarelado'},
-        {profFinal:10.0, tipo:'areia', descricao:'Areia média a compacta, cor cinza esbranquiçado'},
-        {profFinal:13.5, tipo:'rocha', descricao:'Impenetrável a percussão — provável topo rochoso'}
-    ],
-    golpes:[{prof:1, g1:1, g2:1, g3:2}, {prof:2, g1:1, g2:2, g3:3}, {prof:3, g1:3, g2:5, g3:6}, {prof:4, g1:4, g2:6, g3:7}, {prof:5, g1:4, g2:8, g3:9}, {prof:6, g1:2, g2:4, g3:4}, {prof:7, g1:4, g2:6, g3:6}, {prof:8, g1:6, g2:8, g3:10}, {prof:9, g1:8, g2:11, g3:12}, {prof:10, g1:7, g2:12, g3:15}, {prof:11, g1:13, g2:20, g3:24}, {prof:12, g1:13, g2:22, g3:25}, {prof:13, g1:17, g2:23, g3:26}]
-  },
-];
-
-function loadSampleCampaign2(){
-  if(furos.length>0 && !confirm('Isso adiciona 11 furos de exemplo (terreno irregular, cotas e camadas variadas) aos furos já cadastrados. Continuar?')) return;
-  SAMPLE_CAMPAIGN_2.forEach(o=>{
-    const f = blankFuro(o.lat, o.lng);
-    f.ident.sondagemNum = o.num;
-    f.ident.obra = 'Campanha de Sondagens — Terreno Irregular (exemplo avançado)';
-    f.ident.cliente = 'Incorporadora Vale Verde Ltda.';
-    f.ident.local = 'São Paulo - SP';
-    f.ident.dataInicio = o.dataInicio;
-    f.ident.dataFim = o.dataInicio;
-    f.ident.cota = o.cota;
-    f.ident.datum = 'SIRGAS2000';
-    f.ident.responsavel = 'Eng. Marcos Villela Pereira';
-    f.ident.sondador = 'Equipe Sondasolo Ltda.';
-    f.ident.desenhista = 'Camila R.';
-    f.agua = [{data:o.dataInicio, prof:String(o.na)}];
-    f.camadas = o.camadas.map(c=>({...c}));
-    f.golpes = o.golpes.map(g=>({...g}));
-    f.metodo = 'SPT (NBR 6484)';
-    f.equipamento = 'Sonda rotativa/percussão sobre esteira';
-    f.revestimento = 'Ø 2 1/2" (63,5 mm)';
-    f.obs = 'Furo de exemplo gerado automaticamente para demonstração do GEO·SIG — não representa dados de campo reais. Terreno com relevo e estratigrafia deliberadamente heterogêneos para testes de interpolação.';
-    furos.push(f);
-    drawFuro(f);
-  });
-  renderFuroList();
-  fitAll();
-  scheduleSave();
-  toggleFuroTable(true);
-  toast('11 furos de exemplo carregados (terreno irregular, cotas e camadas variadas)');
-}
-document.getElementById('btn-load-sample2').addEventListener('click', loadSampleCampaign2);
-
 
 /* ══════════════════ MAPA ══════════════════ */
 const map = L.map('map', {zoomControl:true}).setView([-15.6, -50.5], 4);
@@ -1560,7 +1495,8 @@ new MutationObserver(()=>{
 }).observe(document.getElementById('panel'), {attributes:true, attributeFilter:['class']});
 
 let uiPrefs = { sidebarWidth:260, panelWidth:640, tableHeight:280, tableOpen:false,
-  tableFloating:false, tableFloatTop:70, tableFloatLeft:70, tableFloatWidth:720, tableFloatHeight:360 };
+  tableFloating:false, tableFloatTop:70, tableFloatLeft:70, tableFloatWidth:720, tableFloatHeight:360,
+  clearStorageOnClose:false };
 let uiPrefsSaveTimer = null;
 function scheduleSaveUiPrefs(){
   clearTimeout(uiPrefsSaveTimer);
@@ -1579,6 +1515,7 @@ async function saveUiPrefs(){
     tableFloatLeft: furoTableFloating ? Math.round(tableRect.left) : uiPrefs.tableFloatLeft,
     tableFloatWidth: furoTableFloating ? Math.round(tableRect.width) : uiPrefs.tableFloatWidth,
     tableFloatHeight: furoTableFloating ? Math.round(tableRect.height) : uiPrefs.tableFloatHeight,
+    clearStorageOnClose: uiPrefs.clearStorageOnClose,
   };
   try{ await window.storage.set('geosig:ui', JSON.stringify(uiPrefs)); }catch(e){}
 }
@@ -1598,7 +1535,54 @@ async function loadUiPrefs(){
   document.getElementById('furo-table-panel').style.height = safeUiNum(uiPrefs.tableHeight, 100, 2000, 280)+'px';
   if(uiPrefs.tableFloating) toggleFuroTableFloat();
   if(uiPrefs.tableOpen) toggleFuroTable(true);
+  document.getElementById('storage-clear-on-close').checked = !!uiPrefs.clearStorageOnClose;
 }
+
+/* ══════════════════ ARMAZENAMENTO DO NAVEGADOR — limpeza manual/automática ══════════════════
+   Os dados do app (furos, formas, blocos interpolados, superfícies topográficas, perfis,
+   rasters) ficam todos sob chaves "geosig:..." no armazenamento local. Esta seção dá ao
+   usuário controle direto sobre isso: limpar tudo manualmente a qualquer momento, ou ativar
+   a limpeza automática ao fechar a aba (apaga de verdade — por isso opt-in e com aviso). */
+// varre TODAS as chaves "geosig:" realmente presentes no localStorage — sem precisar manter
+// uma lista fixa de nomes (que ficaria desatualizada a cada nova funcionalidade que persiste
+// algo). Preserva a chave de preferências de UI (geosig:ui) quando pedido, pra não desligar o
+// próprio toggle de "limpar ao fechar" sozinho na próxima abertura.
+function clearAppStorage(preservarPrefsUi){
+  try{
+    const chaves = [];
+    for(let i=0;i<localStorage.length;i++){
+      const k = localStorage.key(i);
+      if(k && k.startsWith('geosig:') && !(preservarPrefsUi && k==='geosig:ui')) chaves.push(k);
+    }
+    chaves.forEach(k=>localStorage.removeItem(k));
+  }catch(e){}
+  // também tenta pelo window.storage (API do Claude.ai, quando disponível) — assíncrono, então
+  // não é garantido completar a tempo num fechamento de aba, mas ajuda no caso de "limpar agora"
+  if(window.storage && window.storage.list){
+    window.storage.list('geosig:').then(r=>{
+      if(!r || !r.keys) return;
+      r.keys.forEach(k=>{ if(!(preservarPrefsUi && k==='geosig:ui')) window.storage.delete(k).catch(()=>{}); });
+    }).catch(()=>{});
+  }
+}
+document.getElementById('btn-storage').addEventListener('click', ()=>{
+  document.getElementById('storage-settings-overlay').classList.add('open');
+});
+document.getElementById('storage-settings-close').addEventListener('click', ()=>{
+  document.getElementById('storage-settings-overlay').classList.remove('open');
+});
+document.getElementById('storage-clear-on-close').addEventListener('change', e=>{
+  uiPrefs.clearStorageOnClose = e.target.checked;
+  scheduleSaveUiPrefs();
+});
+document.getElementById('storage-clear-now-btn').addEventListener('click', ()=>{
+  if(!confirm('Isso apaga AGORA tudo que está salvo neste navegador (furos, áreas/linhas, blocos interpolados, superfícies topográficas, perfis, rasters). Não afeta o furos.json já publicado. A página será recarregada em seguida. Continuar?')) return;
+  clearAppStorage(false);
+  location.reload();
+});
+window.addEventListener('beforeunload', ()=>{
+  if(uiPrefs.clearStorageOnClose) clearAppStorage(false);
+});
 
 /* ══════════════════ PERSISTÊNCIA ══════════════════ */
 let saveTimer=null;
@@ -1618,7 +1602,7 @@ function scheduleSave(){ clearTimeout(saveTimer); saveTimer=setTimeout(saveStudy
 function furoToFlatExportData(f){
   return {
     id: f.id, hash: f.hash,
-    sondagemNum: f.ident.sondagemNum, obra: f.ident.obra, cliente: f.ident.cliente, local: f.ident.local,
+    sondagemNum: f.ident.sondagemNum, obra: f.ident.obra, unidadeOperacional: f.ident.unidadeOperacional, cliente: f.ident.cliente, local: f.ident.local,
     dataInicio: f.ident.dataInicio, dataFim: f.ident.dataFim, cota: f.ident.cota,
     datum: f.ident.datum, zonaUTM: f.ident.zonaUTM,
     lat: f.lat, lng: f.lng,
@@ -1730,6 +1714,7 @@ async function saveStudyData(){
     await window.storage.set(p+'interpFuros', JSON.stringify(furos.filter(f=>f._interpolado)));
     await window.storage.set(p+'shapes', JSON.stringify(shapes));
     await window.storage.set(p+'interpBlocks', JSON.stringify(interpBlocks));
+    await window.storage.set(p+'topoSurfaces', JSON.stringify(topoSurfaces));
     await window.storage.set(p+'profiles', JSON.stringify(profiles));
     await window.storage.set(p+'rasterLayers', JSON.stringify(rasterLayers));
   }catch(e){ console.error('erro ao salvar dados de estudo', e); }
@@ -1743,20 +1728,22 @@ async function loadStudyData(){
   try{ const r = await window.storage.get(p+'interpFuros'); loadedInterpFuros = JSON.parse(r.value); }catch(e){}
   try{ const r = await window.storage.get(p+'shapes'); shapes = JSON.parse(r.value); }catch(e){ shapes=[]; }
   try{ const r = await window.storage.get(p+'interpBlocks'); interpBlocks = JSON.parse(r.value); }catch(e){ interpBlocks=[]; }
+  try{ const r = await window.storage.get(p+'topoSurfaces'); topoSurfaces = JSON.parse(r.value); }catch(e){ topoSurfaces=[]; }
   try{ const r = await window.storage.get(p+'profiles'); profiles = JSON.parse(r.value); }catch(e){ profiles=[]; }
   try{ const r = await window.storage.get(p+'rasterLayers'); rasterLayers = JSON.parse(r.value); }catch(e){ rasterLayers=[]; }
 
   loadedInterpFuros.forEach(migrateLegacyFuroFormat);
   furos = furos.concat(loadedInterpFuros);
 
-  markers={}; shapeLayers={}; interpLayers={}; profileLineLayers={}; rasterLeafletOverlays={};
+  markers={}; shapeLayers={}; interpLayers={}; topoLayers={}; profileLineLayers={}; rasterLeafletOverlays={};
   furos.forEach(f=>drawFuro(f));
   shapes.forEach(s=>drawShape(s));
   interpBlocks.forEach(b=>drawInterpBlock(b));
+  topoSurfaces.forEach(s=>drawTopoSurface(s));
   profiles.forEach(p=>drawProfileLine(p));
   rasterLayers.forEach(r=>drawRasterLayer(r));
   updateMapLegendPanel();
-  renderFuroList(); renderShapeList(); renderInterpList(); renderProfileList(); renderRasterLayersList();
+  renderFuroList(); renderShapeList(); renderInterpList(); renderTopoList(); renderProfileList(); renderRasterLayersList();
   fitAll();
 }
 
@@ -1789,6 +1776,7 @@ function drawFuro(f){
   m.bindTooltip(f.ident.sondagemNum || '(sem nome)', {permanent:true, direction:'right', offset:[6,0], className:'furo-label'});
   m.on('click', ()=>{
     if(interpSelectMode){ toggleInterpFuroSelect(f.id); return; }
+    if(topoSelectMode){ toggleTopoSelect('furo:'+f.id); return; }
     if(exportSelectMode){ toggleExportFuroSelect(f.id); return; }
     selectFuro(f.id);
   });
@@ -2088,9 +2076,14 @@ function renderFuroBoletimHtml(state){
       </div>`;
   });
 
-  // ── Gráfico SPT (SVG) ──
-  const scaleMax = 40;
-  const gridVals = [10, 20, 30, 40];
+  // ── Gráfico SPT (SVG) ── escala dinâmica: acompanha o maior N (início ou fim) já registrado
+  // nesse furo, arredondado pro próximo múltiplo de 10 — antes ficava fixo em 40, cortando
+  // golpes de valor maior (comum em rocha/solo muito resistente)
+  const maiorGolpe = golpes.reduce((m,g)=> Math.max(m, +g.ni||0, +g.nf||0), 0);
+  const scaleMax = Math.max(40, Math.ceil(maiorGolpe/10)*10);
+  const gridStep = scaleMax > 80 ? 20 : 10;
+  const gridVals = [];
+  for(let v=gridStep; v<=scaleMax; v+=gridStep) gridVals.push(v);
   let gridHtml = '';
   gridVals.forEach(v => {
     const x = (v / scaleMax) * 100;
@@ -2170,7 +2163,7 @@ function renderFuroBoletimHtml(state){
     const top = c.profInicial * PXM;
     const h = (c.profFinal - c.profInicial) * PXM;
     perfilHtml += `
-      <div class="perfil-block soil-${c.tipo}" style="top:${top}px;height:${h}px;">
+      <div class="perfil-block soil-${soilPatId(c.tipo)}" style="top:${top}px;height:${h}px;">
         <div class="perfil-idx">${String(i).padStart(2, '0')}</div>
       </div>`;
     descHtml += `
@@ -2194,7 +2187,7 @@ function renderFuroBoletimHtml(state){
   const tiposPresentes = [...new Set(camadas.map(c => c.tipo))];
   const legendHtml = tiposPresentes.map(t => {
     const label = (TIPOS_SOLO.find(x => x[0] === t) || [t, t])[1];
-    return `<div class="legend-chip"><span class="legend-swatch soil-${t}"></span>${esc(label)}</div>`;
+    return `<div class="legend-chip"><span class="legend-swatch soil-${soilPatId(t)}"></span>${esc(label)}</div>`;
   }).join('');
 
   const aguaLegend = agua.length
@@ -2243,7 +2236,7 @@ function renderFuroBoletimHtml(state){
             <div style="position:relative;height:${totalH}px;">${golpesHtml}</div>
           </div>
           <div class="track col-grafico">
-            <div class="track-head">Gráfico SPT<br>(0–40 golpes)</div>
+            <div class="track-head">Gráfico SPT<br>(0–${scaleMax} golpes)</div>
             <div class="chart-screen" style="position:relative;height:${totalH}px;">${chartSvg}</div>
             <div class="chart-print" style="position:relative;height:${totalH}px;display:none;">${chartBandsHtml}</div>
           </div>
@@ -2346,6 +2339,12 @@ function boAddCamadaRow(profFinal='', tipo='argila', desc=''){
     <td><input type="text" class="c-descricao" placeholder="Ex: Argila-arenosa, média, rija, marrom" value="${escAttr(desc)}"></td>
     <td><button class="row-remove" title="Remover">✕</button></td>`;
   tr.querySelector('.row-remove').addEventListener('click', ()=>tr.remove());
+  const selTipo = tr.querySelector('.c-tipo');
+  selTipo.dataset.prevValue = tipo;
+  selTipo.addEventListener('change', ()=>{
+    if(selTipo.value==='__new__') abrirNovoTipoSolo(selTipo);
+    else selTipo.dataset.prevValue = selTipo.value;
+  });
   document.getElementById('bo-tbody-camadas').appendChild(tr);
 }
 function boAddGolpeRow(prof='', g1='', g2='', g3=''){
@@ -2431,7 +2430,8 @@ function cancelBoletimEditor(){
     closeBoletimEditor();
   }
 }
-document.getElementById('bo-editor-overlay').addEventListener('click', e=>{ if(e.target.id==='bo-editor-overlay') cancelBoletimEditor(); });
+// clique no fundo (backdrop) NÃO fecha mais o editor — evita fechar sem querer e perder
+// edição em andamento; só fecha pelos botões (Cancelar/Salvar/Fechar) ou Esc
 document.addEventListener('keydown', e=>{ if(e.key==='Escape' && document.getElementById('bo-editor-overlay').classList.contains('open')) cancelBoletimEditor(); });
 document.getElementById('bo-fill-utm').addEventListener('click', ()=>{
   const f = furos.find(x=>x.id===editingFuroId); if(!f) return;
@@ -2628,12 +2628,21 @@ function drawShape(s){
   let layer;
   if(s.geomType==='MultiPoint'){
     layer = L.featureGroup();
-    (s.points||[]).forEach(pt=>{
+    const markersRefs = [];
+    (s.points||[]).forEach((pt,idx)=>{
       const m = L.marker([pt.lat,pt.lng], {icon: buildPointSymbolIcon(s.symbol, s.color)});
       const txt = getPointLabelText(s, pt);
       if(txt) m.bindTooltip(txt, {permanent:true, direction:'top', offset:[0,-9], className:'shape-label'});
+      m.on('click', e=>{
+        if(topoSelectMode){
+          if(L.DomEvent) L.DomEvent.stopPropagation(e);
+          toggleTopoSelect('pt:'+s.id+':'+idx);
+        }
+      });
       m.addTo(layer);
+      markersRefs.push(m);
     });
+    shapePointMarkers[s.id] = markersRefs;
   } else if(s.geomType==='Polygon' || s.geomType==='MultiPolygon'){
     const latlngs = (s.geomType==='Polygon'?[s.coords]:s.coords).map(poly=>poly[0].map(c=>[c[1],c[0]]));
     layer = L.polygon(latlngs, {color:s.color||'#2a5a8c'});
@@ -2773,7 +2782,11 @@ function renderShapeList(){
     if(isPointLayer && expandido){
       subListHtml = `<div class="point-sublist">${(s.points||[]).map((pt,i)=>{
         const label = getPointLabelText(s, pt) || `Ponto ${i+1}`;
-        return `<div class="point-subitem" data-idx="${i}"><span class="point-subitem-icon">📍</span>${esc(label)}</div>`;
+        const selKey = 'pt:'+s.id+':'+i;
+        const checkboxHtml = topoSelectMode
+          ? `<input type="checkbox" class="topo-pt-checkbox" data-selkey="${escAttr(selKey)}" ${topoSelected.has(selKey)?'checked':''}>`
+          : '';
+        return `<div class="point-subitem" data-idx="${i}">${checkboxHtml}<span class="point-subitem-icon">📍</span>${esc(label)}</div>`;
       }).join('')}</div>`;
     }
     div.innerHTML=`<div style="display:flex;align-items:flex-start;gap:6px;">
@@ -2790,11 +2803,18 @@ function renderShapeList(){
     div.querySelectorAll('.point-subitem').forEach(sub=>{
       sub.addEventListener('click', e=>{
         e.stopPropagation();
+        if(topoSelectMode){
+          const idx = parseInt(sub.dataset.idx,10);
+          toggleTopoSelect('pt:'+s.id+':'+idx);
+          renderShapeList();
+          return;
+        }
         const pt = s.points[parseInt(sub.dataset.idx,10)];
         zoomToShapePoint(pt.lat, pt.lng);
       });
     });
     div.addEventListener('click', ()=>{
+      if(topoSelectMode) return; // nesse modo, o clique é tratado nos sub-itens (acima), não abre o painel
       if(exportSelectMode){ toggleExportShapeSelect(s.id); return; }
       selectShape(s.id);
     });
@@ -3212,6 +3232,444 @@ function toggleInterpBlockVisible(id){
   if(layer){ if(b.visible) layer.addTo(map); else map.removeLayer(layer); }
   renderInterpList();
   scheduleSave();
+}
+
+/* ══════════════════════════════════════════════════════════════
+   SUPERFÍCIE TOPOGRÁFICA — interpolação de pontos com cota
+   conhecida (furos ou pontos de uma camada de pontos), gerando
+   uma grade de elevação via IDW, com isolinhas opcionais. Serve
+   pra comparar com o terreno já interpolado a partir dos furos, e
+   pra "corrigir" a cota dos furos usando essa superfície
+   (tipicamente mais densa/precisa que poucos furos isolados).
+   ══════════════════════════════════════════════════════════════ */
+let topoSurfaces = [];
+let topoLayers = {}; // id -> L.FeatureGroup (contorno + isolinhas)
+let topoSelectMode = false;
+let topoSelected = new Set(); // strings "furo:ID" ou "pt:SHAPEID:IDX"
+let shapePointMarkers = {}; // shapeId -> array de L.Marker (um por ponto, na mesma ordem de s.points) — usado pra atualizar visualmente a seleção sem redesenhar a camada inteira
+
+// tenta achar uma cota numérica nos atributos de um ponto importado — procura por nomes de
+// campo comuns em levantamentos topográficos (cota, Z, elevação, altitude...)
+const TOPO_ELEV_FIELD_CANDIDATES = ['cota','z','elevacao','elevação','elevation','altitude','alt','cota_z','h'];
+function extractPointElevation(pt){
+  if(!pt || !pt.props) return NaN;
+  for(const k of Object.keys(pt.props)){
+    if(TOPO_ELEV_FIELD_CANDIDATES.includes(k.trim().toLowerCase())){
+      const v = parseFloat(String(pt.props[k]).replace(',','.'));
+      if(isFinite(v)) return v;
+    }
+  }
+  return NaN;
+}
+// resolve uma chave de seleção (furo ou ponto de camada) pra {lat,lng,cota,label} — null se
+// não tiver cota numérica válida disponível
+function resolveTopoSelKey(key){
+  const partes = key.split(':');
+  const kind = partes[0], a = partes[1], b = partes[2];
+  if(kind==='furo'){
+    const f = furos.find(x=>x.id===a); if(!f) return null;
+    const cota = parseFloat(f.ident.cota);
+    if(!isFinite(cota)) return null;
+    return {lat:f.lat, lng:f.lng, cota, label:f.ident.sondagemNum||'(furo)'};
+  } else {
+    const s = shapes.find(x=>x.id===a); if(!s || !s.points) return null;
+    const pt = s.points[parseInt(b,10)]; if(!pt) return null;
+    const cota = extractPointElevation(pt);
+    if(!isFinite(cota)) return null;
+    return {lat:pt.lat, lng:pt.lng, cota, label: getPointLabelText(s,pt) || ('Ponto '+b)};
+  }
+}
+
+function enterTopoSelectMode(){
+  topoSelectMode = true;
+  topoSelected.clear();
+  document.getElementById('btn-topo-mode').classList.add('on');
+  document.getElementById('topo-select-bar').style.display = 'flex';
+  updateTopoSelectBar();
+  closePanel();
+  // expande automaticamente todas as camadas de pontos, pra dar acesso direto aos pontos
+  // individuais sem precisar expandir uma por uma manualmente
+  shapes.forEach(s=>{ if(s.geomType==='MultiPoint') expandedPointShapes.add(s.id); });
+  renderShapeList();
+  toast('Clique em furos ou pontos (com cota conhecida) no mapa ou na lista de camadas de pontos — mínimo 3');
+}
+function exitTopoSelectMode(){
+  topoSelectMode = false;
+  document.getElementById('btn-topo-mode').classList.remove('on');
+  document.getElementById('topo-select-bar').style.display = 'none';
+  topoSelected.forEach(key=> updateTopoSelVisual(key, false));
+  topoSelected.clear();
+  renderFuroList();
+  renderShapeList();
+}
+function updateTopoSelectBar(){
+  const n = topoSelected.size;
+  document.getElementById('topo-select-count').textContent = n+' ponto(s) selecionado(s) — mínimo 3';
+  document.getElementById('topo-btn-confirm').disabled = n<3;
+}
+function updateTopoSelVisual(key, selecionado){
+  const partes = key.split(':');
+  const kind = partes[0], a = partes[1], b = partes[2];
+  if(kind==='furo'){
+    const pin = document.getElementById('pin-'+a);
+    if(pin) pin.classList.toggle('interpsel', selecionado);
+  } else {
+    const markers = shapePointMarkers[a];
+    const s = shapes.find(x=>x.id===a);
+    if(markers && markers[b] && s) markers[b].setIcon(buildPointSymbolIcon(s.symbol, selecionado?'#e0b400':s.color));
+  }
+}
+function toggleTopoSelect(key){
+  if(!topoSelected.has(key)){
+    const resolved = resolveTopoSelKey(key);
+    if(!resolved){
+      toast('Esse item não tem uma cota numérica válida cadastrada — não pode entrar na superfície topográfica');
+      return;
+    }
+  }
+  if(topoSelected.has(key)){ topoSelected.delete(key); updateTopoSelVisual(key,false); }
+  else { topoSelected.add(key); updateTopoSelVisual(key,true); }
+  updateTopoSelectBar();
+}
+document.getElementById('btn-topo-mode').addEventListener('click', ()=>{
+  if(topoSelectMode) exitTopoSelectMode(); else enterTopoSelectMode();
+});
+document.getElementById('topo-btn-cancel').addEventListener('click', exitTopoSelectMode);
+document.getElementById('topo-btn-confirm').addEventListener('click', createTopoSurface);
+
+function newTopoId(){ return 'T'+Date.now().toString(36)+Math.random().toString(36).slice(2,5); }
+
+function createTopoSurface(){
+  if(topoSelected.size<3){ alert('Selecione ao menos 3 pontos com cota conhecida.'); return; }
+  const pontosResolvidos = Array.from(topoSelected).map(resolveTopoSelKey).filter(Boolean);
+  if(pontosResolvidos.length<3){ alert('Pontos inválidos.'); return; }
+
+  const refLat = pontosResolvidos.reduce((s,p)=>s+p.lat,0)/pontosResolvidos.length;
+  const refLng = pontosResolvidos.reduce((s,p)=>s+p.lng,0)/pontosResolvidos.length;
+  const pts = pontosResolvidos.map((p,i)=>{ const xy=localXY(p.lat,p.lng,refLat,refLng); return {x:xy.x, y:xy.y, cota:p.cota, label:p.label, id:'p'+i}; });
+  const extrapDist = DEFAULT_EXTRAP_M;
+  const rect = computeBoundingRect(pts, extrapDist);
+
+  const surface = {
+    id: newTopoId(),
+    nome: 'Superfície Topográfica '+(topoSurfaces.length+1),
+    pontos: pts, // {x,y,cota,label,id} em coordenadas locais (metros), relativas a refLat/refLng
+    refLat, refLng,
+    power: 2,
+    extrapDist,
+    hull: rect.map(p=> xyToLatLng(p.x,p.y,refLat,refLng)),
+    showIsolines: true,
+    isolineInterval: null, // null = calculado automaticamente
+    visible: true,
+    createdAt: Date.now(),
+  };
+  topoSurfaces.push(surface);
+  drawTopoSurface(surface);
+  renderTopoList();
+  exitTopoSelectMode();
+  scheduleSave();
+  toast('Superfície topográfica criada com '+pts.length+' pontos');
+}
+
+// interpola a cota (IDW) num ponto (x,y) em metros locais, a partir dos pontos de origem
+function topoElevationAt(surface, x, y){
+  const weights = idwWeights({x,y}, surface.pontos, surface.power||2);
+  return weights.reduce((sum,w)=>{
+    const p = surface.pontos.find(pp=>pp.id===w.id);
+    return sum + w.weight * p.cota;
+  }, 0);
+}
+
+// grade de elevação da superfície, cobrindo o retângulo envolvente — usada pro desenho das
+// isolinhas e pra comparação com outra superfície
+const TOPO_GRID_N = 24;
+function computeTopoGrid(surface){
+  const xs = surface.pontos.map(p=>p.x), ys = surface.pontos.map(p=>p.y);
+  const minX = Math.min(...xs)-surface.extrapDist, maxX = Math.max(...xs)+surface.extrapDist;
+  const minY = Math.min(...ys)-surface.extrapDist, maxY = Math.max(...ys)+surface.extrapDist;
+  const grid = [];
+  for(let i=0;i<=TOPO_GRID_N;i++){
+    const row = [];
+    const x = minX + i*(maxX-minX)/TOPO_GRID_N;
+    for(let j=0;j<=TOPO_GRID_N;j++){
+      const y = minY + j*(maxY-minY)/TOPO_GRID_N;
+      row.push(topoElevationAt(surface, x, y));
+    }
+    grid.push(row);
+  }
+  return {grid, minX, maxX, minY, maxY, n:TOPO_GRID_N};
+}
+
+// arredonda um número pra um valor "redondo" (1, 2, 5, 10, 20, 50...) — usado pra escolher um
+// intervalo de isolinha automático que não fique com casas decimais estranhas
+function niceRoundNumber(v){
+  if(v<=0) return 1;
+  const exp = Math.floor(Math.log10(v));
+  const base = Math.pow(10, exp);
+  const frac = v/base;
+  let nice;
+  if(frac<1.5) nice=1; else if(frac<3.5) nice=2; else if(frac<7.5) nice=5; else nice=10;
+  return nice*base;
+}
+
+// marching squares — percorre a grade célula por célula e gera os segmentos de linha que
+// cruzam um determinado nível (cota) de isolinha. Os 2 casos ambíguos (5 e 10, onde os 2
+// cantos "acesos" ficam na diagonal) são resolvidos de forma fixa — suficiente pra fins de
+// visualização, sem pretensão de exatidão topológica perfeita nesses casos raros
+function marchingSquaresSegments(gridData, level){
+  const { grid, minX, maxX, minY, maxY, n } = gridData;
+  const segs = [];
+  function xyAt(i,j){ return {x: minX+i*(maxX-minX)/n, y: minY+j*(maxY-minY)/n}; }
+  function interp(p1,v1,p2,v2){
+    const t = (level-v1)/(v2-v1);
+    return {x:p1.x+(p2.x-p1.x)*t, y:p1.y+(p2.y-p1.y)*t};
+  }
+  for(let i=0;i<n;i++){
+    for(let j=0;j<n;j++){
+      const v00=grid[i][j], v10=grid[i+1][j], v11=grid[i+1][j+1], v01=grid[i][j+1];
+      const p00=xyAt(i,j), p10=xyAt(i+1,j), p11=xyAt(i+1,j+1), p01=xyAt(i,j+1);
+      let idx=0;
+      if(v00>level) idx|=1;
+      if(v10>level) idx|=2;
+      if(v11>level) idx|=4;
+      if(v01>level) idx|=8;
+      if(idx===0||idx===15) continue;
+      const eBottom = ()=>interp(p00,v00,p10,v10);
+      const eRight  = ()=>interp(p10,v10,p11,v11);
+      const eTop    = ()=>interp(p01,v01,p11,v11);
+      const eLeft   = ()=>interp(p00,v00,p01,v01);
+      switch(idx){
+        case 1: case 14: segs.push([eLeft(), eBottom()]); break;
+        case 2: case 13: segs.push([eBottom(), eRight()]); break;
+        case 3: case 12: segs.push([eLeft(), eRight()]); break;
+        case 4: case 11: segs.push([eRight(), eTop()]); break;
+        case 6: case 9: segs.push([eBottom(), eTop()]); break;
+        case 7: case 8: segs.push([eLeft(), eTop()]); break;
+        case 5: segs.push([eLeft(), eBottom()], [eRight(), eTop()]); break;
+        case 10: segs.push([eLeft(), eTop()], [eBottom(), eRight()]); break;
+      }
+    }
+  }
+  return segs;
+}
+// número máximo de curvas de isolinha desenhadas de uma vez — proteção contra um intervalo
+// digitado errado (ex.: 0.001 num range de dezenas de metros) travar a aba por muito tempo
+// gerando dezenas de milhares de curvas; se o limite for atingido, o intervalo é ajustado pra
+// caber dentro dele, gerando algo utilizável em vez de travar
+const TOPO_ISOLINES_MAX_LEVELS = 60;
+function drawTopoIsolines(surface, group){
+  const gridData = computeTopoGrid(surface);
+  const flat = gridData.grid.flat();
+  const minV = Math.min(...flat), maxV = Math.max(...flat);
+  const range = maxV-minV;
+  let interval = surface.isolineInterval;
+  if(!interval || interval<=0){
+    interval = range>0 ? niceRoundNumber(range/8) : 1;
+  }
+  // proteção: garante um mínimo absoluto e um mínimo relativo ao range, mesmo que o valor
+  // salvo/digitado seja menor que isso
+  const intervalMinimo = Math.max(0.01, range/TOPO_ISOLINES_MAX_LEVELS);
+  if(interval < intervalMinimo) interval = niceRoundNumber(intervalMinimo);
+  const primeiroNivel = Math.ceil(minV/interval)*interval;
+  let nivelAtual = primeiroNivel, contador = 0;
+  while(nivelAtual<=maxV+1e-6 && contador<TOPO_ISOLINES_MAX_LEVELS){
+    const level = nivelAtual;
+    contador++;
+    nivelAtual += interval;
+    const segs = marchingSquaresSegments(gridData, level);
+    if(!segs.length) continue;
+    const latlngSegs = segs.map(([p1,p2])=>[
+      xyToLatLng(p1.x,p1.y,surface.refLat,surface.refLng),
+      xyToLatLng(p2.x,p2.y,surface.refLat,surface.refLng),
+    ]);
+    const nivelArredondado = Math.round(level/interval);
+    const isMestra = nivelArredondado%5===0;
+    const line = L.polyline(latlngSegs, {color:'#8a5a2b', weight:isMestra?1.8:0.9, opacity:0.8});
+    // só as linhas mestras (uma a cada 5) ganham rótulo de cota — cada tooltip é mais um
+    // elemento de DOM/listener por curva, e a maioria das linhas intermediárias não precisa
+    // de rótulo próprio pra serem úteis visualmente
+    if(isMestra) line.bindTooltip(level.toFixed(1)+' m', {permanent:false, className:'shape-label'});
+    line.addTo(group);
+  }
+}
+function drawTopoSurface(surface){
+  const group = L.featureGroup();
+  const contorno = L.polygon(surface.hull, {color:'#8a5a2b', weight:2, dashArray:'6,4', fillColor:'#8a5a2b', fillOpacity:0.05});
+  contorno.on('click', ()=> selectTopoSurface(surface.id));
+  contorno.addTo(group);
+  if(surface.showIsolines) drawTopoIsolines(surface, group);
+  if(surface.visible!==false) group.addTo(map);
+  topoLayers[surface.id] = group;
+}
+function redrawTopoSurface(surface){
+  if(topoLayers[surface.id]) map.removeLayer(topoLayers[surface.id]);
+  drawTopoSurface(surface);
+}
+function toggleTopoVisible(id){
+  const s = topoSurfaces.find(x=>x.id===id); if(!s) return;
+  s.visible = !(s.visible!==false);
+  const layer = topoLayers[id];
+  if(layer){ if(s.visible) layer.addTo(map); else map.removeLayer(layer); }
+  renderTopoList();
+  scheduleSave();
+}
+function renderTopoList(){
+  const el = document.getElementById('list-topo'); if(!el) return;
+  if(topoSurfaces.length===0){
+    el.innerHTML = '<div class="sb-empty">Nenhuma superfície topográfica.<br>Use "🏔️ Topografia", selecione 3+ pontos com cota conhecida (furos ou camada de pontos) e confirme.</div>';
+    return;
+  }
+  el.innerHTML = '';
+  topoSurfaces.forEach(s=>{
+    const div = document.createElement('div');
+    div.className = 'item'+(selected&&selected.kind==='topo'&&selected.id===s.id?' sel':'');
+    const visivel = s.visible!==false;
+    div.innerHTML = `<div style="display:flex;align-items:flex-start;gap:8px;">
+      <button type="button" class="eye-btn${visivel?'':' off'}" title="${visivel?'Ocultar':'Mostrar'} no mapa">👁</button>
+      <div style="flex:1;min-width:0;">
+        <div class="item-title">🏔️ ${esc(s.nome)}</div>
+        <div class="item-sub">${s.pontos.length} pontos de origem${s.showIsolines?' · isolinhas':''}</div>
+      </div>
+    </div>`;
+    div.querySelector('.eye-btn').addEventListener('click', e=>{ e.stopPropagation(); toggleTopoVisible(s.id); });
+    div.addEventListener('click', ()=> selectTopoSurface(s.id));
+    el.appendChild(div);
+  });
+}
+function selectTopoSurface(id){
+  selected = {kind:'topo', id};
+  renderTopoList();
+  const s = topoSurfaces.find(x=>x.id===id);
+  if(s && s.hull) mapFitBoundsConsiderandoPainel(L.latLngBounds(s.hull), {padding:[40,40], maxZoom:18});
+  openTopoPanel(id);
+}
+// compara a cota de cada furo de origem de um bloco interpolado com a cota que a superfície
+// topográfica interpola naquele mesmo ponto — mostra a diferença furo a furo
+function compareTopoWithInterpBlock(surface, block){
+  const linhas = block.furoIds.map(fid=>{
+    const f = furos.find(x=>x.id===fid); if(!f) return null;
+    const cotaFuro = parseFloat(f.ident.cota);
+    const xy = localXY(f.lat, f.lng, surface.refLat, surface.refLng);
+    const cotaTopo = topoElevationAt(surface, xy.x, xy.y);
+    const diferenca = isFinite(cotaFuro) ? (cotaTopo - cotaFuro) : null;
+    return { furoId:f.id, nome:f.ident.sondagemNum, cotaFuro: isFinite(cotaFuro)?cotaFuro:null, cotaTopo, diferenca };
+  }).filter(Boolean);
+  const diffsValidas = linhas.map(l=>l.diferenca).filter(d=>d!=null);
+  const media = diffsValidas.length ? diffsValidas.reduce((a,b)=>a+b,0)/diffsValidas.length : null;
+  const maxAbs = diffsValidas.length ? Math.max(...diffsValidas.map(Math.abs)) : null;
+  return { linhas, media, maxAbs };
+}
+function renderTopoCompareResultHtml(r){
+  const linhasHtml = r.linhas.map(l=>`
+    <tr>
+      <td>${esc(l.nome)}</td>
+      <td>${l.cotaFuro!=null ? l.cotaFuro.toFixed(2) : '—'}</td>
+      <td>${l.cotaTopo.toFixed(2)}</td>
+      <td style="color:${l.diferenca==null?'inherit':(Math.abs(l.diferenca)>0.5?'var(--red)':'var(--tx)')}">${l.diferenca!=null ? (l.diferenca>=0?'+':'')+l.diferenca.toFixed(2) : '—'}</td>
+    </tr>`).join('');
+  return `
+    <table style="width:100%;font-size:11px;margin-top:6px;border-collapse:collapse;">
+      <thead><tr style="text-align:left;color:var(--mu);font-family:var(--mono);font-size:9.5px;">
+        <th>Furo</th><th>Cota furo</th><th>Cota topo</th><th>Diferença</th>
+      </tr></thead>
+      <tbody>${linhasHtml}</tbody>
+    </table>
+    <p class="hint" style="margin-top:6px;">Diferença média: ${r.media!=null?r.media.toFixed(2):'—'} m · máxima: ${r.maxAbs!=null?r.maxAbs.toFixed(2):'—'} m</p>`;
+}
+// substitui a cota cadastrada de cada furo de origem do bloco pela cota interpolada pela
+// superfície topográfica naquele ponto — ação que MODIFICA dados reais dos furos, por isso
+// pede confirmação mostrando quantos furos e o efeito médio antes de aplicar
+function adoptTopoCotaForBlock(surface, block){
+  const r = compareTopoWithInterpBlock(surface, block);
+  const validos = r.linhas.filter(l=>l.cotaFuro!=null);
+  if(validos.length===0){ alert('Nenhum furo desse bloco tem cota válida pra comparar.'); return; }
+  const msg = 'Isso vai substituir a cota cadastrada de '+validos.length+' furo(s) pela cota interpolada da superfície topográfica.\n'+
+    'Diferença média: '+r.media.toFixed(2)+' m · máxima: '+r.maxAbs.toFixed(2)+' m.\n\nContinuar?';
+  if(!confirm(msg)) return;
+  validos.forEach(l=>{
+    const f = furos.find(x=>x.id===l.furoId);
+    if(f) f.ident.cota = l.cotaTopo.toFixed(2);
+  });
+  scheduleSave();
+  toast('Cota de '+validos.length+' furo(s) atualizada pela superfície topográfica');
+}
+function openTopoPanel(id){
+  const s = topoSurfaces.find(x=>x.id===id); if(!s) return;
+  const panel = document.getElementById('panel');
+  panel.classList.remove('hidden');
+  const gridData = computeTopoGrid(s);
+  const flat = gridData.grid.flat();
+  const minV = Math.min(...flat), maxV = Math.max(...flat);
+  const blocosOptions = interpBlocks.map(b=>`<option value="${b.id}">${esc(b.nome)}</option>`).join('');
+  panel.innerHTML = `
+    <div class="p-hdr"><b>Superfície Topográfica</b><button class="p-close" onclick="closePanel()">✕</button></div>
+    <div class="p-body">
+      <div class="f-row"><label>Nome</label><input class="f-input" id="topo-nome" value="${escAttr(s.nome)}"></div>
+      <p class="hint">${s.pontos.length} pontos de origem · cota entre ${minV.toFixed(2)} e ${maxV.toFixed(2)} m</p>
+
+      <div class="sec-title">Isolinhas</div>
+      <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:12.5px;">
+        <input type="checkbox" id="topo-show-isolines" ${s.showIsolines?'checked':''}>
+        Mostrar isolinhas
+      </label>
+      <div class="f-row" style="margin-top:6px;">
+        <label>Intervalo entre isolinhas (m) — em branco = automático</label>
+        <input class="f-input" id="topo-isoline-interval" type="number" step="0.1" value="${s.isolineInterval||''}" placeholder="Automático">
+      </div>
+      <button class="mini-btn" id="topo-apply-isolines" style="margin-top:6px;">Aplicar</button>
+
+      <div class="sec-title">Comparar com bloco interpolado (furos)</div>
+      ${interpBlocks.length===0 ? '<p class="hint">Nenhum bloco interpolado disponível — crie um na aba "Interpolação" primeiro.</p>' : `
+      <div class="f-row"><label>Bloco</label><select class="f-input" id="topo-compare-block">${blocosOptions}</select></div>
+      <button class="mini-btn" id="topo-compare-btn">Comparar</button>
+      <div id="topo-compare-result"></div>
+      <div class="sec-title">Cota dos furos</div>
+      <p class="hint">Atualiza a cota dos furos de origem do bloco escolhido acima, usando a cota interpolada por esta superfície no lugar da cota atualmente cadastrada em cada furo.</p>
+      <button class="mini-btn danger" id="topo-adopt-cota-btn">Atualizar cota dos furos pela superfície</button>`}
+
+      <div class="btn-row" style="margin-top:10px;">
+        <button class="mini-btn danger" id="topo-del-btn">Excluir superfície</button>
+      </div>
+    </div>`;
+
+  document.getElementById('topo-nome').addEventListener('change', e=>{
+    s.nome = e.target.value.trim()||s.nome; renderTopoList(); scheduleSave();
+  });
+  document.getElementById('topo-apply-isolines').addEventListener('click', ()=>{
+    s.showIsolines = document.getElementById('topo-show-isolines').checked;
+    const iv = parseFloat(document.getElementById('topo-isoline-interval').value);
+    const range = maxV-minV;
+    const intervalMinimoRazoavel = Math.max(0.01, range/TOPO_ISOLINES_MAX_LEVELS);
+    if(isFinite(iv) && iv>0 && iv<intervalMinimoRazoavel){
+      toast('Intervalo muito pequeno pra essa variação de cota ('+range.toFixed(1)+' m) — ajustado automaticamente pra não gerar milhares de curvas');
+    }
+    s.isolineInterval = isFinite(iv) && iv>0 ? iv : null;
+    redrawTopoSurface(s);
+    renderTopoList();
+    scheduleSave();
+    if(!(isFinite(iv) && iv>0 && iv<intervalMinimoRazoavel)) toast('Isolinhas atualizadas');
+  });
+  if(interpBlocks.length>0){
+    document.getElementById('topo-compare-btn').addEventListener('click', ()=>{
+      const blockId = document.getElementById('topo-compare-block').value;
+      const block = interpBlocks.find(b=>b.id===blockId);
+      const resultado = compareTopoWithInterpBlock(s, block);
+      document.getElementById('topo-compare-result').innerHTML = renderTopoCompareResultHtml(resultado);
+    });
+    document.getElementById('topo-adopt-cota-btn').addEventListener('click', ()=>{
+      const blockId = document.getElementById('topo-compare-block').value;
+      const block = interpBlocks.find(b=>b.id===blockId);
+      adoptTopoCotaForBlock(s, block);
+    });
+  }
+  document.getElementById('topo-del-btn').addEventListener('click', ()=>{
+    if(confirm('Excluir a superfície "'+s.nome+'"?')){
+      if(topoLayers[s.id]) map.removeLayer(topoLayers[s.id]);
+      delete topoLayers[s.id];
+      topoSurfaces = topoSurfaces.filter(x=>x.id!==s.id);
+      closePanel(); renderTopoList(); scheduleSave();
+    }
+  });
 }
 
 // clique no bloco no mapa: se estiver no modo "criar ponto de sondagem interpolado" (ativado
@@ -3795,7 +4253,8 @@ let drawingProfileForBlockId = null;
 let currentProfileView = null;
 let currentProfileViewIsSaved = false;
 
-const SOIL_FILL = {argila:'#a9825b', areia:'#e8c96a', silte:'#b9b2a0', aterro:'#cdb06a', rocha:'#8d8d8d', outro:'#d7d2c6'};
+const SOIL_FILL = {argila:'#a9825b', areia:'#e8c96a', silte:'#b9b2a0', aterro:'#cdb06a', rocha:'#8d8d8d', outro:'#d7d2c6',
+  pedregulho:'#9c8760', turfa:'#4a3c28', saprolito:'#a8916c'};
 
 function newProfileId(){ return 'PF'+Date.now().toString(36)+Math.random().toString(36).slice(2,5); }
 
@@ -3939,8 +4398,23 @@ const SOIL_PATTERNS_SVG = `
     </pattern>
     <pattern id="soilpat-rocha" patternUnits="userSpaceOnUse" width="4" height="4"><rect width="4" height="4" fill="#8d8d8d"/></pattern>
     <pattern id="soilpat-outro" patternUnits="userSpaceOnUse" width="4" height="4"><rect width="4" height="4" fill="#d7d2c6"/></pattern>
+    <pattern id="soilpat-pedregulho" patternUnits="userSpaceOnUse" width="16" height="16">
+      <rect width="16" height="16" fill="#c9b896"/><circle cx="8" cy="8" r="3" fill="#8a7654"/>
+    </pattern>
+    <pattern id="soilpat-turfa" patternUnits="userSpaceOnUse" width="10" height="7">
+      <rect width="10" height="7" fill="#3a2f20"/><rect y="5" width="10" height="2" fill="#6b5738"/>
+    </pattern>
+    <pattern id="soilpat-saprolito" patternUnits="userSpaceOnUse" width="8" height="8">
+      <rect width="8" height="8" fill="#b5a179"/>
+      <line x1="0" y1="8" x2="8" y2="0" stroke="rgba(94,74,42,.6)" stroke-width="1"/>
+      <line x1="0" y1="0" x2="8" y2="8" stroke="rgba(94,74,42,.6)" stroke-width="1"/>
+    </pattern>
 `;
-function soilPatId(tipo){ return ['argila','areia','silte','aterro','rocha','outro'].includes(tipo) ? tipo : 'outro'; }
+function soilPatId(tipo){
+  const entry = TIPOS_SOLO.find(t=>t[0]===tipo);
+  if(entry && entry[2]) return entry[2];
+  return ['argila','areia','silte','aterro','rocha','outro'].includes(tipo) ? tipo : 'outro';
+}
 
 /* ══════════════════════════════════════════════════════════════
    EDIÇÃO INTERATIVA DAS CAMADAS DO PERFIL
@@ -5269,7 +5743,7 @@ function renderRasterToCanvas(gridResult, paramKey){
       let rgb=[0,0,0], alpha=0;
       if(cell.valid){
         alpha=255;
-        if(paramKey==='material') rgb = hexToRgb(SOIL_FILL[cell.tipo]||SOIL_FILL.outro);
+        if(paramKey==='material') rgb = hexToRgb(SOIL_FILL[soilPatId(cell.tipo)]);
         else rgb = continuousColor((cell.num-minV)/(maxV-minV));
       }
       imgData.data[idx]=rgb[0]; imgData.data[idx+1]=rgb[1]; imgData.data[idx+2]=rgb[2]; imgData.data[idx+3]=alpha;
@@ -5295,7 +5769,7 @@ function buildRasterLegendHtml(paramDef, minV, maxV, tiposPresentes){
     if(!tipos.length) return '<p class="hint">Nenhuma célula válida nessa cota (toda a área ficou acima do terreno, ou fora do casco convexo).</p>';
     return '<div class="tag-list">'+tipos.map(t=>{
       const label = (TIPOS_SOLO.find(x=>x[0]===t)||[t,t])[1];
-      return `<span class="tag-chip" style="background:${SOIL_FILL[t]||SOIL_FILL.outro};border-color:rgba(0,0,0,.2)">${esc(label)}</span>`;
+      return `<span class="tag-chip" style="background:${SOIL_FILL[soilPatId(t)]};border-color:rgba(0,0,0,.2)">${esc(label)}</span>`;
     }).join('')+'</div>';
   }
   const stops = Array.from({length:11},(_,i)=>{ const [r,g,b]=continuousColor(i/10); return `rgb(${r},${g},${b})`; }).join(',');
@@ -5322,7 +5796,7 @@ function drawRasterLegendOnCanvas(ctx, x, y, width, paramDef, minV, maxV, tiposP
       const textW = ctx.measureText(label).width;
       const blocoW = 18+6+textW+22;
       if(cx+blocoW > x+width){ cx = x; cy += 24; } // quebra linha se não couber
-      ctx.fillStyle = SOIL_FILL[t]||SOIL_FILL.outro;
+      ctx.fillStyle = SOIL_FILL[soilPatId(t)];
       ctx.fillRect(cx, cy, 16, 16);
       ctx.strokeStyle = 'rgba(0,0,0,.3)'; ctx.lineWidth=1; ctx.strokeRect(cx+0.5, cy+0.5, 16, 16);
       ctx.fillStyle = '#282420';
@@ -5806,7 +6280,7 @@ function hideModel3DHoverTip(){
 // cor de uma camada k, no modo atual (sólida por material, ou gradiente N-SPT por vértice)
 function model3DLayerColorHex(k){
   const tipo = model3DGeo.tipos[k];
-  return parseInt((SOIL_FILL[tipo]||SOIL_FILL.outro).replace('#',''), 16);
+  return parseInt(SOIL_FILL[soilPatId(tipo)].replace('#',''), 16);
 }
 const MODEL3D_SPT_BINS = 6; // faixas discretas de N-SPT no modelo 3D (não mais gradiente contínuo)
 function model3DSptColor(sptVal){
@@ -6557,6 +7031,7 @@ document.querySelectorAll('.sb-tab').forEach(tab=>{
     tab.classList.add('on');
     document.getElementById('list-shapes').style.display = tab.dataset.tab==='shapes'?'block':'none';
     document.getElementById('list-interp').style.display = tab.dataset.tab==='interp'?'block':'none';
+    document.getElementById('list-topo').style.display = tab.dataset.tab==='topo'?'block':'none';
     document.getElementById('list-profiles').style.display = tab.dataset.tab==='profiles'?'block':'none';
     document.getElementById('list-rasters').style.display = tab.dataset.tab==='rasters'?'block':'none';
   });
@@ -6564,6 +7039,97 @@ document.querySelectorAll('.sb-tab').forEach(tab=>{
 
 /* ══════════════════ IMPORTAR ══════════════════ */
 document.getElementById('btn-import').onclick=()=> document.getElementById('file-input').click();
+/* ══════════════════════════════════════════════════════════════
+   IMPORTAÇÃO DE PROJETO COMPLETO (gerado por "💾 Salvar Projeto") —
+   junta cada categoria (áreas/linhas, blocos interpolados,
+   superfícies topográficas, perfis, rasters) ao que já está aberto,
+   detectando duplicatas pelo id de cada item. Se algum já existir,
+   pergunta UMA VEZ (não item a item) se é pra substituir os
+   existentes pelos do arquivo, ou manter os existentes e trazer os
+   do arquivo como cópias novas (id novo, sem mexer no que já tinha).
+   ══════════════════════════════════════════════════════════════ */
+function contarIdsJaExistentes(listaNova, arrayExistente){
+  return (listaNova||[]).filter(item=> item && item.id && arrayExistente.some(x=>x.id===item.id)).length;
+}
+function mesclarListaProjeto(listaNova, arrayExistente, gerarNovoId, modoDuplicata){
+  let adicionados=0, substituidos=0, copiados=0;
+  (listaNova||[]).forEach(item=>{
+    if(!item) return;
+    const idx = item.id ? arrayExistente.findIndex(x=>x.id===item.id) : -1;
+    if(idx>=0){
+      if(modoDuplicata==='substituir'){ arrayExistente[idx] = item; substituidos++; }
+      else { arrayExistente.push({...item, id: gerarNovoId()}); copiados++; }
+    } else {
+      arrayExistente.push(item); adicionados++;
+    }
+  });
+  return {adicionados, substituidos, copiados};
+}
+async function importProjectData(proj){
+  const totalDuplicatas = contarIdsJaExistentes(proj.shapes, shapes)
+    + contarIdsJaExistentes(proj.interpBlocks, interpBlocks)
+    + contarIdsJaExistentes(proj.topoSurfaces, topoSurfaces)
+    + contarIdsJaExistentes(proj.profiles, profiles)
+    + contarIdsJaExistentes(proj.rasterLayers, rasterLayers);
+
+  let modoDuplicata = 'copiar';
+  if(totalDuplicatas>0){
+    const substituir = confirm(
+      `Este projeto tem ${totalDuplicatas} item(ns) (áreas/linhas, blocos, superfícies, perfis ou rasters) que já existem no que está aberto agora.\n\n`+
+      `Clique OK para SUBSTITUIR os existentes pelos do arquivo.\n`+
+      `Clique Cancelar para manter os existentes e importar os do arquivo como CÓPIAS novas.`);
+    modoDuplicata = substituir ? 'substituir' : 'copiar';
+  }
+
+  const rShapes = mesclarListaProjeto(proj.shapes, shapes, newShapeId, modoDuplicata);
+  const rInterp = mesclarListaProjeto(proj.interpBlocks, interpBlocks, newInterpId, modoDuplicata);
+  const rTopo = mesclarListaProjeto(proj.topoSurfaces, topoSurfaces, newTopoId, modoDuplicata);
+  const rProfiles = mesclarListaProjeto(proj.profiles, profiles, newProfileId, modoDuplicata);
+  const rRasters = mesclarListaProjeto(proj.rasterLayers, rasterLayers, newRasterLayerId, modoDuplicata);
+
+  // furos interpolados são dados de estudo (como as categorias acima), não do banco mestre —
+  // mesma lógica de duplicata por id, marcando explicitamente _interpolado
+  const furosInterpNovos = (proj.furosInterpolados||[]).map(fd=>{ const f=buildFuroFromImportData(fd); if(f) f._interpolado=true; return f; }).filter(Boolean);
+  const rFurosInterp = mesclarListaProjeto(furosInterpNovos, furos, ()=> 'FI'+Date.now().toString(36)+Math.random().toString(36).slice(2,5), modoDuplicata);
+
+  // redesenha tudo do zero pra refletir a mesclagem (mais simples e seguro que tentar
+  // desenhar só os itens novos/alterados individualmente)
+  Object.values(shapeLayers).forEach(l=>map.removeLayer(l));
+  Object.values(interpLayers).forEach(l=>map.removeLayer(l));
+  Object.values(topoLayers).forEach(l=>map.removeLayer(l));
+  Object.values(profileLineLayers).forEach(l=>map.removeLayer(l));
+  Object.values(rasterLeafletOverlays).forEach(l=>map.removeLayer(l));
+  shapeLayers={}; interpLayers={}; topoLayers={}; profileLineLayers={}; rasterLeafletOverlays={};
+  shapes.forEach(s=>drawShape(s));
+  interpBlocks.forEach(b=>drawInterpBlock(b));
+  topoSurfaces.forEach(s=>drawTopoSurface(s));
+  profiles.forEach(p=>drawProfileLine(p));
+  rasterLayers.forEach(r=>drawRasterLayer(r));
+
+  // furos "mestre" do projeto seguem a via já existente (dedup por hash de conteúdo, não por
+  // id) — só roda se quem importa for Administrador, mesma regra de sempre
+  let furosMestreMsg = '';
+  if(Array.isArray(proj.furos) && proj.furos.length){
+    if(isAdmin()){
+      const n = importFuroCampaignJSON(proj.furos);
+      const dup = importFuroCampaignJSON.lastSkipped||0;
+      furosMestreMsg = ` · ${n} furo(s) mestre importado(s)`+(dup>0?` (${dup} já existia(m), ignorado(s))`:'');
+    } else {
+      furosMestreMsg = ' · furos mestre do arquivo IGNORADOS (só Administrador pode importar pro banco principal)';
+    }
+  }
+
+  renderFuroList(); renderShapeList(); renderInterpList(); renderTopoList(); renderProfileList(); renderRasterLayersList();
+  fitAll(); scheduleSave();
+  const partes = [];
+  if(rShapes.adicionados+rShapes.substituidos+rShapes.copiados) partes.push(`${rShapes.adicionados+rShapes.substituidos+rShapes.copiados} área(s)/linha(s)`);
+  if(rInterp.adicionados+rInterp.substituidos+rInterp.copiados) partes.push(`${rInterp.adicionados+rInterp.substituidos+rInterp.copiados} bloco(s) interpolado(s)`);
+  if(rTopo.adicionados+rTopo.substituidos+rTopo.copiados) partes.push(`${rTopo.adicionados+rTopo.substituidos+rTopo.copiados} superfície(s) topográfica(s)`);
+  if(rProfiles.adicionados+rProfiles.substituidos+rProfiles.copiados) partes.push(`${rProfiles.adicionados+rProfiles.substituidos+rProfiles.copiados} perfil(is)`);
+  if(rRasters.adicionados+rRasters.substituidos+rRasters.copiados) partes.push(`${rRasters.adicionados+rRasters.substituidos+rRasters.copiados} raster(s)`);
+  if(rFurosInterp.adicionados+rFurosInterp.substituidos+rFurosInterp.copiados) partes.push(`${rFurosInterp.adicionados+rFurosInterp.substituidos+rFurosInterp.copiados} furo(s) interpolado(s)`);
+  toast('Projeto importado: '+(partes.join(', ')||'nada de novo')+furosMestreMsg);
+}
 document.getElementById('file-input').addEventListener('change', async e=>{
   const file = e.target.files[0]; if(!file) return;
   try{
@@ -6574,6 +7140,10 @@ document.getElementById('file-input').addEventListener('change', async e=>{
     } else {
       const txt = await file.text();
       const parsed = JSON.parse(txt);
+      if(parsed && parsed.tipo==='geosig-projeto'){
+        await importProjectData(parsed);
+        e.target.value=''; return;
+      }
       if(parsed && Array.isArray(parsed.furos)){
         if(!isAdmin()){ alert('Só o Administrador pode importar furos para o banco principal. Peça pra alguém com esse perfil importar, ou troque de perfil no botão "👤" no topo (isso é só organizacional, não uma senha).'); e.target.value=''; return; }
         const n = importFuroCampaignJSON(parsed.furos);
@@ -6588,13 +7158,29 @@ document.getElementById('file-input').addEventListener('change', async e=>{
     const collections = Array.isArray(geojson) ? geojson : [geojson];
     let nPts=0, nShp=0;
     const pontosColetados = [];
+    // detecta ANTES quantas features do arquivo já têm um id que bate com uma área/linha
+    // existente — pergunta 1x (não uma vez por item) se for o caso, igual ao projeto completo
+    let modoDuplicataShapes = 'copiar';
+    const featuresNaoPonto = [];
+    collections.forEach(fc=> (fc.features||[]).forEach(feat=>{
+      if(!(feat.geometry && feat.geometry.type==='Point')) featuresNaoPonto.push(feat);
+    }));
+    const nDupShapes = featuresNaoPonto.filter(feat=> feat.properties && feat.properties.id
+      && shapes.some(s=>s.id===feat.properties.id)).length;
+    if(nDupShapes>0){
+      const substituir = confirm(
+        `${nDupShapes} área(s)/linha(s) deste arquivo já existem no que está aberto agora (mesmo identificador).\n\n`+
+        `Clique OK para SUBSTITUIR as existentes pelas do arquivo.\n`+
+        `Clique Cancelar para manter as existentes e importar as do arquivo como CÓPIAS novas.`);
+      modoDuplicataShapes = substituir ? 'substituir' : 'copiar';
+    }
     collections.forEach(fc=>{
       (fc.features||[]).forEach(feat=>{
         if(feat.geometry && feat.geometry.type==='Point'){
           pontosColetados.push(parsePointFeatureAsPoint(feat));
           nPts++;
         } else {
-          importFeature(feat);
+          importFeature(feat, modoDuplicataShapes);
           nShp++;
         }
       });
@@ -6768,20 +7354,47 @@ function parsePointFeatureAsPoint(feat){
   return {lat, lng, label, props:p};
 }
 
-function importFeature(feat){
+function importFeature(feat, modoDuplicata){
   const g = feat.geometry, p = feat.properties||{};
   if(!g) return 'ok';
   if(g.type==='Polygon'||g.type==='MultiPolygon'||g.type==='LineString'||g.type==='MultiLineString'){
     const name = findProp(p,['name','nome','id']) || ('Importado '+(shapes.length+1));
-    const s = {id:newShapeId(), name:String(name), type:'Outro', color:'#2a5a8c',
+    const idOriginal = p.id && typeof p.id==='string' ? p.id : null;
+    const idxExistente = idOriginal ? shapes.findIndex(x=>x.id===idOriginal) : -1;
+    const s = {id: idOriginal || newShapeId(), name:String(name), type:'Outro', color:'#2a5a8c',
       geomType:g.type, coords:g.coordinates, rawProps:p, labelField: pickDefaultLabelField(Object.keys(p))};
-    shapes.push(s); drawShape(s);
+    if(idxExistente>=0){
+      if(modoDuplicata==='substituir'){
+        if(shapeLayers[s.id]) map.removeLayer(shapeLayers[s.id]);
+        shapes[idxExistente]=s;
+      }
+      else { s.id = newShapeId(); shapes.push(s); }
+    } else {
+      shapes.push(s);
+    }
+    drawShape(s);
     return 'ok';
   }
   return 'ok'; // Point é tratado à parte pelo chamador (vira camada de pontos, não mais furo)
 }
 
 /* ══════════════════ EXPORTAR ══════════════════ */
+// monta o PROJETO COMPLETO — diferente do GeoJSON (que só tinha furos/shapes e servia pra
+// interoperar com outros SIGs), isso inclui TUDO que aparece nas abas da barra lateral:
+// áreas/linhas, blocos interpolados, superfícies topográficas, perfis e rasters — pensado
+// pra salvar/restaurar o estado do app por inteiro, não pra abrir em outro programa de SIG
+function buildProjectData(){
+  return {
+    tipo: 'geosig-projeto',
+    versao: 1,
+    criadoEm: new Date().toISOString(),
+    // furos "mestre" (do banco principal) ficam de fora de propósito — esse arquivo é pra
+    // salvar o ESTUDO em cima dos furos, não o banco em si (que já tem seu próprio fluxo de
+    // publicação via furos.json); só os furos interpolados (criados dentro de um bloco) entram
+    furosInterpolados: furos.filter(f=>f._interpolado).map(furoToFlatExportData),
+    shapes, interpBlocks, topoSurfaces, profiles, rasterLayers,
+  };
+}
 function buildGeoJSON(furoIds, shapeIds){
   const fIds = furoIds ? new Set(furoIds) : null;
   const sIds = shapeIds ? new Set(shapeIds) : null;
@@ -6816,9 +7429,33 @@ function download(filename, content, mime){
   document.body.appendChild(a); a.click(); a.remove();
 }
 
-document.getElementById('btn-export-gj').onclick=()=>{
-  if(furos.length===0 && shapes.length===0){ toast('Nada para exportar'); return; }
-  download('geosig_export.geojson', JSON.stringify(buildGeoJSON(), null, 2), 'application/geo+json');
+document.getElementById('btn-save-project').onclick=async ()=>{
+  const temFurosInterpolados = furos.some(f=>f._interpolado);
+  if(!temFurosInterpolados && shapes.length===0 && interpBlocks.length===0 && topoSurfaces.length===0
+     && profiles.length===0 && rasterLayers.length===0){ toast('Nada para salvar ainda'); return; }
+  const conteudo = JSON.stringify(buildProjectData(), null, 2);
+  const nomeArquivo = 'geosig_projeto_'+new Date().toISOString().slice(0,10)+'.json';
+  // API moderna (Chrome/Edge) abre o diálogo nativo do sistema pra escolher pasta e nome de
+  // verdade; navegadores sem suporte (Firefox, Safari) caem no download tradicional pra pasta
+  // de downloads padrão — ainda funciona, só sem a escolha de pasta
+  if(window.showSaveFilePicker){
+    try{
+      const handle = await window.showSaveFilePicker({
+        suggestedName: nomeArquivo,
+        types: [{description:'Projeto GEO·SIG', accept:{'application/json':['.json']}}],
+      });
+      const writable = await handle.createWritable();
+      await writable.write(conteudo);
+      await writable.close();
+      toast('Projeto salvo');
+      return;
+    }catch(err){
+      if(err && err.name==='AbortError') return; // usuário cancelou o diálogo — não é erro
+      console.error(err); // cai no fallback abaixo se a API falhar por outro motivo
+    }
+  }
+  download(nomeArquivo, conteudo, 'application/json');
+  toast('Projeto baixado (seu navegador não suporta escolher a pasta — foi pra Downloads)');
 };
 
 /* ══════════════════════════════════════════════════════════════
@@ -6985,13 +7622,14 @@ document.getElementById('btn-clear').onclick=async ()=>{
   Object.values(markers).forEach(m=>map.removeLayer(m));
   Object.values(shapeLayers).forEach(l=>map.removeLayer(l));
   Object.values(interpLayers).forEach(l=>map.removeLayer(l));
+  Object.values(topoLayers).forEach(l=>map.removeLayer(l));
   Object.values(profileLineLayers).forEach(l=>map.removeLayer(l));
   Object.values(rasterLeafletOverlays).forEach(l=>map.removeLayer(l));
   furos = apagarMestreTambem ? [] : furos.filter(f=>!f._interpolado);
-  shapes=[]; interpBlocks=[]; profiles=[]; rasterLayers=[];
-  markers={}; shapeLayers={}; interpLayers={}; profileLineLayers={}; rasterLeafletOverlays={};
+  shapes=[]; interpBlocks=[]; topoSurfaces=[]; profiles=[]; rasterLayers=[];
+  markers={}; shapeLayers={}; interpLayers={}; topoLayers={}; profileLineLayers={}; rasterLeafletOverlays={};
   furos.forEach(f=>drawFuro(f)); // redesenha os furos mestre que sobraram (marcadores foram removidos acima)
-  closePanel(); renderFuroList(); renderShapeList(); renderInterpList(); renderProfileList(); renderRasterLayersList();
+  closePanel(); renderFuroList(); renderShapeList(); renderInterpList(); renderTopoList(); renderProfileList(); renderRasterLayersList();
   if(apagarMestreTambem) markMasterDirty();
   await saveStudyData();
 };
@@ -7068,14 +7706,33 @@ function truncate(s,n){ s=String(s); return s.length>n? s.slice(0,n-1)+'…' : s
 /* ══════════════════ INIT ══════════════════ */
 window.closePanel = closePanel;
 async function initApp(){
-  await loadCurrentUser();
-  updateUserBadge();
-  applyRolePermissions();
-  if(!currentUser.name) openUserSetup(); // primeira vez — pode fechar sem preencher, fica "anônimo"
-  await migrateLegacyStorageIfNeeded();
-  await loadFurosMaster();
-  await loadStudyData();
-  loadUiPrefs();
+  try{
+    await loadCurrentUser();
+    updateUserBadge();
+    applyRolePermissions();
+    if(!currentUser.name) openUserSetup(); // primeira vez — pode fechar sem preencher, fica "anônimo"
+    await migrateLegacyStorageIfNeeded();
+    await loadCustomSoilTypes();
+    await loadFurosMaster();
+    await loadStudyData();
+    loadUiPrefs();
+  }catch(e){
+    // qualquer erro durante a inicialização mostra uma mensagem clara na tela (com o erro
+    // completo pra copiar) em vez de deixar a splash travada sem explicação nenhuma —
+    // acontece o que acontecer, o usuário sempre vê alguma coisa e sabe o que copiar/reportar
+    console.error('Erro ao inicializar o app:', e);
+    const splash = document.getElementById('splash-screen');
+    if(splash && splash.parentNode) splash.parentNode.removeChild(splash);
+    const el = document.createElement('div');
+    el.style.cssText = 'position:fixed;inset:0;z-index:999999;background:#fdf8f0;padding:28px;'+
+      'font-family:monospace;font-size:13px;color:#6b2a1f;overflow:auto;';
+    el.innerHTML = '<h2 style="margin-top:0;">Não foi possível carregar o app</h2>'+
+      '<p>Copie a mensagem abaixo e envie pra correção:</p>'+
+      '<pre style="white-space:pre-wrap;background:#fff;border:1px solid #d8c9b8;padding:14px;border-radius:8px;">'+
+      esc(e && e.stack ? e.stack : String(e)) + '</pre>'+
+      '<button onclick="location.reload()" style="margin-top:14px;padding:9px 18px;border-radius:8px;border:1px solid #d8c9b8;background:#fff;cursor:pointer;">Tentar de novo</button>';
+    document.body.appendChild(el);
+  }
 }
 initApp();
 </script>

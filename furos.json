@@ -31,8 +31,8 @@
       "obs": "Convertido do relatório técnico de sondagem SPT (Alfa-Geo Curitiba Sondagens, REL 227/2026). Nível d'água: inicial 1,40 m; esgotado 5,80 m; 01 hora após 1,10 m. Limite de sondagem: 13,04 m (impenetrável a percussão, conforme item 5.2.4.2 da NBR 6484:2020). Amostra 12 (12,45 m): 3º segmento com penetração parcial (20 golpes para 9 cm, não representa cravação completa de 15 cm). Amostra 13 (13,45 m) excluída dos golpes: apenas o 1º segmento foi executado (17 golpes para 4 cm), 2º e 3º não executados — sondagem encerrada por impenetrabilidade. ATENÇÃO: o relatório original indica zona UTM 22J, mas essa zona não é compatível com a localização (Campo Grande-MS); as coordenadas foram convertidas usando a zona 21S, que bate com o endereço informado — confirme com o relatório original antes de usar em projeto executivo.",
       "agua": [
         {
-          "prof": 1.4,
-          "data": "11/08/2026"
+          "data": "11/08/2026",
+          "prof": "1.4"
         }
       ],
       "camadas": [
@@ -155,8 +155,8 @@
       "cota": "493,00",
       "datum": "SIRGAS2000",
       "zonaUTM": "21S",
-      "lat": -20.609065,
-      "lng": -54.742282,
+      "lat": -20.609066345711117,
+      "lng": -54.74228739738465,
       "responsavel": "Eng. Paulo Sergio Ferreira (CREA 200747/D-PR)",
       "sondador": "Alfa-Geo Curitiba Sondagens",
       "desenhista": "",
@@ -173,8 +173,8 @@
       "obs": "Convertido do relatório técnico de sondagem SPT (Alfa-Geo Curitiba Sondagens, REL 227/2026). Nível d'água: inicial 0,90 m; esgotado 5,80 m; 01 hora após 1,10 m. Limite de sondagem: 13,23 m (impenetrável a percussão, conforme item 5.2.4.2 da NBR 6484:2020). Amostra 13 (13,45 m) excluída dos golpes: 1º segmento completo (21 golpes), 2º com penetração parcial (12 golpes para 8 cm), 3º não executado — sondagem encerrada por impenetrabilidade. ATENÇÃO: o relatório original indica zona UTM 22J, mas essa zona não é compatível com a localização (Campo Grande-MS); as coordenadas foram convertidas usando a zona 21S, que bate com o endereço informado — confirme com o relatório original antes de usar em projeto executivo.",
       "agua": [
         {
-          "prof": 0.9,
-          "data": "11/08/2026"
+          "data": "11/08/2026",
+          "prof": "0.9"
         }
       ],
       "camadas": [
@@ -297,8 +297,8 @@
       "cota": "493,00",
       "datum": "SIRGAS2000",
       "zonaUTM": "21S",
-      "lat": -20.608837,
-      "lng": -54.742186,
+      "lat": -20.60882784251795,
+      "lng": -54.742185473442085,
       "responsavel": "Eng. Paulo Sergio Ferreira (CREA 200747/D-PR)",
       "sondador": "Alfa-Geo Curitiba Sondagens",
       "desenhista": "",
@@ -315,8 +315,8 @@
       "obs": "Convertido do relatório técnico de sondagem SPT (Alfa-Geo Curitiba Sondagens, REL 227/2026). Nível d'água: inicial 1,20 m; esgotado 4,50 m; 01 hora após 1,50 m. Limite de sondagem: 14,06 m (impenetrável a percussão, conforme item 5.2.4.2 da NBR 6484:2020). Amostra 14 (14,45 m) excluída dos golpes: apenas o 1º segmento foi executado (19 golpes para 6 cm), 2º e 3º não executados — sondagem encerrada por impenetrabilidade. ATENÇÃO: o relatório original indica zona UTM 22J, mas essa zona não é compatível com a localização (Campo Grande-MS); as coordenadas foram convertidas usando a zona 21S, que bate com o endereço informado — confirme com o relatório original antes de usar em projeto executivo.",
       "agua": [
         {
-          "prof": 1.2,
-          "data": "11/08/2026"
+          "data": "11/08/2026",
+          "prof": "1.2"
         }
       ],
       "camadas": [
@@ -468,8 +468,8 @@
       "obs": "",
       "agua": [
         {
-          "prof": 6.2,
-          "data": "19/03/2001"
+          "data": "19/03/2001",
+          "prof": "6.2"
         }
       ],
       "camadas": [
@@ -553,8 +553,8 @@
       "obs": "",
       "agua": [
         {
-          "prof": 6.2,
-          "data": "19/03/2001"
+          "data": "19/03/2001",
+          "prof": "6.2"
         }
       ],
       "camadas": [
@@ -638,8 +638,8 @@
       "obs": "",
       "agua": [
         {
-          "prof": 6.2,
-          "data": "20/03/2001"
+          "data": "20/03/2001",
+          "prof": "6.2"
         }
       ],
       "camadas": [
@@ -718,8 +718,8 @@
       "obs": "",
       "agua": [
         {
-          "prof": 6.3,
-          "data": "17/03/2001"
+          "data": "17/03/2001",
+          "prof": "6.3"
         }
       ],
       "camadas": [
@@ -809,8 +809,8 @@
       "obs": "",
       "agua": [
         {
-          "prof": 6.2,
-          "data": "23/03"
+          "data": "23/03",
+          "prof": "6.2"
         }
       ],
       "camadas": [
@@ -913,8 +913,8 @@
       "obs": "",
       "agua": [
         {
-          "prof": 2.45,
-          "data": ""
+          "data": "",
+          "prof": "2.45"
         }
       ],
       "camadas": [
@@ -986,8 +986,8 @@
       "obs": "",
       "agua": [
         {
-          "prof": 2.45,
-          "data": ""
+          "data": "",
+          "prof": "2.45"
         }
       ],
       "camadas": [
@@ -1059,8 +1059,8 @@
       "obs": "",
       "agua": [
         {
-          "prof": 1.45,
-          "data": ""
+          "data": "",
+          "prof": "1.45"
         }
       ],
       "camadas": [
@@ -1108,8 +1108,8 @@
       "cota": "105.57",
       "datum": "SIRGAS2000",
       "zonaUTM": "21S",
-      "lat": -20.122493,
-      "lng": -56.720228,
+      "lat": -20.122488823049625,
+      "lng": -56.72022074460984,
       "responsavel": "",
       "sondador": "",
       "desenhista": "",
@@ -1126,8 +1126,8 @@
       "obs": "",
       "agua": [
         {
-          "prof": 2.45,
-          "data": ""
+          "data": "",
+          "prof": "2.45"
         }
       ],
       "camadas": [
@@ -1170,6 +1170,399 @@
           "g1": "20",
           "g2": "25",
           "g3": "50"
+        }
+      ]
+    },
+    {
+      "id": "Fmtxbjtbwzgw",
+      "hash": "5x5myb",
+      "sondagemNum": "SP-01",
+      "obra": "ECOMP RIBAS DO RIO PARDO",
+      "unidadeOperacional": "ECOMP RIBAS DO RIO PARDO",
+      "cliente": "ECQ INDUSTRIAL",
+      "local": "RIBAS DO RIO PARDO-MS",
+      "dataInicio": "22/01/2026",
+      "dataFim": "02/02/2026",
+      "cota": "100",
+      "datum": "SIRGAS2000",
+      "zonaUTM": "22S",
+      "lat": -20.717655,
+      "lng": -53.546067,
+      "responsavel": "MAYARA ALVES ANTUNES",
+      "sondador": "",
+      "desenhista": "",
+      "amostrador": {
+        "diamInt": "34.9",
+        "diamExt": "50.8",
+        "peso": "65",
+        "altura": "75"
+      },
+      "metodo": "SPT (NBR 6484)",
+      "equipamento": "",
+      "revestimento": "",
+      "arquivo_ref": "",
+      "obs": "",
+      "agua": [
+        {
+          "data": "",
+          "prof": "20"
+        }
+      ],
+      "camadas": [
+        {
+          "profFinal": 16.45,
+          "tipo": "arenito_vermelho",
+          "descricao": "Arenito, vermelho e amarelo escuro, de medianamente compacto a fofo."
+        }
+      ],
+      "golpes": [
+        {
+          "prof": 1,
+          "g1": "2",
+          "g2": "2",
+          "g3": "2"
+        },
+        {
+          "prof": 2,
+          "g1": "28",
+          "g2": "10",
+          "g3": "8"
+        },
+        {
+          "prof": 3,
+          "g1": "1",
+          "g2": "1",
+          "g3": "1"
+        },
+        {
+          "prof": 4,
+          "g1": "1",
+          "g2": "1",
+          "g3": "1"
+        },
+        {
+          "prof": 5,
+          "g1": "1",
+          "g2": "1",
+          "g3": "1"
+        },
+        {
+          "prof": 6,
+          "g1": "1",
+          "g2": "1",
+          "g3": "1"
+        },
+        {
+          "prof": 7,
+          "g1": "2",
+          "g2": "2",
+          "g3": "2"
+        },
+        {
+          "prof": 8,
+          "g1": "3",
+          "g2": "3",
+          "g3": "3"
+        },
+        {
+          "prof": 9,
+          "g1": "2",
+          "g2": "2",
+          "g3": "2"
+        },
+        {
+          "prof": 10,
+          "g1": "2",
+          "g2": "2",
+          "g3": "2"
+        },
+        {
+          "prof": 11,
+          "g1": "2",
+          "g2": "2",
+          "g3": "2"
+        },
+        {
+          "prof": 12,
+          "g1": "3",
+          "g2": "3",
+          "g3": "3"
+        },
+        {
+          "prof": 13,
+          "g1": "4",
+          "g2": "4",
+          "g3": "4"
+        },
+        {
+          "prof": 14,
+          "g1": "4",
+          "g2": "4",
+          "g3": "4"
+        },
+        {
+          "prof": 15,
+          "g1": "4",
+          "g2": "4",
+          "g3": "4"
+        },
+        {
+          "prof": 16,
+          "g1": "4",
+          "g2": "4",
+          "g3": "4"
+        }
+      ]
+    },
+    {
+      "id": "Fmtxbm086ice",
+      "hash": "nv23br",
+      "sondagemNum": "SP-02",
+      "obra": "ECOMP RIBAS DO RIO PARDO",
+      "unidadeOperacional": "ECOMP RIBAS DO RIO PARDO",
+      "cliente": "ECQ INDUSTRIAL",
+      "local": "RIBAS DO RIO PARDO-MS",
+      "dataInicio": "02/02/2026",
+      "dataFim": "02/02/2026",
+      "cota": "100",
+      "datum": "SIRGAS2000",
+      "zonaUTM": "22S",
+      "lat": -20.717785,
+      "lng": -53.546136,
+      "responsavel": "",
+      "sondador": "",
+      "desenhista": "",
+      "amostrador": {
+        "diamInt": "34.9",
+        "diamExt": "50.8",
+        "peso": "65",
+        "altura": "75"
+      },
+      "metodo": "SPT (NBR 6484)",
+      "equipamento": "",
+      "revestimento": "",
+      "arquivo_ref": "",
+      "obs": "",
+      "agua": [
+        {
+          "data": "",
+          "prof": "0"
+        }
+      ],
+      "camadas": [
+        {
+          "profFinal": 13.45,
+          "tipo": "silte_amarelo",
+          "descricao": "Silte, amarelo claro e amarelo escuro, de mole a duro."
+        }
+      ],
+      "golpes": [
+        {
+          "prof": 1,
+          "g1": "2",
+          "g2": "2",
+          "g3": "2"
+        },
+        {
+          "prof": 2,
+          "g1": "2",
+          "g2": "2",
+          "g3": "2"
+        },
+        {
+          "prof": 3,
+          "g1": "2",
+          "g2": "2",
+          "g3": "2"
+        },
+        {
+          "prof": 4,
+          "g1": "2",
+          "g2": "2",
+          "g3": "2"
+        },
+        {
+          "prof": 5,
+          "g1": "2",
+          "g2": "2",
+          "g3": "2"
+        },
+        {
+          "prof": 6,
+          "g1": "3",
+          "g2": "3",
+          "g3": "3"
+        },
+        {
+          "prof": 7,
+          "g1": "4",
+          "g2": "4",
+          "g3": "4"
+        },
+        {
+          "prof": 8,
+          "g1": "5",
+          "g2": "5",
+          "g3": "5"
+        },
+        {
+          "prof": 9,
+          "g1": "4",
+          "g2": "4",
+          "g3": "4"
+        },
+        {
+          "prof": 10,
+          "g1": "4",
+          "g2": "5",
+          "g3": "5"
+        },
+        {
+          "prof": 11,
+          "g1": "8",
+          "g2": "8",
+          "g3": "9"
+        },
+        {
+          "prof": 12,
+          "g1": "10",
+          "g2": "10",
+          "g3": "12"
+        },
+        {
+          "prof": 13,
+          "g1": "15",
+          "g2": "18",
+          "g3": "19"
+        }
+      ]
+    },
+    {
+      "id": "Fmtxbne3ed5n",
+      "hash": "16d97j0",
+      "sondagemNum": "SP-03",
+      "obra": "ECOMP RIBAS DO RIO PARDO",
+      "unidadeOperacional": "ECOMP RIBAS DO RIO PARDO",
+      "cliente": "ECQ INDUSTRIAL",
+      "local": "RIBAS DO RIO PARDO-MS",
+      "dataInicio": "02/02/2026",
+      "dataFim": "02/02/2026",
+      "cota": "100",
+      "datum": "SIRGAS2000",
+      "zonaUTM": "22S",
+      "lat": -20.717791,
+      "lng": -53.546309,
+      "responsavel": "",
+      "sondador": "",
+      "desenhista": "",
+      "amostrador": {
+        "diamInt": "34.9",
+        "diamExt": "50.8",
+        "peso": "65",
+        "altura": "75"
+      },
+      "metodo": "SPT (NBR 6484)",
+      "equipamento": "",
+      "revestimento": "",
+      "arquivo_ref": "",
+      "obs": "",
+      "agua": [
+        {
+          "data": "",
+          "prof": "15"
+        }
+      ],
+      "camadas": [
+        {
+          "profFinal": 14.3,
+          "tipo": "areia",
+          "descricao": "Areia siltosa com seixo rolado, amarela clara e amarela escura, de fofa a muito compacta."
+        }
+      ],
+      "golpes": [
+        {
+          "prof": 1,
+          "g1": "8",
+          "g2": "3",
+          "g3": "1"
+        },
+        {
+          "prof": 2,
+          "g1": "1",
+          "g2": "1",
+          "g3": "1"
+        },
+        {
+          "prof": 3,
+          "g1": "2",
+          "g2": "2",
+          "g3": "1"
+        },
+        {
+          "prof": 4,
+          "g1": "2",
+          "g2": "2",
+          "g3": "2"
+        },
+        {
+          "prof": 5,
+          "g1": "2",
+          "g2": "2",
+          "g3": "2"
+        },
+        {
+          "prof": 6,
+          "g1": "2",
+          "g2": "2",
+          "g3": "2"
+        },
+        {
+          "prof": 7,
+          "g1": "2",
+          "g2": "2",
+          "g3": "2"
+        },
+        {
+          "prof": 8,
+          "g1": "3",
+          "g2": "3",
+          "g3": "3"
+        },
+        {
+          "prof": 9,
+          "g1": "3",
+          "g2": "3",
+          "g3": "3"
+        },
+        {
+          "prof": 10,
+          "g1": "3",
+          "g2": "3",
+          "g3": "3"
+        },
+        {
+          "prof": 11,
+          "g1": "5",
+          "g2": "5",
+          "g3": "5"
+        },
+        {
+          "prof": 12,
+          "g1": "8",
+          "g2": "10",
+          "g3": "10"
+        },
+        {
+          "prof": 13,
+          "g1": "8",
+          "g2": "8",
+          "g3": "9"
+        },
+        {
+          "prof": 14,
+          "g1": "20",
+          "g2": "21",
+          "g3": "20"
         }
       ]
     }

@@ -462,6 +462,11 @@ table.edit-tbl input:focus,table.edit-tbl select:focus{outline:none;border-color
 .info-tbl td:last-child{border-right:none;}
 .info-tbl .lbl{font-family:var(--bo-mono);font-size:8.5px;letter-spacing:.7px;text-transform:uppercase;color:var(--bo-muted);display:block;margin-bottom:2px;}
 .info-tbl .val{font-weight:700;}
+/* link pro arquivo de origem do boletim (fica na pasta Boletins, ao lado do .html) */
+.boletim-arquivo-origem{padding:8px 14px;font-size:11px;border-bottom:1px solid var(--bo-border);
+  display:flex;align-items:center;gap:6px;}
+.boletim-arquivo-origem a{color:var(--bo-accent, #a35a2a);text-decoration:none;font-weight:700;}
+.boletim-arquivo-origem a:hover{text-decoration:underline;}
 
 .boletim-body{padding:18px 18px 6px;overflow-x:auto;}
 .track-wrap{display:flex;gap:0;min-width:680px;}
@@ -583,7 +588,6 @@ table.edit-tbl input:focus,table.edit-tbl select:focus{outline:none;border-color
   <button class="tbtn" id="btn-save-project" title="Salva o estudo deste projeto num arquivo: áreas/linhas, blocos interpolados, superfícies topográficas, perfis, rasters e furos interpolados. Não inclui os furos do banco principal — esses são publicados à parte via furos.json">💾 Salvar Projeto</button>
   <button class="tbtn" id="btn-export-csv">⇩ CSV</button>
   <div class="sep"></div>
-  <select class="tsel" id="sel-crs" title="Zona UTM usada apenas para exibição/CSV"></select>
   <select class="tsel" id="sel-base">
     <option value="osm">Mapa (OSM)</option>
     <option value="sat">Satélite (Esri)</option>
@@ -796,7 +800,11 @@ table.edit-tbl input:focus,table.edit-tbl select:focus{outline:none;border-color
           <div class="field"><label>Método</label><input id="bo-f-metodo" type="text" placeholder="SPT (NBR 6484)"></div>
           <div class="field"><label>Equipamento</label><input id="bo-f-equip" type="text"></div>
           <div class="field"><label>Revestimento / diâmetro</label><input id="bo-f-revest" type="text"></div>
-          <div class="field full"><label>Arquivo original (nome/link)</label><input id="bo-f-arq" type="text"></div>
+          <div class="field full">
+            <label>Arquivo de origem do boletim</label>
+            <input id="bo-f-arq" type="text" placeholder="Ex: SP-01.pdf">
+            <span class="hint" style="display:block;margin-top:3px;">Só o nome do arquivo — ele deve estar na pasta <b>Boletins</b>, na raiz do projeto, ao lado deste .html</span>
+          </div>
         </div>
       </div>
 
@@ -1045,7 +1053,10 @@ let shapes = [];
 let markers = {};
 let shapeLayers = {};
 let selected = null;
-let crsZone = 23;
+// fuso UTM calculado automaticamente a partir da longitude de cada ponto (fórmula padrão:
+// faixas de 6° de longitude, fuso 1 começa em -180°) — dispensa selecionar um fuso fixo na
+// tela; cada furo/coordenada usa o fuso que realmente corresponde à sua posição
+function utmZoneFromLng(lng){ return Math.floor((lng + 180) / 6) + 1; }
 let editingFuroId = null;
 
 /* ══════════════════════════════════════════════════════════════
@@ -1306,14 +1317,6 @@ document.getElementById('sel-labels').addEventListener('change', e=>{
 updateLabelsVisibility();
 
 const drawnItems = new L.FeatureGroup().addTo(map);
-
-const selCrs = document.getElementById('sel-crs');
-for(let z=17; z<=25; z++){
-  const o=document.createElement('option'); o.value=z; o.textContent='SIRGAS2000 / UTM '+z+'S';
-  if(z===23) o.selected=true;
-  selCrs.appendChild(o);
-}
-selCrs.addEventListener('change', ()=>{ crsZone = parseInt(selCrs.value); renderFuroList(); if(selected&&selected.kind==='furo') openFuroPanel(selected.id); });
 
 // zona UTM própria do editor de localização do furo (independente da zona de exibição global)
 const boZoneSel = document.getElementById('bo-f-utm-zone-in');
@@ -1770,20 +1773,14 @@ function profFinal(f){
 
 function drawFuro(f){
   const cls = 'furo-pin'+(f._interpolado?' interp':'');
-  const podeMover = f._interpolado || isAdmin();
   const icon = L.divIcon({className:'leaflet-div-icon', html:`<div class="${cls}" id="pin-${f.id}"></div>`, iconSize:[16,16], iconAnchor:[8,8]});
-  const m = L.marker([f.lat,f.lng], {icon, draggable:podeMover}).addTo(map);
+  const m = L.marker([f.lat,f.lng], {icon, draggable:false}).addTo(map);
   m.bindTooltip(f.ident.sondagemNum || '(sem nome)', {permanent:true, direction:'right', offset:[6,0], className:'furo-label'});
   m.on('click', ()=>{
     if(interpSelectMode){ toggleInterpFuroSelect(f.id); return; }
     if(topoSelectMode){ toggleTopoSelect('furo:'+f.id); return; }
     if(exportSelectMode){ toggleExportFuroSelect(f.id); return; }
     selectFuro(f.id);
-  });
-  m.on('dragend', ()=>{
-    const p=m.getLatLng(); f.lat=p.lat; f.lng=p.lng;
-    if(!f._interpolado) markMasterDirty(); else scheduleSave();
-    renderFuroList(); if(selected&&selected.id===f.id) openFuroPanel(f.id);
   });
   markers[f.id]=m;
 }
@@ -2037,11 +2034,11 @@ function prepareBoletimState(f){
     .map(g=>{ const g1=+g.g1||0, g2=+g.g2||0, g3=+g.g3||0; return {...g, prof:+g.prof||0, g1, g2, g3, ni:g1+g2, nf:g2+g3}; })
     .sort((a,b)=>a.prof-b.prof);
   const agua = f.agua.filter(a=>a.prof!==''&&a.prof!==undefined&&a.prof!==null).map(a=>({...a, prof:+a.prof||0}));
-  return {ident:f.ident, agua, camadas, golpes};
+  return {ident:f.ident, agua, camadas, golpes, arquivo_ref:f.arquivo_ref||''};
 }
 
 function renderFuroBoletimHtml(state){
-  const { ident, agua, camadas, golpes } = state;
+  const { ident, agua, camadas, golpes, arquivo_ref } = state;
 
   const maxDepthRaw = Math.max(
     1,
@@ -2224,6 +2221,7 @@ function renderFuroBoletimHtml(state){
           <td><span class="lbl">N.A. leituras</span><span class="val" style="font-weight:400;font-size:11px;">${aguaLegend}</span></td>
         </tr>
       </table>
+      ${arquivo_ref ? `<div class="boletim-arquivo-origem">📎 <b>Arquivo de origem:</b> <a href="./Boletins/${encodeURIComponent(arquivo_ref)}" target="_blank" rel="noopener">${esc(arquivo_ref)}</a></div>` : ''}
 
       <div class="boletim-body">
         <div class="track-wrap">
@@ -2397,10 +2395,10 @@ function openBoletimEditor(id){
 
   set('bo-f-lat', f.lat.toFixed(6));
   set('bo-f-lng', f.lng.toFixed(6));
-  const uAtual = toUTM(f.lat, f.lng, crsZone);
+  const uAtual = toUTM(f.lat, f.lng, utmZoneFromLng(f.lng));
   set('bo-f-utm-e-in', uAtual.e.toFixed(2));
   set('bo-f-utm-n-in', uAtual.n.toFixed(2));
-  document.getElementById('bo-f-utm-zone-in').value = crsZone;
+  document.getElementById('bo-f-utm-zone-in').value = utmZoneFromLng(f.lng);
   document.getElementById('bo-f-utm-datum-in').value = 'SIRGAS2000';
   setLocMode('latlng');
 
@@ -2435,10 +2433,10 @@ function cancelBoletimEditor(){
 document.addEventListener('keydown', e=>{ if(e.key==='Escape' && document.getElementById('bo-editor-overlay').classList.contains('open')) cancelBoletimEditor(); });
 document.getElementById('bo-fill-utm').addEventListener('click', ()=>{
   const f = furos.find(x=>x.id===editingFuroId); if(!f) return;
-  const u = toUTM(f.lat,f.lng,crsZone);
+  const u = toUTM(f.lat,f.lng,utmZoneFromLng(f.lng));
   document.getElementById('bo-f-coord-e').value = u.e.toFixed(2);
   document.getElementById('bo-f-coord-n').value = u.n.toFixed(2);
-  document.getElementById('bo-f-zona-utm').value = crsZone+'S';
+  document.getElementById('bo-f-zona-utm').value = utmZoneFromLng(f.lng)+'S';
 });
 
 function saveBoletimEditor(){
@@ -2865,10 +2863,10 @@ map.on('click', e=>{
   const setv=(id,v)=>{ const el=document.getElementById(id); if(el) el.value=v; };
   setv('bo-f-lat', e.latlng.lat.toFixed(6));
   setv('bo-f-lng', e.latlng.lng.toFixed(6));
-  const u = toUTM(e.latlng.lat, e.latlng.lng, crsZone);
+  const u = toUTM(e.latlng.lat, e.latlng.lng, utmZoneFromLng(e.latlng.lng));
   setv('bo-f-utm-e-in', u.e.toFixed(2));
   setv('bo-f-utm-n-in', u.n.toFixed(2));
-  setv('bo-f-utm-zone-in', crsZone);
+  setv('bo-f-utm-zone-in', utmZoneFromLng(e.latlng.lng));
   setv('bo-f-utm-datum-in', 'SIRGAS2000');
   document.getElementById('bo-editor-overlay').classList.add('open');
   document.body.style.overflow='hidden';
@@ -7601,12 +7599,12 @@ document.getElementById('btn-export-csv').onclick=()=>{
   if(furos.length===0){ toast('Nenhum furo para exportar'); return; }
   let csv = 'id;nome;obra;uo;cliente;local;data_inicio;data_fim;lat;lng;utm_e;utm_n;zona_utm;cota;datum;responsavel;sondador;desenhista;metodo;equipamento;nivel_agua;prof_final;camadas;golpes_spt;obs\n';
   furos.forEach(f=>{
-    const u = toUTM(f.lat,f.lng,crsZone);
+    const u = toUTM(f.lat,f.lng,utmZoneFromLng(f.lng));
     const camadasTxt = f.camadas.map(c=>`${c.profFinal}m:${c.descricao}[${c.tipo}]`).join(' | ').replace(/;/g,',');
     const golpesTxt = f.golpes.map(g=>`${g.prof}m(${g.g1}/${g.g2}/${g.g3})`).join(' | ').replace(/;/g,',');
     const naTxt = f.agua.map(r=>`${r.data||'-'}:${r.prof}m`).join(' | ').replace(/;/g,',');
     csv += [f.id,f.ident.sondagemNum,f.ident.obra,f.ident.unidadeOperacional||'',f.ident.cliente,f.ident.local,f.ident.dataInicio,f.ident.dataFim,
-      f.lat.toFixed(6),f.lng.toFixed(6),u.e.toFixed(2),u.n.toFixed(2),crsZone+'S',f.ident.cota,f.ident.datum,
+      f.lat.toFixed(6),f.lng.toFixed(6),u.e.toFixed(2),u.n.toFixed(2),utmZoneFromLng(f.lng)+'S',f.ident.cota,f.ident.datum,
       f.ident.responsavel,f.ident.sondador,f.ident.desenhista,f.metodo,f.equipamento,naTxt,profFinal(f).toFixed(1),
       camadasTxt,golpesTxt,(f.obs||'').replace(/;/g,',').replace(/\n/g,' ')].join(';')+'\n';
   });

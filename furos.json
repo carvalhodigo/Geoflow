@@ -1,1434 +1,11 @@
 {
   "furos": [
     {
-      "id": "Fmtqdwu9wpex",
-      "hash": "e1j248",
-      "sondagemNum": "SV-01",
-      "obra": "Campanha de Sondagens — Terreno Irregular (exemplo avançado)",
-      "cliente": "Incorporadora Vale Verde Ltda.",
-      "local": "São Paulo - SP",
-      "dataInicio": "10/06/25",
-      "dataFim": "10/06/25",
-      "cota": "738.5",
-      "datum": "SIRGAS2000",
-      "zonaUTM": "",
-      "lat": -23.5545,
-      "lng": -46.6295,
-      "responsavel": "Eng. Marcos Villela Pereira",
-      "sondador": "Equipe Sondasolo Ltda.",
-      "desenhista": "Camila R.",
-      "amostrador": {
-        "diamInt": "34.9",
-        "diamExt": "50.8",
-        "peso": "65",
-        "altura": "75"
-      },
-      "metodo": "SPT (NBR 6484)",
-      "equipamento": "Sonda rotativa/percussão sobre esteira",
-      "revestimento": "Ø 2 1/2\" (63,5 mm)",
-      "arquivo_ref": "",
-      "obs": "Furo de exemplo gerado automaticamente para demonstração do GEO·SIG — não representa dados de campo reais. Terreno com relevo e estratigrafia deliberadamente heterogêneos para testes de interpolação.",
-      "agua": [
-        {
-          "data": "10/06/25",
-          "prof": "0.8"
-        }
-      ],
-      "camadas": [
-        {
-          "profFinal": 0.5,
-          "tipo": "aterro",
-          "descricao": "Aterro compactado, silto-argiloso, cor marrom escuro"
-        },
-        {
-          "profFinal": 2.5,
-          "tipo": "argila",
-          "descricao": "Argila orgânica, muito mole, turfosa, cor cinza escuro, odor característico"
-        },
-        {
-          "profFinal": 4,
-          "tipo": "areia",
-          "descricao": "Areia fina, saturada, fofa, cor cinza, lente entre camadas argilosas"
-        },
-        {
-          "profFinal": 7.5,
-          "tipo": "argila",
-          "descricao": "Argila-arenosa, média a rija, cor marrom avermelhado"
-        },
-        {
-          "profFinal": 10.5,
-          "tipo": "areia",
-          "descricao": "Areia média a grossa, compacta, cor cinza esbranquiçado"
-        },
-        {
-          "profFinal": 13,
-          "tipo": "rocha",
-          "descricao": "Impenetrável a percussão — provável topo rochoso"
-        }
-      ],
-      "golpes": [
-        {
-          "prof": 1,
-          "g1": 1,
-          "g2": 1,
-          "g3": 1
-        },
-        {
-          "prof": 2,
-          "g1": 1,
-          "g2": 1,
-          "g3": 1
-        },
-        {
-          "prof": 3,
-          "g1": 2,
-          "g2": 3,
-          "g3": 4
-        },
-        {
-          "prof": 4,
-          "g1": 4,
-          "g2": 5,
-          "g3": 5
-        },
-        {
-          "prof": 5,
-          "g1": 5,
-          "g2": 6,
-          "g3": 6
-        },
-        {
-          "prof": 6,
-          "g1": 4,
-          "g2": 6,
-          "g3": 8
-        },
-        {
-          "prof": 7,
-          "g1": 5,
-          "g2": 8,
-          "g3": 9
-        },
-        {
-          "prof": 8,
-          "g1": 8,
-          "g2": 12,
-          "g3": 13
-        },
-        {
-          "prof": 9,
-          "g1": 9,
-          "g2": 13,
-          "g3": 15
-        },
-        {
-          "prof": 10,
-          "g1": 10,
-          "g2": 14,
-          "g3": 17
-        },
-        {
-          "prof": 11,
-          "g1": 13,
-          "g2": 21,
-          "g3": 24
-        },
-        {
-          "prof": 12,
-          "g1": 15,
-          "g2": 22,
-          "g3": 26
-        },
-        {
-          "prof": 13,
-          "g1": 15,
-          "g2": 23,
-          "g3": 27
-        }
-      ]
-    },
-    {
-      "id": "Fmtqdwu9ynic",
-      "hash": "15m5gm3",
-      "sondagemNum": "SV-02",
-      "obra": "Campanha de Sondagens — Terreno Irregular (exemplo avançado)",
-      "cliente": "Incorporadora Vale Verde Ltda.",
-      "local": "São Paulo - SP",
-      "dataInicio": "10/06/25",
-      "dataFim": "10/06/25",
-      "cota": "741.0",
-      "datum": "SIRGAS2000",
-      "zonaUTM": "",
-      "lat": -23.55441,
-      "lng": -46.628912,
-      "responsavel": "Eng. Marcos Villela Pereira",
-      "sondador": "Equipe Sondasolo Ltda.",
-      "desenhista": "Camila R.",
-      "amostrador": {
-        "diamInt": "34.9",
-        "diamExt": "50.8",
-        "peso": "65",
-        "altura": "75"
-      },
-      "metodo": "SPT (NBR 6484)",
-      "equipamento": "Sonda rotativa/percussão sobre esteira",
-      "revestimento": "Ø 2 1/2\" (63,5 mm)",
-      "arquivo_ref": "",
-      "obs": "Furo de exemplo gerado automaticamente para demonstração do GEO·SIG — não representa dados de campo reais. Terreno com relevo e estratigrafia deliberadamente heterogêneos para testes de interpolação.",
-      "agua": [
-        {
-          "data": "10/06/25",
-          "prof": "1.6"
-        }
-      ],
-      "camadas": [
-        {
-          "profFinal": 1,
-          "tipo": "aterro",
-          "descricao": "Aterro compactado, areno-argiloso, cor marrom escuro"
-        },
-        {
-          "profFinal": 3.2,
-          "tipo": "argila",
-          "descricao": "Argila-arenosa, mole a média, cor cinza escuro"
-        },
-        {
-          "profFinal": 6.5,
-          "tipo": "argila",
-          "descricao": "Argila-arenosa, média a rija, cor marrom avermelhado"
-        },
-        {
-          "profFinal": 9,
-          "tipo": "areia",
-          "descricao": "Areia média, compacidade média, cor cinza esbranquiçado"
-        },
-        {
-          "profFinal": 11.5,
-          "tipo": "rocha",
-          "descricao": "Impenetrável a percussão — provável topo rochoso"
-        }
-      ],
-      "golpes": [
-        {
-          "prof": 1,
-          "g1": 2,
-          "g2": 3,
-          "g3": 3
-        },
-        {
-          "prof": 2,
-          "g1": 2,
-          "g2": 3,
-          "g3": 3
-        },
-        {
-          "prof": 3,
-          "g1": 4,
-          "g2": 6,
-          "g3": 6
-        },
-        {
-          "prof": 4,
-          "g1": 4,
-          "g2": 5,
-          "g3": 6
-        },
-        {
-          "prof": 5,
-          "g1": 5,
-          "g2": 6,
-          "g3": 8
-        },
-        {
-          "prof": 6,
-          "g1": 4,
-          "g2": 7,
-          "g3": 9
-        },
-        {
-          "prof": 7,
-          "g1": 4,
-          "g2": 7,
-          "g3": 9
-        },
-        {
-          "prof": 8,
-          "g1": 6,
-          "g2": 9,
-          "g3": 11
-        },
-        {
-          "prof": 9,
-          "g1": 9,
-          "g2": 12,
-          "g3": 13
-        },
-        {
-          "prof": 10,
-          "g1": 12,
-          "g2": 21,
-          "g3": 25
-        },
-        {
-          "prof": 11,
-          "g1": 15,
-          "g2": 22,
-          "g3": 25
-        }
-      ]
-    },
-    {
-      "id": "Fmtqdwu9zgdc",
-      "hash": "1uec8e",
-      "sondagemNum": "SV-03",
-      "obra": "Campanha de Sondagens — Terreno Irregular (exemplo avançado)",
-      "cliente": "Incorporadora Vale Verde Ltda.",
-      "local": "São Paulo - SP",
-      "dataInicio": "10/06/25",
-      "dataFim": "10/06/25",
-      "cota": "744.2",
-      "datum": "SIRGAS2000",
-      "zonaUTM": "",
-      "lat": -23.554455,
-      "lng": -46.628226,
-      "responsavel": "Eng. Marcos Villela Pereira",
-      "sondador": "Equipe Sondasolo Ltda.",
-      "desenhista": "Camila R.",
-      "amostrador": {
-        "diamInt": "34.9",
-        "diamExt": "50.8",
-        "peso": "65",
-        "altura": "75"
-      },
-      "metodo": "SPT (NBR 6484)",
-      "equipamento": "Sonda rotativa/percussão sobre esteira",
-      "revestimento": "Ø 2 1/2\" (63,5 mm)",
-      "arquivo_ref": "",
-      "obs": "Furo de exemplo gerado automaticamente para demonstração do GEO·SIG — não representa dados de campo reais. Terreno com relevo e estratigrafia deliberadamente heterogêneos para testes de interpolação.",
-      "agua": [
-        {
-          "data": "10/06/25",
-          "prof": "3"
-        }
-      ],
-      "camadas": [
-        {
-          "profFinal": 0.6,
-          "tipo": "aterro",
-          "descricao": "Aterro compactado, silto-arenoso, cor marrom"
-        },
-        {
-          "profFinal": 2,
-          "tipo": "argila",
-          "descricao": "Argila residual, siltosa, consistência média, cor variegada (marrom/amarelo)"
-        },
-        {
-          "profFinal": 3.5,
-          "tipo": "silte",
-          "descricao": "Silte residual de rocha, micáceo, cor amarelo-avermelhado"
-        },
-        {
-          "profFinal": 5,
-          "tipo": "rocha",
-          "descricao": "Impenetrável a percussão — topo rochoso raso"
-        }
-      ],
-      "golpes": [
-        {
-          "prof": 1,
-          "g1": 2,
-          "g2": 4,
-          "g3": 4
-        },
-        {
-          "prof": 2,
-          "g1": 3,
-          "g2": 5,
-          "g3": 6
-        },
-        {
-          "prof": 3,
-          "g1": 3,
-          "g2": 6,
-          "g3": 7
-        },
-        {
-          "prof": 4,
-          "g1": 14,
-          "g2": 20,
-          "g3": 24
-        },
-        {
-          "prof": 5,
-          "g1": 17,
-          "g2": 23,
-          "g3": 26
-        }
-      ]
-    },
-    {
-      "id": "Fmtqdwu9zu00",
-      "hash": "6j39so",
-      "sondagemNum": "SV-04",
-      "obra": "Campanha de Sondagens — Terreno Irregular (exemplo avançado)",
-      "cliente": "Incorporadora Vale Verde Ltda.",
-      "local": "São Paulo - SP",
-      "dataInicio": "11/06/25",
-      "dataFim": "11/06/25",
-      "cota": "739.8",
-      "datum": "SIRGAS2000",
-      "zonaUTM": "",
-      "lat": -23.553961,
-      "lng": -46.629304,
-      "responsavel": "Eng. Marcos Villela Pereira",
-      "sondador": "Equipe Sondasolo Ltda.",
-      "desenhista": "Camila R.",
-      "amostrador": {
-        "diamInt": "34.9",
-        "diamExt": "50.8",
-        "peso": "65",
-        "altura": "75"
-      },
-      "metodo": "SPT (NBR 6484)",
-      "equipamento": "Sonda rotativa/percussão sobre esteira",
-      "revestimento": "Ø 2 1/2\" (63,5 mm)",
-      "arquivo_ref": "",
-      "obs": "Furo de exemplo gerado automaticamente para demonstração do GEO·SIG — não representa dados de campo reais. Terreno com relevo e estratigrafia deliberadamente heterogêneos para testes de interpolação.",
-      "agua": [
-        {
-          "data": "11/06/25",
-          "prof": "1.9"
-        }
-      ],
-      "camadas": [
-        {
-          "profFinal": 0.9,
-          "tipo": "aterro",
-          "descricao": "Aterro compactado, areno-argiloso, cor marrom escuro"
-        },
-        {
-          "profFinal": 3,
-          "tipo": "argila",
-          "descricao": "Argila-arenosa, mole, cor cinza escuro"
-        },
-        {
-          "profFinal": 6,
-          "tipo": "argila",
-          "descricao": "Argila-arenosa, média a rija, cor marrom avermelhado"
-        },
-        {
-          "profFinal": 8.5,
-          "tipo": "areia",
-          "descricao": "Areia média a compacta, cor cinza esbranquiçado"
-        },
-        {
-          "profFinal": 12,
-          "tipo": "rocha",
-          "descricao": "Impenetrável a percussão — provável topo rochoso"
-        }
-      ],
-      "golpes": [
-        {
-          "prof": 1,
-          "g1": 1,
-          "g2": 1,
-          "g3": 1
-        },
-        {
-          "prof": 2,
-          "g1": 1,
-          "g2": 1,
-          "g3": 2
-        },
-        {
-          "prof": 3,
-          "g1": 2,
-          "g2": 3,
-          "g3": 4
-        },
-        {
-          "prof": 4,
-          "g1": 5,
-          "g2": 6,
-          "g3": 7
-        },
-        {
-          "prof": 5,
-          "g1": 5,
-          "g2": 6,
-          "g3": 8
-        },
-        {
-          "prof": 6,
-          "g1": 6,
-          "g2": 8,
-          "g3": 10
-        },
-        {
-          "prof": 7,
-          "g1": 7,
-          "g2": 10,
-          "g3": 11
-        },
-        {
-          "prof": 8,
-          "g1": 7,
-          "g2": 12,
-          "g3": 13
-        },
-        {
-          "prof": 9,
-          "g1": 11,
-          "g2": 19,
-          "g3": 23
-        },
-        {
-          "prof": 10,
-          "g1": 13,
-          "g2": 21,
-          "g3": 24
-        },
-        {
-          "prof": 11,
-          "g1": 16,
-          "g2": 22,
-          "g3": 26
-        },
-        {
-          "prof": 12,
-          "g1": 18,
-          "g2": 23,
-          "g3": 27
-        }
-      ]
-    },
-    {
-      "id": "Fmtqdwua0sea",
-      "hash": "1zm2mj",
-      "sondagemNum": "SV-05",
-      "obra": "Campanha de Sondagens — Terreno Irregular (exemplo avançado)",
-      "cliente": "Incorporadora Vale Verde Ltda.",
-      "local": "São Paulo - SP",
-      "dataInicio": "11/06/25",
-      "dataFim": "11/06/25",
-      "cota": "743.0",
-      "datum": "SIRGAS2000",
-      "zonaUTM": "23S",
-      "lat": -23.554006,
-      "lng": -46.628618,
-      "responsavel": "Eng. Marcos Villela Pereira",
-      "sondador": "Equipe Sondasolo Ltda.",
-      "desenhista": "Camila R.",
-      "amostrador": {
-        "diamInt": "34.9",
-        "diamExt": "50.8",
-        "peso": "65",
-        "altura": "75"
-      },
-      "metodo": "SPT (NBR 6484)",
-      "equipamento": "Sonda rotativa/percussão sobre esteira",
-      "revestimento": "Ø 2 1/2\" (63,5 mm)",
-      "arquivo_ref": "",
-      "obs": "Furo de exemplo gerado automaticamente para demonstração do GEO·SIG — não representa dados de campo reais. Terreno com relevo e estratigrafia deliberadamente heterogêneos para testes de interpolação.",
-      "agua": [
-        {
-          "data": "11/06/25",
-          "prof": "1.1"
-        }
-      ],
-      "camadas": [
-        {
-          "profFinal": 1.2,
-          "tipo": "aterro",
-          "descricao": "Aterro compactado, silto-argiloso, cor marrom escuro"
-        },
-        {
-          "profFinal": 4.5,
-          "tipo": "argila",
-          "descricao": "Argila orgânica, muito mole, cor cinza escuro, indícios de matéria orgânica"
-        },
-        {
-          "profFinal": 8,
-          "tipo": "argila",
-          "descricao": "Argila-arenosa, mole a média, cor cinza"
-        },
-        {
-          "profFinal": 11,
-          "tipo": "areia",
-          "descricao": "Areia fina a média, siltosa, fofa, cor cinza — provável preenchimento de paleocanal"
-        },
-        {
-          "profFinal": 15,
-          "tipo": "areia",
-          "descricao": "Areia média a grossa, compacidade média a compacta, cor cinza esbranquiçado"
-        },
-        {
-          "profFinal": 19.5,
-          "tipo": "rocha",
-          "descricao": "Impenetrável a percussão — topo rochoso profundo (paleocanal preenchido)"
-        }
-      ],
-      "golpes": [
-        {
-          "prof": 1,
-          "g1": "2",
-          "g2": "2",
-          "g3": "2"
-        },
-        {
-          "prof": 2,
-          "g1": "1",
-          "g2": "1",
-          "g3": "1"
-        },
-        {
-          "prof": 3,
-          "g1": "1",
-          "g2": "1",
-          "g3": "1"
-        },
-        {
-          "prof": 4,
-          "g1": "1",
-          "g2": "1",
-          "g3": "1"
-        },
-        {
-          "prof": 5,
-          "g1": "2",
-          "g2": "3",
-          "g3": "3"
-        },
-        {
-          "prof": 6,
-          "g1": "2",
-          "g2": "3",
-          "g3": "4"
-        },
-        {
-          "prof": 7,
-          "g1": "2",
-          "g2": "4",
-          "g3": "5"
-        },
-        {
-          "prof": 8,
-          "g1": "5",
-          "g2": "6",
-          "g3": "6"
-        },
-        {
-          "prof": 9,
-          "g1": "2",
-          "g2": "3",
-          "g3": "4"
-        },
-        {
-          "prof": 10,
-          "g1": "3",
-          "g2": "4",
-          "g3": "4"
-        },
-        {
-          "prof": 11,
-          "g1": "4",
-          "g2": "5",
-          "g3": "5"
-        },
-        {
-          "prof": 12,
-          "g1": "7",
-          "g2": "9",
-          "g3": "10"
-        },
-        {
-          "prof": 13,
-          "g1": "7",
-          "g2": "11",
-          "g3": "12"
-        },
-        {
-          "prof": 14,
-          "g1": "9",
-          "g2": "12",
-          "g3": "14"
-        },
-        {
-          "prof": 15,
-          "g1": "7",
-          "g2": "12",
-          "g3": "15"
-        },
-        {
-          "prof": 16,
-          "g1": "11",
-          "g2": "20",
-          "g3": "24"
-        },
-        {
-          "prof": 17,
-          "g1": "17",
-          "g2": "21",
-          "g3": "24"
-        },
-        {
-          "prof": 18,
-          "g1": "15",
-          "g2": "22",
-          "g3": "25"
-        },
-        {
-          "prof": 19,
-          "g1": "18",
-          "g2": "23",
-          "g3": "27"
-        }
-      ]
-    },
-    {
-      "id": "Fmtqdwua0q8m",
-      "hash": "9ugjp2",
-      "sondagemNum": "SV-06",
-      "obra": "Campanha de Sondagens — Terreno Irregular (exemplo avançado)",
-      "cliente": "Incorporadora Vale Verde Ltda.",
-      "local": "São Paulo - SP",
-      "dataInicio": "11/06/25",
-      "dataFim": "11/06/25",
-      "cota": "747.5",
-      "datum": "SIRGAS2000",
-      "zonaUTM": "",
-      "lat": -23.554051,
-      "lng": -46.627932,
-      "responsavel": "Eng. Marcos Villela Pereira",
-      "sondador": "Equipe Sondasolo Ltda.",
-      "desenhista": "Camila R.",
-      "amostrador": {
-        "diamInt": "34.9",
-        "diamExt": "50.8",
-        "peso": "65",
-        "altura": "75"
-      },
-      "metodo": "SPT (NBR 6484)",
-      "equipamento": "Sonda rotativa/percussão sobre esteira",
-      "revestimento": "Ø 2 1/2\" (63,5 mm)",
-      "arquivo_ref": "",
-      "obs": "Furo de exemplo gerado automaticamente para demonstração do GEO·SIG — não representa dados de campo reais. Terreno com relevo e estratigrafia deliberadamente heterogêneos para testes de interpolação.",
-      "agua": [
-        {
-          "data": "11/06/25",
-          "prof": "2.8"
-        }
-      ],
-      "camadas": [
-        {
-          "profFinal": 0.4,
-          "tipo": "aterro",
-          "descricao": "Aterro delgado, silto-arenoso, cor marrom"
-        },
-        {
-          "profFinal": 1.8,
-          "tipo": "silte",
-          "descricao": "Silte residual de rocha, cor amarelo-avermelhado, micáceo"
-        },
-        {
-          "profFinal": 3.2,
-          "tipo": "rocha",
-          "descricao": "Impenetrável a percussão — topo rochoso raso (afloramento próximo)"
-        }
-      ],
-      "golpes": [
-        {
-          "prof": 1,
-          "g1": 4,
-          "g2": 6,
-          "g3": 6
-        },
-        {
-          "prof": 2,
-          "g1": 12,
-          "g2": 20,
-          "g3": 24
-        },
-        {
-          "prof": 3,
-          "g1": 15,
-          "g2": 23,
-          "g3": 27
-        }
-      ]
-    },
-    {
-      "id": "Fmtqdwua0q9t",
-      "hash": "5zr8cd",
-      "sondagemNum": "SV-07",
-      "obra": "Campanha de Sondagens — Terreno Irregular (exemplo avançado)",
-      "cliente": "Incorporadora Vale Verde Ltda.",
-      "local": "São Paulo - SP",
-      "dataInicio": "12/06/25",
-      "dataFim": "12/06/25",
-      "cota": "741.2",
-      "datum": "SIRGAS2000",
-      "zonaUTM": "",
-      "lat": -23.553512,
-      "lng": -46.629402,
-      "responsavel": "Eng. Marcos Villela Pereira",
-      "sondador": "Equipe Sondasolo Ltda.",
-      "desenhista": "Camila R.",
-      "amostrador": {
-        "diamInt": "34.9",
-        "diamExt": "50.8",
-        "peso": "65",
-        "altura": "75"
-      },
-      "metodo": "SPT (NBR 6484)",
-      "equipamento": "Sonda rotativa/percussão sobre esteira",
-      "revestimento": "Ø 2 1/2\" (63,5 mm)",
-      "arquivo_ref": "",
-      "obs": "Furo de exemplo gerado automaticamente para demonstração do GEO·SIG — não representa dados de campo reais. Terreno com relevo e estratigrafia deliberadamente heterogêneos para testes de interpolação.",
-      "agua": [
-        {
-          "data": "12/06/25",
-          "prof": "2"
-        }
-      ],
-      "camadas": [
-        {
-          "profFinal": 1,
-          "tipo": "aterro",
-          "descricao": "Aterro compactado, areno-argiloso, cor marrom escuro"
-        },
-        {
-          "profFinal": 2.8,
-          "tipo": "argila",
-          "descricao": "Argila-arenosa, mole, cor cinza escuro"
-        },
-        {
-          "profFinal": 5.5,
-          "tipo": "silte",
-          "descricao": "Silte arenoso, consistência média, cor cinza-amarelado"
-        },
-        {
-          "profFinal": 8,
-          "tipo": "argila",
-          "descricao": "Argila-arenosa, rija, cor marrom avermelhado"
-        },
-        {
-          "profFinal": 10.5,
-          "tipo": "areia",
-          "descricao": "Areia média a compacta, cor cinza esbranquiçado"
-        },
-        {
-          "profFinal": 13.5,
-          "tipo": "rocha",
-          "descricao": "Impenetrável a percussão — provável topo rochoso"
-        }
-      ],
-      "golpes": [
-        {
-          "prof": 1,
-          "g1": 2,
-          "g2": 3,
-          "g3": 3
-        },
-        {
-          "prof": 2,
-          "g1": 1,
-          "g2": 2,
-          "g3": 2
-        },
-        {
-          "prof": 3,
-          "g1": 2,
-          "g2": 3,
-          "g3": 4
-        },
-        {
-          "prof": 4,
-          "g1": 3,
-          "g2": 5,
-          "g3": 5
-        },
-        {
-          "prof": 5,
-          "g1": 4,
-          "g2": 5,
-          "g3": 6
-        },
-        {
-          "prof": 6,
-          "g1": 4,
-          "g2": 5,
-          "g3": 5
-        },
-        {
-          "prof": 7,
-          "g1": 6,
-          "g2": 7,
-          "g3": 8
-        },
-        {
-          "prof": 8,
-          "g1": 6,
-          "g2": 8,
-          "g3": 9
-        },
-        {
-          "prof": 9,
-          "g1": 6,
-          "g2": 9,
-          "g3": 11
-        },
-        {
-          "prof": 10,
-          "g1": 9,
-          "g2": 12,
-          "g3": 14
-        },
-        {
-          "prof": 11,
-          "g1": 12,
-          "g2": 20,
-          "g3": 24
-        },
-        {
-          "prof": 12,
-          "g1": 14,
-          "g2": 22,
-          "g3": 25
-        },
-        {
-          "prof": 13,
-          "g1": 13,
-          "g2": 22,
-          "g3": 26
-        }
-      ]
-    },
-    {
-      "id": "Fmtqdwua1d95",
-      "hash": "xkdm8p",
-      "sondagemNum": "SV-08",
-      "obra": "Campanha de Sondagens — Terreno Irregular (exemplo avançado)",
-      "cliente": "Incorporadora Vale Verde Ltda.",
-      "local": "São Paulo - SP",
-      "dataInicio": "12/06/25",
-      "dataFim": "12/06/25",
-      "cota": "744.8",
-      "datum": "SIRGAS2000",
-      "zonaUTM": "",
-      "lat": -23.553422,
-      "lng": -46.628765,
-      "responsavel": "Eng. Marcos Villela Pereira",
-      "sondador": "Equipe Sondasolo Ltda.",
-      "desenhista": "Camila R.",
-      "amostrador": {
-        "diamInt": "34.9",
-        "diamExt": "50.8",
-        "peso": "65",
-        "altura": "75"
-      },
-      "metodo": "SPT (NBR 6484)",
-      "equipamento": "Sonda rotativa/percussão sobre esteira",
-      "revestimento": "Ø 2 1/2\" (63,5 mm)",
-      "arquivo_ref": "",
-      "obs": "Furo de exemplo gerado automaticamente para demonstração do GEO·SIG — não representa dados de campo reais. Terreno com relevo e estratigrafia deliberadamente heterogêneos para testes de interpolação.",
-      "agua": [
-        {
-          "data": "12/06/25",
-          "prof": "2.3"
-        }
-      ],
-      "camadas": [
-        {
-          "profFinal": 1.1,
-          "tipo": "aterro",
-          "descricao": "Aterro compactado, areno-argiloso, cor marrom escuro"
-        },
-        {
-          "profFinal": 3.5,
-          "tipo": "argila",
-          "descricao": "Argila-arenosa, mole a média, cor cinza escuro"
-        },
-        {
-          "profFinal": 6.8,
-          "tipo": "argila",
-          "descricao": "Argila-arenosa, média a rija, cor marrom avermelhado"
-        },
-        {
-          "profFinal": 9.5,
-          "tipo": "areia",
-          "descricao": "Areia média, compacidade média a compacta, cor cinza esbranquiçado"
-        },
-        {
-          "profFinal": 13,
-          "tipo": "rocha",
-          "descricao": "Impenetrável a percussão — provável topo rochoso"
-        }
-      ],
-      "golpes": [
-        {
-          "prof": 1,
-          "g1": 2,
-          "g2": 3,
-          "g3": 3
-        },
-        {
-          "prof": 2,
-          "g1": 2,
-          "g2": 3,
-          "g3": 4
-        },
-        {
-          "prof": 3,
-          "g1": 3,
-          "g2": 5,
-          "g3": 5
-        },
-        {
-          "prof": 4,
-          "g1": 3,
-          "g2": 5,
-          "g3": 6
-        },
-        {
-          "prof": 5,
-          "g1": 4,
-          "g2": 6,
-          "g3": 6
-        },
-        {
-          "prof": 6,
-          "g1": 5,
-          "g2": 7,
-          "g3": 9
-        },
-        {
-          "prof": 7,
-          "g1": 6,
-          "g2": 8,
-          "g3": 9
-        },
-        {
-          "prof": 8,
-          "g1": 7,
-          "g2": 10,
-          "g3": 12
-        },
-        {
-          "prof": 9,
-          "g1": 7,
-          "g2": 12,
-          "g3": 14
-        },
-        {
-          "prof": 10,
-          "g1": 11,
-          "g2": 19,
-          "g3": 23
-        },
-        {
-          "prof": 11,
-          "g1": 15,
-          "g2": 21,
-          "g3": 24
-        },
-        {
-          "prof": 12,
-          "g1": 15,
-          "g2": 23,
-          "g3": 26
-        },
-        {
-          "prof": 13,
-          "g1": 16,
-          "g2": 23,
-          "g3": 27
-        }
-      ]
-    },
-    {
-      "id": "Fmtqdwua11zq",
-      "hash": "1stqkfn",
-      "sondagemNum": "SV-09",
-      "obra": "Campanha de Sondagens — Terreno Irregular (exemplo avançado)",
-      "cliente": "Incorporadora Vale Verde Ltda.",
-      "local": "São Paulo - SP",
-      "dataInicio": "12/06/25",
-      "dataFim": "12/06/25",
-      "cota": "748.0",
-      "datum": "SIRGAS2000",
-      "zonaUTM": "",
-      "lat": -23.553467,
-      "lng": -46.628128,
-      "responsavel": "Eng. Marcos Villela Pereira",
-      "sondador": "Equipe Sondasolo Ltda.",
-      "desenhista": "Camila R.",
-      "amostrador": {
-        "diamInt": "34.9",
-        "diamExt": "50.8",
-        "peso": "65",
-        "altura": "75"
-      },
-      "metodo": "SPT (NBR 6484)",
-      "equipamento": "Sonda rotativa/percussão sobre esteira",
-      "revestimento": "Ø 2 1/2\" (63,5 mm)",
-      "arquivo_ref": "",
-      "obs": "Furo de exemplo gerado automaticamente para demonstração do GEO·SIG — não representa dados de campo reais. Terreno com relevo e estratigrafia deliberadamente heterogêneos para testes de interpolação.",
-      "agua": [
-        {
-          "data": "12/06/25",
-          "prof": "3.5"
-        }
-      ],
-      "camadas": [
-        {
-          "profFinal": 0.5,
-          "tipo": "aterro",
-          "descricao": "Aterro delgado, silto-arenoso, cor marrom"
-        },
-        {
-          "profFinal": 1.5,
-          "tipo": "silte",
-          "descricao": "Silte residual, micáceo, cor amarelo-avermelhado"
-        },
-        {
-          "profFinal": 2.5,
-          "tipo": "argila",
-          "descricao": "Argila residual, siltosa, consistência média, cor variegada"
-        },
-        {
-          "profFinal": 4,
-          "tipo": "rocha",
-          "descricao": "Impenetrável a percussão — topo rochoso raso"
-        }
-      ],
-      "golpes": [
-        {
-          "prof": 1,
-          "g1": 4,
-          "g2": 6,
-          "g3": 7
-        },
-        {
-          "prof": 2,
-          "g1": 2,
-          "g2": 3,
-          "g3": 4
-        },
-        {
-          "prof": 3,
-          "g1": 16,
-          "g2": 21,
-          "g3": 25
-        },
-        {
-          "prof": 4,
-          "g1": 14,
-          "g2": 23,
-          "g3": 27
-        }
-      ]
-    },
-    {
-      "id": "Fmtqdwua2sgc",
-      "hash": "nszq05",
-      "sondagemNum": "SV-10",
-      "obra": "Campanha de Sondagens — Terreno Irregular (exemplo avançado)",
-      "cliente": "Incorporadora Vale Verde Ltda.",
-      "local": "São Paulo - SP",
-      "dataInicio": "13/06/25",
-      "dataFim": "13/06/25",
-      "cota": "743.5",
-      "datum": "SIRGAS2000",
-      "zonaUTM": "",
-      "lat": -23.553242,
-      "lng": -46.629059,
-      "responsavel": "Eng. Marcos Villela Pereira",
-      "sondador": "Equipe Sondasolo Ltda.",
-      "desenhista": "Camila R.",
-      "amostrador": {
-        "diamInt": "34.9",
-        "diamExt": "50.8",
-        "peso": "65",
-        "altura": "75"
-      },
-      "metodo": "SPT (NBR 6484)",
-      "equipamento": "Sonda rotativa/percussão sobre esteira",
-      "revestimento": "Ø 2 1/2\" (63,5 mm)",
-      "arquivo_ref": "",
-      "obs": "Furo de exemplo gerado automaticamente para demonstração do GEO·SIG — não representa dados de campo reais. Terreno com relevo e estratigrafia deliberadamente heterogêneos para testes de interpolação.",
-      "agua": [
-        {
-          "data": "13/06/25",
-          "prof": "4.2"
-        }
-      ],
-      "camadas": [
-        {
-          "profFinal": 3.5,
-          "tipo": "aterro",
-          "descricao": "Aterro heterogêneo antigo, entulho e material argiloso, compacidade variável, cor variegada"
-        },
-        {
-          "profFinal": 5,
-          "tipo": "argila",
-          "descricao": "Argila-arenosa, mole, compressível sob o aterro, cor cinza escuro"
-        },
-        {
-          "profFinal": 8,
-          "tipo": "argila",
-          "descricao": "Argila-arenosa, média a rija, cor marrom avermelhado"
-        },
-        {
-          "profFinal": 10.5,
-          "tipo": "areia",
-          "descricao": "Areia média, compacidade média, cor cinza esbranquiçado"
-        },
-        {
-          "profFinal": 14,
-          "tipo": "rocha",
-          "descricao": "Impenetrável a percussão — provável topo rochoso"
-        }
-      ],
-      "golpes": [
-        {
-          "prof": 1,
-          "g1": 1,
-          "g2": 2,
-          "g3": 3
-        },
-        {
-          "prof": 2,
-          "g1": 2,
-          "g2": 3,
-          "g3": 3
-        },
-        {
-          "prof": 3,
-          "g1": 4,
-          "g2": 5,
-          "g3": 5
-        },
-        {
-          "prof": 4,
-          "g1": 1,
-          "g2": 1,
-          "g3": 2
-        },
-        {
-          "prof": 5,
-          "g1": 1,
-          "g2": 2,
-          "g3": 3
-        },
-        {
-          "prof": 6,
-          "g1": 3,
-          "g2": 5,
-          "g3": 6
-        },
-        {
-          "prof": 7,
-          "g1": 5,
-          "g2": 7,
-          "g3": 9
-        },
-        {
-          "prof": 8,
-          "g1": 7,
-          "g2": 9,
-          "g3": 10
-        },
-        {
-          "prof": 9,
-          "g1": 6,
-          "g2": 8,
-          "g3": 9
-        },
-        {
-          "prof": 10,
-          "g1": 7,
-          "g2": 11,
-          "g3": 12
-        },
-        {
-          "prof": 11,
-          "g1": 11,
-          "g2": 19,
-          "g3": 23
-        },
-        {
-          "prof": 12,
-          "g1": 14,
-          "g2": 21,
-          "g3": 24
-        },
-        {
-          "prof": 13,
-          "g1": 13,
-          "g2": 21,
-          "g3": 25
-        },
-        {
-          "prof": 14,
-          "g1": 15,
-          "g2": 23,
-          "g3": 27
-        }
-      ]
-    },
-    {
-      "id": "Fmtqdwua26rc",
-      "hash": "zuo0ur",
-      "sondagemNum": "SV-11",
-      "obra": "Campanha de Sondagens — Terreno Irregular (exemplo avançado)",
-      "cliente": "Incorporadora Vale Verde Ltda.",
-      "local": "São Paulo - SP",
-      "dataInicio": "13/06/25",
-      "dataFim": "13/06/25",
-      "cota": "746.0",
-      "datum": "SIRGAS2000",
-      "zonaUTM": "",
-      "lat": -23.553197,
-      "lng": -46.628422,
-      "responsavel": "Eng. Marcos Villela Pereira",
-      "sondador": "Equipe Sondasolo Ltda.",
-      "desenhista": "Camila R.",
-      "amostrador": {
-        "diamInt": "34.9",
-        "diamExt": "50.8",
-        "peso": "65",
-        "altura": "75"
-      },
-      "metodo": "SPT (NBR 6484)",
-      "equipamento": "Sonda rotativa/percussão sobre esteira",
-      "revestimento": "Ø 2 1/2\" (63,5 mm)",
-      "arquivo_ref": "",
-      "obs": "Furo de exemplo gerado automaticamente para demonstração do GEO·SIG — não representa dados de campo reais. Terreno com relevo e estratigrafia deliberadamente heterogêneos para testes de interpolação.",
-      "agua": [
-        {
-          "data": "13/06/25",
-          "prof": "2.6"
-        }
-      ],
-      "camadas": [
-        {
-          "profFinal": 0.9,
-          "tipo": "aterro",
-          "descricao": "Aterro compactado, areno-argiloso, cor marrom escuro"
-        },
-        {
-          "profFinal": 2.6,
-          "tipo": "argila",
-          "descricao": "Argila-arenosa, mole, cor cinza escuro"
-        },
-        {
-          "profFinal": 5,
-          "tipo": "argila",
-          "descricao": "Argila-arenosa, rija, cor marrom avermelhado"
-        },
-        {
-          "profFinal": 7.5,
-          "tipo": "silte",
-          "descricao": "Silte arenoso, consistência média a rija, cor cinza-amarelado"
-        },
-        {
-          "profFinal": 10,
-          "tipo": "areia",
-          "descricao": "Areia média a compacta, cor cinza esbranquiçado"
-        },
-        {
-          "profFinal": 13.5,
-          "tipo": "rocha",
-          "descricao": "Impenetrável a percussão — provável topo rochoso"
-        }
-      ],
-      "golpes": [
-        {
-          "prof": 1,
-          "g1": 1,
-          "g2": 1,
-          "g3": 2
-        },
-        {
-          "prof": 2,
-          "g1": 1,
-          "g2": 2,
-          "g3": 3
-        },
-        {
-          "prof": 3,
-          "g1": 3,
-          "g2": 5,
-          "g3": 6
-        },
-        {
-          "prof": 4,
-          "g1": 4,
-          "g2": 6,
-          "g3": 7
-        },
-        {
-          "prof": 5,
-          "g1": 4,
-          "g2": 8,
-          "g3": 9
-        },
-        {
-          "prof": 6,
-          "g1": 2,
-          "g2": 4,
-          "g3": 4
-        },
-        {
-          "prof": 7,
-          "g1": 4,
-          "g2": 6,
-          "g3": 6
-        },
-        {
-          "prof": 8,
-          "g1": 6,
-          "g2": 8,
-          "g3": 10
-        },
-        {
-          "prof": 9,
-          "g1": 8,
-          "g2": 11,
-          "g3": 12
-        },
-        {
-          "prof": 10,
-          "g1": 7,
-          "g2": 12,
-          "g3": 15
-        },
-        {
-          "prof": 11,
-          "g1": 13,
-          "g2": 20,
-          "g3": 24
-        },
-        {
-          "prof": 12,
-          "g1": 13,
-          "g2": 22,
-          "g3": 25
-        },
-        {
-          "prof": 13,
-          "g1": 17,
-          "g2": 23,
-          "g3": 26
-        }
-      ]
-    },
-    {
       "id": "Fmtqe1y9xubb",
       "hash": "1wpupx6",
       "sondagemNum": "SPT-01",
       "obra": "PE CAMPO GRANDE UTE V",
+      "unidadeOperacional": "PE CAMPO GRANDE UTE V",
       "cliente": "TBG - Transportadora Brasileira Gasoduto Bolívia-Brasil S.A.",
       "local": "BR-060, sn - Zona Rural - Campo Grande - MS",
       "dataInicio": "11/08/2026",
@@ -1454,8 +31,8 @@
       "obs": "Convertido do relatório técnico de sondagem SPT (Alfa-Geo Curitiba Sondagens, REL 227/2026). Nível d'água: inicial 1,40 m; esgotado 5,80 m; 01 hora após 1,10 m. Limite de sondagem: 13,04 m (impenetrável a percussão, conforme item 5.2.4.2 da NBR 6484:2020). Amostra 12 (12,45 m): 3º segmento com penetração parcial (20 golpes para 9 cm, não representa cravação completa de 15 cm). Amostra 13 (13,45 m) excluída dos golpes: apenas o 1º segmento foi executado (17 golpes para 4 cm), 2º e 3º não executados — sondagem encerrada por impenetrabilidade. ATENÇÃO: o relatório original indica zona UTM 22J, mas essa zona não é compatível com a localização (Campo Grande-MS); as coordenadas foram convertidas usando a zona 21S, que bate com o endereço informado — confirme com o relatório original antes de usar em projeto executivo.",
       "agua": [
         {
-          "data": "11/08/2026",
-          "prof": "1.4"
+          "prof": 1.4,
+          "data": "11/08/2026"
         }
       ],
       "camadas": [
@@ -1570,6 +147,7 @@
       "hash": "14poi4q",
       "sondagemNum": "SPT-02",
       "obra": "PE CAMPO GRANDE UTE V",
+      "unidadeOperacional": "PE CAMPO GRANDE UTE V",
       "cliente": "TBG - Transportadora Brasileira Gasoduto Bolívia-Brasil S.A.",
       "local": "BR-060, sn - Zona Rural - Campo Grande - MS",
       "dataInicio": "11/08/2026",
@@ -1595,8 +173,8 @@
       "obs": "Convertido do relatório técnico de sondagem SPT (Alfa-Geo Curitiba Sondagens, REL 227/2026). Nível d'água: inicial 0,90 m; esgotado 5,80 m; 01 hora após 1,10 m. Limite de sondagem: 13,23 m (impenetrável a percussão, conforme item 5.2.4.2 da NBR 6484:2020). Amostra 13 (13,45 m) excluída dos golpes: 1º segmento completo (21 golpes), 2º com penetração parcial (12 golpes para 8 cm), 3º não executado — sondagem encerrada por impenetrabilidade. ATENÇÃO: o relatório original indica zona UTM 22J, mas essa zona não é compatível com a localização (Campo Grande-MS); as coordenadas foram convertidas usando a zona 21S, que bate com o endereço informado — confirme com o relatório original antes de usar em projeto executivo.",
       "agua": [
         {
-          "data": "11/08/2026",
-          "prof": "0.9"
+          "prof": 0.9,
+          "data": "11/08/2026"
         }
       ],
       "camadas": [
@@ -1711,6 +289,7 @@
       "hash": "13yadcj",
       "sondagemNum": "SPT-03",
       "obra": "PE CAMPO GRANDE UTE V",
+      "unidadeOperacional": "PE CAMPO GRANDE UTE V",
       "cliente": "TBG - Transportadora Brasileira Gasoduto Bolívia-Brasil S.A.",
       "local": "BR-060, sn - Zona Rural - Campo Grande - MS",
       "dataInicio": "11/08/2026",
@@ -1736,8 +315,8 @@
       "obs": "Convertido do relatório técnico de sondagem SPT (Alfa-Geo Curitiba Sondagens, REL 227/2026). Nível d'água: inicial 1,20 m; esgotado 4,50 m; 01 hora após 1,50 m. Limite de sondagem: 14,06 m (impenetrável a percussão, conforme item 5.2.4.2 da NBR 6484:2020). Amostra 14 (14,45 m) excluída dos golpes: apenas o 1º segmento foi executado (19 golpes para 6 cm), 2º e 3º não executados — sondagem encerrada por impenetrabilidade. ATENÇÃO: o relatório original indica zona UTM 22J, mas essa zona não é compatível com a localização (Campo Grande-MS); as coordenadas foram convertidas usando a zona 21S, que bate com o endereço informado — confirme com o relatório original antes de usar em projeto executivo.",
       "agua": [
         {
-          "data": "11/08/2026",
-          "prof": "1.2"
+          "prof": 1.2,
+          "data": "11/08/2026"
         }
       ],
       "camadas": [
@@ -1859,1198 +438,16 @@
       ]
     },
     {
-      "id": "Fmtr7i68dygk",
-      "hash": "bj1ole",
-      "sondagemNum": "SP-01",
-      "obra": "Campanha de Sondagens — Lote Exemplo 100×100 m",
-      "cliente": "Construtora Exemplo Ltda.",
-      "local": "São Paulo - SP",
-      "dataInicio": "10/03/25",
-      "dataFim": "10/03/25",
-      "cota": "742.3",
-      "datum": "SIRGAS2000",
-      "zonaUTM": "",
-      "lat": -23.55052,
-      "lng": -46.633308,
-      "responsavel": "Eng. Marcos Villela Pereira",
-      "sondador": "Equipe Sondasolo Ltda.",
-      "desenhista": "Camila R.",
-      "amostrador": {
-        "diamInt": "34.9",
-        "diamExt": "50.8",
-        "peso": "65",
-        "altura": "75"
-      },
-      "metodo": "SPT (NBR 6484)",
-      "equipamento": "Sonda rotativa/percussão sobre esteira",
-      "revestimento": "Ø 2 1/2\" (63,5 mm)",
-      "arquivo_ref": "",
-      "obs": "Furo de exemplo gerado automaticamente para demonstração do GEO·SIG — não representa dados de campo reais.",
-      "agua": [
-        {
-          "data": "10/03/25",
-          "prof": "1.8"
-        }
-      ],
-      "camadas": [
-        {
-          "profFinal": 1,
-          "tipo": "aterro",
-          "descricao": "Aterro compactado, areno-argiloso, cor marrom escuro, com fragmentos de material orgânico"
-        },
-        {
-          "profFinal": 2.7,
-          "tipo": "argila",
-          "descricao": "Argila-arenosa, mole a média, consistência mole, cor cinza escuro, pouco plástica"
-        },
-        {
-          "profFinal": 5.9,
-          "tipo": "argila",
-          "descricao": "Argila-arenosa, média a rija, consistência rija, cor marrom avermelhado, pouco plástica"
-        },
-        {
-          "profFinal": 8.1,
-          "tipo": "areia",
-          "descricao": "Areia média a grossa, compacidade média a compacta, cor cinza esbranquiçado, pouco siltosa"
-        },
-        {
-          "profFinal": 12,
-          "tipo": "rocha",
-          "descricao": "Impenetrável a percussão — provável topo rochoso"
-        }
-      ],
-      "golpes": [
-        {
-          "prof": 1,
-          "g1": 2,
-          "g2": 3,
-          "g3": 3
-        },
-        {
-          "prof": 2,
-          "g1": 1,
-          "g2": 1,
-          "g3": 2
-        },
-        {
-          "prof": 3,
-          "g1": 2,
-          "g2": 3,
-          "g3": 4
-        },
-        {
-          "prof": 4,
-          "g1": 3,
-          "g2": 5,
-          "g3": 5
-        },
-        {
-          "prof": 5,
-          "g1": 5,
-          "g2": 6,
-          "g3": 8
-        },
-        {
-          "prof": 6,
-          "g1": 4,
-          "g2": 7,
-          "g3": 8
-        },
-        {
-          "prof": 7,
-          "g1": 9,
-          "g2": 11,
-          "g3": 13
-        },
-        {
-          "prof": 8,
-          "g1": 9,
-          "g2": 14,
-          "g3": 17
-        },
-        {
-          "prof": 9,
-          "g1": 13,
-          "g2": 23,
-          "g3": 27
-        },
-        {
-          "prof": 10,
-          "g1": 14,
-          "g2": 23,
-          "g3": 27
-        },
-        {
-          "prof": 11,
-          "g1": 13,
-          "g2": 23,
-          "g3": 27
-        },
-        {
-          "prof": 12,
-          "g1": 17,
-          "g2": 23,
-          "g3": 27
-        }
-      ]
-    },
-    {
-      "id": "Fmtr7i68f4b1",
-      "hash": "w44rrc",
-      "sondagemNum": "SP-02",
-      "obra": "Campanha de Sondagens — Lote Exemplo 100×100 m",
-      "cliente": "Construtora Exemplo Ltda.",
-      "local": "São Paulo - SP",
-      "dataInicio": "10/03/25",
-      "dataFim": "10/03/25",
-      "cota": "741.9",
-      "datum": "SIRGAS2000",
-      "zonaUTM": "",
-      "lat": -23.55052,
-      "lng": -46.632818,
-      "responsavel": "Eng. Marcos Villela Pereira",
-      "sondador": "Equipe Sondasolo Ltda.",
-      "desenhista": "Camila R.",
-      "amostrador": {
-        "diamInt": "34.9",
-        "diamExt": "50.8",
-        "peso": "65",
-        "altura": "75"
-      },
-      "metodo": "SPT (NBR 6484)",
-      "equipamento": "Sonda rotativa/percussão sobre esteira",
-      "revestimento": "Ø 2 1/2\" (63,5 mm)",
-      "arquivo_ref": "",
-      "obs": "Furo de exemplo gerado automaticamente para demonstração do GEO·SIG — não representa dados de campo reais.",
-      "agua": [
-        {
-          "data": "10/03/25",
-          "prof": "1.6"
-        }
-      ],
-      "camadas": [
-        {
-          "profFinal": 0.9,
-          "tipo": "aterro",
-          "descricao": "Aterro compactado, areno-argiloso, cor marrom escuro, com fragmentos de material orgânico"
-        },
-        {
-          "profFinal": 2.8,
-          "tipo": "argila",
-          "descricao": "Argila-arenosa, mole a média, consistência mole, cor cinza escuro, pouco plástica"
-        },
-        {
-          "profFinal": 6,
-          "tipo": "argila",
-          "descricao": "Argila-arenosa, média a rija, consistência rija, cor marrom avermelhado, pouco plástica"
-        },
-        {
-          "profFinal": 8.4,
-          "tipo": "areia",
-          "descricao": "Areia média a grossa, compacidade média a compacta, cor cinza esbranquiçado, pouco siltosa"
-        },
-        {
-          "profFinal": 13,
-          "tipo": "rocha",
-          "descricao": "Impenetrável a percussão — provável topo rochoso"
-        }
-      ],
-      "golpes": [
-        {
-          "prof": 1,
-          "g1": 1,
-          "g2": 1,
-          "g3": 1
-        },
-        {
-          "prof": 2,
-          "g1": 1,
-          "g2": 1,
-          "g3": 2
-        },
-        {
-          "prof": 3,
-          "g1": 3,
-          "g2": 4,
-          "g3": 5
-        },
-        {
-          "prof": 4,
-          "g1": 3,
-          "g2": 5,
-          "g3": 6
-        },
-        {
-          "prof": 5,
-          "g1": 4,
-          "g2": 6,
-          "g3": 8
-        },
-        {
-          "prof": 6,
-          "g1": 6,
-          "g2": 8,
-          "g3": 10
-        },
-        {
-          "prof": 7,
-          "g1": 7,
-          "g2": 10,
-          "g3": 11
-        },
-        {
-          "prof": 8,
-          "g1": 10,
-          "g2": 13,
-          "g3": 16
-        },
-        {
-          "prof": 9,
-          "g1": 14,
-          "g2": 22,
-          "g3": 26
-        },
-        {
-          "prof": 10,
-          "g1": 13,
-          "g2": 23,
-          "g3": 27
-        },
-        {
-          "prof": 11,
-          "g1": 17,
-          "g2": 23,
-          "g3": 27
-        },
-        {
-          "prof": 12,
-          "g1": 15,
-          "g2": 23,
-          "g3": 27
-        },
-        {
-          "prof": 13,
-          "g1": 16,
-          "g2": 23,
-          "g3": 27
-        }
-      ]
-    },
-    {
-      "id": "Fmtr7i68h3xi",
-      "hash": "1gp8ahv",
-      "sondagemNum": "SP-03",
-      "obra": "Campanha de Sondagens — Lote Exemplo 100×100 m",
-      "cliente": "Construtora Exemplo Ltda.",
-      "local": "São Paulo - SP",
-      "dataInicio": "10/03/25",
-      "dataFim": "10/03/25",
-      "cota": "741.5",
-      "datum": "SIRGAS2000",
-      "zonaUTM": "",
-      "lat": -23.55052,
-      "lng": -46.632328,
-      "responsavel": "Eng. Marcos Villela Pereira",
-      "sondador": "Equipe Sondasolo Ltda.",
-      "desenhista": "Camila R.",
-      "amostrador": {
-        "diamInt": "34.9",
-        "diamExt": "50.8",
-        "peso": "65",
-        "altura": "75"
-      },
-      "metodo": "SPT (NBR 6484)",
-      "equipamento": "Sonda rotativa/percussão sobre esteira",
-      "revestimento": "Ø 2 1/2\" (63,5 mm)",
-      "arquivo_ref": "",
-      "obs": "Furo de exemplo gerado automaticamente para demonstração do GEO·SIG — não representa dados de campo reais.",
-      "agua": [
-        {
-          "data": "10/03/25",
-          "prof": "2.4"
-        }
-      ],
-      "camadas": [
-        {
-          "profFinal": 1.2,
-          "tipo": "aterro",
-          "descricao": "Aterro compactado, areno-argiloso, cor marrom escuro, com fragmentos de material orgânico"
-        },
-        {
-          "profFinal": 3.1,
-          "tipo": "argila",
-          "descricao": "Argila-arenosa, mole a média, consistência mole, cor cinza escuro, pouco plástica"
-        },
-        {
-          "profFinal": 6.4,
-          "tipo": "argila",
-          "descricao": "Argila-arenosa, média a rija, consistência rija, cor marrom avermelhado, pouco plástica"
-        },
-        {
-          "profFinal": 8.8,
-          "tipo": "areia",
-          "descricao": "Areia média a grossa, compacidade média a compacta, cor cinza esbranquiçado, pouco siltosa"
-        },
-        {
-          "profFinal": 9,
-          "tipo": "areia",
-          "descricao": "Areia muito compacta a impenetrável a percussão, cor cinza, indícios de alteração de rocha"
-        }
-      ],
-      "golpes": [
-        {
-          "prof": 1,
-          "g1": 2,
-          "g2": 3,
-          "g3": 3
-        },
-        {
-          "prof": 2,
-          "g1": 1,
-          "g2": 2,
-          "g3": 2
-        },
-        {
-          "prof": 3,
-          "g1": 2,
-          "g2": 3,
-          "g3": 4
-        },
-        {
-          "prof": 4,
-          "g1": 4,
-          "g2": 5,
-          "g3": 5
-        },
-        {
-          "prof": 5,
-          "g1": 4,
-          "g2": 6,
-          "g3": 6
-        },
-        {
-          "prof": 6,
-          "g1": 6,
-          "g2": 7,
-          "g3": 9
-        },
-        {
-          "prof": 7,
-          "g1": 6,
-          "g2": 9,
-          "g3": 11
-        },
-        {
-          "prof": 8,
-          "g1": 9,
-          "g2": 12,
-          "g3": 14
-        },
-        {
-          "prof": 9,
-          "g1": 9,
-          "g2": 14,
-          "g3": 17
-        }
-      ]
-    },
-    {
-      "id": "Fmtr7i68ijw6",
-      "hash": "116x68r",
-      "sondagemNum": "SP-04",
-      "obra": "Campanha de Sondagens — Lote Exemplo 100×100 m",
-      "cliente": "Construtora Exemplo Ltda.",
-      "local": "São Paulo - SP",
-      "dataInicio": "11/03/25",
-      "dataFim": "11/03/25",
-      "cota": "741.55",
-      "datum": "SIRGAS2000",
-      "zonaUTM": "",
-      "lat": -23.550071,
-      "lng": -46.633308,
-      "responsavel": "Eng. Marcos Villela Pereira",
-      "sondador": "Equipe Sondasolo Ltda.",
-      "desenhista": "Camila R.",
-      "amostrador": {
-        "diamInt": "34.9",
-        "diamExt": "50.8",
-        "peso": "65",
-        "altura": "75"
-      },
-      "metodo": "SPT (NBR 6484)",
-      "equipamento": "Sonda rotativa/percussão sobre esteira",
-      "revestimento": "Ø 2 1/2\" (63,5 mm)",
-      "arquivo_ref": "",
-      "obs": "Furo de exemplo gerado automaticamente para demonstração do GEO·SIG — não representa dados de campo reais.",
-      "agua": [
-        {
-          "data": "11/03/25",
-          "prof": "2"
-        }
-      ],
-      "camadas": [
-        {
-          "profFinal": 0.9,
-          "tipo": "aterro",
-          "descricao": "Aterro compactado, areno-argiloso, cor marrom escuro, com fragmentos de material orgânico"
-        },
-        {
-          "profFinal": 2.6,
-          "tipo": "argila",
-          "descricao": "Argila-arenosa, mole a média, consistência mole, cor cinza escuro, pouco plástica"
-        },
-        {
-          "profFinal": 5.4,
-          "tipo": "argila",
-          "descricao": "Argila-arenosa, média a rija, consistência rija, cor marrom avermelhado, pouco plástica"
-        },
-        {
-          "profFinal": 8.1,
-          "tipo": "areia",
-          "descricao": "Areia média a grossa, compacidade média a compacta, cor cinza esbranquiçado, pouco siltosa"
-        },
-        {
-          "profFinal": 13,
-          "tipo": "rocha",
-          "descricao": "Impenetrável a percussão — provável topo rochoso"
-        }
-      ],
-      "golpes": [
-        {
-          "prof": 1,
-          "g1": 1,
-          "g2": 1,
-          "g3": 1
-        },
-        {
-          "prof": 2,
-          "g1": 2,
-          "g2": 2,
-          "g3": 2
-        },
-        {
-          "prof": 3,
-          "g1": 3,
-          "g2": 4,
-          "g3": 4
-        },
-        {
-          "prof": 4,
-          "g1": 5,
-          "g2": 6,
-          "g3": 7
-        },
-        {
-          "prof": 5,
-          "g1": 6,
-          "g2": 8,
-          "g3": 9
-        },
-        {
-          "prof": 6,
-          "g1": 5,
-          "g2": 8,
-          "g3": 10
-        },
-        {
-          "prof": 7,
-          "g1": 9,
-          "g2": 12,
-          "g3": 13
-        },
-        {
-          "prof": 8,
-          "g1": 9,
-          "g2": 15,
-          "g3": 18
-        },
-        {
-          "prof": 9,
-          "g1": 13,
-          "g2": 22,
-          "g3": 25
-        },
-        {
-          "prof": 10,
-          "g1": 15,
-          "g2": 23,
-          "g3": 27
-        },
-        {
-          "prof": 11,
-          "g1": 14,
-          "g2": 23,
-          "g3": 27
-        },
-        {
-          "prof": 12,
-          "g1": 15,
-          "g2": 23,
-          "g3": 27
-        },
-        {
-          "prof": 13,
-          "g1": 16,
-          "g2": 23,
-          "g3": 27
-        }
-      ]
-    },
-    {
-      "id": "Fmtr7i68ja2k",
-      "hash": "1rwg0dy",
-      "sondagemNum": "SP-05",
-      "obra": "Campanha de Sondagens — Lote Exemplo 100×100 m",
-      "cliente": "Construtora Exemplo Ltda.",
-      "local": "São Paulo - SP",
-      "dataInicio": "11/03/25",
-      "dataFim": "11/03/25",
-      "cota": "741.15",
-      "datum": "SIRGAS2000",
-      "zonaUTM": "",
-      "lat": -23.550071,
-      "lng": -46.632818,
-      "responsavel": "Eng. Marcos Villela Pereira",
-      "sondador": "Equipe Sondasolo Ltda.",
-      "desenhista": "Camila R.",
-      "amostrador": {
-        "diamInt": "34.9",
-        "diamExt": "50.8",
-        "peso": "65",
-        "altura": "75"
-      },
-      "metodo": "SPT (NBR 6484)",
-      "equipamento": "Sonda rotativa/percussão sobre esteira",
-      "revestimento": "Ø 2 1/2\" (63,5 mm)",
-      "arquivo_ref": "",
-      "obs": "Furo de exemplo gerado automaticamente para demonstração do GEO·SIG — não representa dados de campo reais.",
-      "agua": [
-        {
-          "data": "11/03/25",
-          "prof": "1.9"
-        }
-      ],
-      "camadas": [
-        {
-          "profFinal": 1.3,
-          "tipo": "aterro",
-          "descricao": "Aterro compactado, areno-argiloso, cor marrom escuro, com fragmentos de material orgânico"
-        },
-        {
-          "profFinal": 3.3,
-          "tipo": "argila",
-          "descricao": "Argila-arenosa, mole a média, consistência mole, cor cinza escuro, pouco plástica"
-        },
-        {
-          "profFinal": 6.4,
-          "tipo": "argila",
-          "descricao": "Argila-arenosa, média a rija, consistência rija, cor marrom avermelhado, pouco plástica"
-        },
-        {
-          "profFinal": 9,
-          "tipo": "areia",
-          "descricao": "Areia média a grossa, compacidade média a compacta, cor cinza esbranquiçado, pouco siltosa"
-        },
-        {
-          "profFinal": 14,
-          "tipo": "rocha",
-          "descricao": "Impenetrável a percussão — provável topo rochoso"
-        }
-      ],
-      "golpes": [
-        {
-          "prof": 1,
-          "g1": 2,
-          "g2": 3,
-          "g3": 3
-        },
-        {
-          "prof": 2,
-          "g1": 1,
-          "g2": 2,
-          "g3": 3
-        },
-        {
-          "prof": 3,
-          "g1": 2,
-          "g2": 3,
-          "g3": 4
-        },
-        {
-          "prof": 4,
-          "g1": 3,
-          "g2": 5,
-          "g3": 5
-        },
-        {
-          "prof": 5,
-          "g1": 4,
-          "g2": 6,
-          "g3": 6
-        },
-        {
-          "prof": 6,
-          "g1": 4,
-          "g2": 7,
-          "g3": 8
-        },
-        {
-          "prof": 7,
-          "g1": 5,
-          "g2": 8,
-          "g3": 10
-        },
-        {
-          "prof": 8,
-          "g1": 7,
-          "g2": 12,
-          "g3": 13
-        },
-        {
-          "prof": 9,
-          "g1": 8,
-          "g2": 14,
-          "g3": 17
-        },
-        {
-          "prof": 10,
-          "g1": 14,
-          "g2": 22,
-          "g3": 25
-        },
-        {
-          "prof": 11,
-          "g1": 18,
-          "g2": 23,
-          "g3": 27
-        },
-        {
-          "prof": 12,
-          "g1": 14,
-          "g2": 23,
-          "g3": 27
-        },
-        {
-          "prof": 13,
-          "g1": 15,
-          "g2": 23,
-          "g3": 27
-        },
-        {
-          "prof": 14,
-          "g1": 13,
-          "g2": 23,
-          "g3": 27
-        }
-      ]
-    },
-    {
-      "id": "Fmtr7i68ktua",
-      "hash": "dgfh5d",
-      "sondagemNum": "SP-06",
-      "obra": "Campanha de Sondagens — Lote Exemplo 100×100 m",
-      "cliente": "Construtora Exemplo Ltda.",
-      "local": "São Paulo - SP",
-      "dataInicio": "11/03/25",
-      "dataFim": "11/03/25",
-      "cota": "740.75",
-      "datum": "SIRGAS2000",
-      "zonaUTM": "",
-      "lat": -23.550071,
-      "lng": -46.632328,
-      "responsavel": "Eng. Marcos Villela Pereira",
-      "sondador": "Equipe Sondasolo Ltda.",
-      "desenhista": "Camila R.",
-      "amostrador": {
-        "diamInt": "34.9",
-        "diamExt": "50.8",
-        "peso": "65",
-        "altura": "75"
-      },
-      "metodo": "SPT (NBR 6484)",
-      "equipamento": "Sonda rotativa/percussão sobre esteira",
-      "revestimento": "Ø 2 1/2\" (63,5 mm)",
-      "arquivo_ref": "",
-      "obs": "Furo de exemplo gerado automaticamente para demonstração do GEO·SIG — não representa dados de campo reais.",
-      "agua": [
-        {
-          "data": "11/03/25",
-          "prof": "2.6"
-        }
-      ],
-      "camadas": [
-        {
-          "profFinal": 1.2,
-          "tipo": "aterro",
-          "descricao": "Aterro compactado, areno-argiloso, cor marrom escuro, com fragmentos de material orgânico"
-        },
-        {
-          "profFinal": 3.4,
-          "tipo": "argila",
-          "descricao": "Argila-arenosa, mole a média, consistência mole, cor cinza escuro, pouco plástica"
-        },
-        {
-          "profFinal": 6.5,
-          "tipo": "argila",
-          "descricao": "Argila-arenosa, média a rija, consistência rija, cor marrom avermelhado, pouco plástica"
-        },
-        {
-          "profFinal": 9,
-          "tipo": "areia",
-          "descricao": "Areia média a grossa, compacidade média a compacta, cor cinza esbranquiçado, pouco siltosa"
-        },
-        {
-          "profFinal": 10,
-          "tipo": "areia",
-          "descricao": "Areia muito compacta a impenetrável a percussão, cor cinza, indícios de alteração de rocha"
-        }
-      ],
-      "golpes": [
-        {
-          "prof": 1,
-          "g1": 1,
-          "g2": 2,
-          "g3": 2
-        },
-        {
-          "prof": 2,
-          "g1": 1,
-          "g2": 1,
-          "g3": 2
-        },
-        {
-          "prof": 3,
-          "g1": 2,
-          "g2": 3,
-          "g3": 3
-        },
-        {
-          "prof": 4,
-          "g1": 3,
-          "g2": 4,
-          "g3": 4
-        },
-        {
-          "prof": 5,
-          "g1": 4,
-          "g2": 6,
-          "g3": 7
-        },
-        {
-          "prof": 6,
-          "g1": 4,
-          "g2": 7,
-          "g3": 9
-        },
-        {
-          "prof": 7,
-          "g1": 6,
-          "g2": 8,
-          "g3": 10
-        },
-        {
-          "prof": 8,
-          "g1": 9,
-          "g2": 12,
-          "g3": 14
-        },
-        {
-          "prof": 9,
-          "g1": 9,
-          "g2": 14,
-          "g3": 17
-        },
-        {
-          "prof": 10,
-          "g1": 10,
-          "g2": 14,
-          "g3": 17
-        }
-      ]
-    },
-    {
-      "id": "Fmtr7i68lqz9",
-      "hash": "104vkok",
-      "sondagemNum": "SP-07",
-      "obra": "Campanha de Sondagens — Lote Exemplo 100×100 m",
-      "cliente": "Construtora Exemplo Ltda.",
-      "local": "São Paulo - SP",
-      "dataInicio": "12/03/25",
-      "dataFim": "12/03/25",
-      "cota": "740.8",
-      "datum": "SIRGAS2000",
-      "zonaUTM": "",
-      "lat": -23.549622,
-      "lng": -46.633308,
-      "responsavel": "Eng. Marcos Villela Pereira",
-      "sondador": "Equipe Sondasolo Ltda.",
-      "desenhista": "Camila R.",
-      "amostrador": {
-        "diamInt": "34.9",
-        "diamExt": "50.8",
-        "peso": "65",
-        "altura": "75"
-      },
-      "metodo": "SPT (NBR 6484)",
-      "equipamento": "Sonda rotativa/percussão sobre esteira",
-      "revestimento": "Ø 2 1/2\" (63,5 mm)",
-      "arquivo_ref": "",
-      "obs": "Furo de exemplo gerado automaticamente para demonstração do GEO·SIG — não representa dados de campo reais.",
-      "agua": [
-        {
-          "data": "12/03/25",
-          "prof": "2.2"
-        }
-      ],
-      "camadas": [
-        {
-          "profFinal": 1.1,
-          "tipo": "aterro",
-          "descricao": "Aterro compactado, areno-argiloso, cor marrom escuro, com fragmentos de material orgânico"
-        },
-        {
-          "profFinal": 3.2,
-          "tipo": "argila",
-          "descricao": "Argila-arenosa, mole a média, consistência mole, cor cinza escuro, pouco plástica"
-        },
-        {
-          "profFinal": 6.2,
-          "tipo": "argila",
-          "descricao": "Argila-arenosa, média a rija, consistência rija, cor marrom avermelhado, pouco plástica"
-        },
-        {
-          "profFinal": 8.5,
-          "tipo": "areia",
-          "descricao": "Areia média a grossa, compacidade média a compacta, cor cinza esbranquiçado, pouco siltosa"
-        },
-        {
-          "profFinal": 11,
-          "tipo": "rocha",
-          "descricao": "Areia muito compacta a impenetrável a percussão, cor cinza, indícios de alteração de rocha"
-        }
-      ],
-      "golpes": [
-        {
-          "prof": 1,
-          "g1": 2,
-          "g2": 3,
-          "g3": 4
-        },
-        {
-          "prof": 2,
-          "g1": 2,
-          "g2": 2,
-          "g3": 3
-        },
-        {
-          "prof": 3,
-          "g1": 2,
-          "g2": 3,
-          "g3": 4
-        },
-        {
-          "prof": 4,
-          "g1": 3,
-          "g2": 5,
-          "g3": 5
-        },
-        {
-          "prof": 5,
-          "g1": 3,
-          "g2": 6,
-          "g3": 7
-        },
-        {
-          "prof": 6,
-          "g1": 4,
-          "g2": 7,
-          "g3": 8
-        },
-        {
-          "prof": 7,
-          "g1": 7,
-          "g2": 9,
-          "g3": 11
-        },
-        {
-          "prof": 8,
-          "g1": 9,
-          "g2": 14,
-          "g3": 16
-        },
-        {
-          "prof": 9,
-          "g1": 18,
-          "g2": 23,
-          "g3": 26
-        },
-        {
-          "prof": 10,
-          "g1": 15,
-          "g2": 23,
-          "g3": 27
-        },
-        {
-          "prof": 11,
-          "g1": 14,
-          "g2": 23,
-          "g3": 27
-        }
-      ]
-    },
-    {
-      "id": "Fmtr7i68m45s",
-      "hash": "1kpynui",
-      "sondagemNum": "SP-08",
-      "obra": "Campanha de Sondagens — Lote Exemplo 100×100 m",
-      "cliente": "Construtora Exemplo Ltda.",
-      "local": "São Paulo - SP",
-      "dataInicio": "12/03/25",
-      "dataFim": "12/03/25",
-      "cota": "740.4",
-      "datum": "SIRGAS2000",
-      "zonaUTM": "",
-      "lat": -23.549622,
-      "lng": -46.632818,
-      "responsavel": "Eng. Marcos Villela Pereira",
-      "sondador": "Equipe Sondasolo Ltda.",
-      "desenhista": "Camila R.",
-      "amostrador": {
-        "diamInt": "34.9",
-        "diamExt": "50.8",
-        "peso": "65",
-        "altura": "75"
-      },
-      "metodo": "SPT (NBR 6484)",
-      "equipamento": "Sonda rotativa/percussão sobre esteira",
-      "revestimento": "Ø 2 1/2\" (63,5 mm)",
-      "arquivo_ref": "",
-      "obs": "Furo de exemplo gerado automaticamente para demonstração do GEO·SIG — não representa dados de campo reais.",
-      "agua": [
-        {
-          "data": "12/03/25",
-          "prof": "2.1"
-        }
-      ],
-      "camadas": [
-        {
-          "profFinal": 0.9,
-          "tipo": "aterro",
-          "descricao": "Aterro compactado, areno-argiloso, cor marrom escuro, com fragmentos de material orgânico"
-        },
-        {
-          "profFinal": 2.6,
-          "tipo": "argila",
-          "descricao": "Argila-arenosa, mole a média, consistência mole, cor cinza escuro, pouco plástica"
-        },
-        {
-          "profFinal": 5.8,
-          "tipo": "argila",
-          "descricao": "Argila-arenosa, média a rija, consistência rija, cor marrom avermelhado, pouco plástica"
-        },
-        {
-          "profFinal": 8.5,
-          "tipo": "areia",
-          "descricao": "Areia média a grossa, compacidade média a compacta, cor cinza esbranquiçado, pouco siltosa"
-        },
-        {
-          "profFinal": 12,
-          "tipo": "rocha",
-          "descricao": "Impenetrável a percussão — provável topo rochoso"
-        }
-      ],
-      "golpes": [
-        {
-          "prof": 1,
-          "g1": 1,
-          "g2": 1,
-          "g3": 2
-        },
-        {
-          "prof": 2,
-          "g1": 1,
-          "g2": 2,
-          "g3": 3
-        },
-        {
-          "prof": 3,
-          "g1": 3,
-          "g2": 4,
-          "g3": 4
-        },
-        {
-          "prof": 4,
-          "g1": 4,
-          "g2": 6,
-          "g3": 7
-        },
-        {
-          "prof": 5,
-          "g1": 5,
-          "g2": 7,
-          "g3": 9
-        },
-        {
-          "prof": 6,
-          "g1": 5,
-          "g2": 7,
-          "g3": 8
-        },
-        {
-          "prof": 7,
-          "g1": 8,
-          "g2": 10,
-          "g3": 12
-        },
-        {
-          "prof": 8,
-          "g1": 9,
-          "g2": 14,
-          "g3": 16
-        },
-        {
-          "prof": 9,
-          "g1": 17,
-          "g2": 22,
-          "g3": 25
-        },
-        {
-          "prof": 10,
-          "g1": 14,
-          "g2": 23,
-          "g3": 27
-        },
-        {
-          "prof": 11,
-          "g1": 14,
-          "g2": 23,
-          "g3": 27
-        },
-        {
-          "prof": 12,
-          "g1": 17,
-          "g2": 23,
-          "g3": 27
-        }
-      ]
-    },
-    {
-      "id": "Fmtr7i68nyqm",
-      "hash": "69y4lx",
-      "sondagemNum": "SP-09",
-      "obra": "Campanha de Sondagens — Lote Exemplo 100×100 m",
-      "cliente": "Construtora Exemplo Ltda.",
-      "local": "São Paulo - SP",
-      "dataInicio": "12/03/25",
-      "dataFim": "12/03/25",
-      "cota": "740.0",
-      "datum": "SIRGAS2000",
-      "zonaUTM": "",
-      "lat": -23.549622,
-      "lng": -46.632328,
-      "responsavel": "Eng. Marcos Villela Pereira",
-      "sondador": "Equipe Sondasolo Ltda.",
-      "desenhista": "Camila R.",
-      "amostrador": {
-        "diamInt": "34.9",
-        "diamExt": "50.8",
-        "peso": "65",
-        "altura": "75"
-      },
-      "metodo": "SPT (NBR 6484)",
-      "equipamento": "Sonda rotativa/percussão sobre esteira",
-      "revestimento": "Ø 2 1/2\" (63,5 mm)",
-      "arquivo_ref": "",
-      "obs": "Furo de exemplo gerado automaticamente para demonstração do GEO·SIG — não representa dados de campo reais.",
-      "agua": [
-        {
-          "data": "12/03/25",
-          "prof": "2.8"
-        }
-      ],
-      "camadas": [
-        {
-          "profFinal": 0.9,
-          "tipo": "aterro",
-          "descricao": "Aterro compactado, areno-argiloso, cor marrom escuro, com fragmentos de material orgânico"
-        },
-        {
-          "profFinal": 3,
-          "tipo": "argila",
-          "descricao": "Argila-arenosa, mole a média, consistência mole, cor cinza escuro, pouco plástica"
-        },
-        {
-          "profFinal": 6.4,
-          "tipo": "argila",
-          "descricao": "Argila-arenosa, média a rija, consistência rija, cor marrom avermelhado, pouco plástica"
-        },
-        {
-          "profFinal": 8,
-          "tipo": "areia",
-          "descricao": "Areia média a compacta, cor cinza esbranquiçado, pouco siltosa"
-        }
-      ],
-      "golpes": [
-        {
-          "prof": 1,
-          "g1": 1,
-          "g2": 1,
-          "g3": 1
-        },
-        {
-          "prof": 2,
-          "g1": 1,
-          "g2": 1,
-          "g3": 2
-        },
-        {
-          "prof": 3,
-          "g1": 2,
-          "g2": 3,
-          "g3": 4
-        },
-        {
-          "prof": 4,
-          "g1": 4,
-          "g2": 5,
-          "g3": 6
-        },
-        {
-          "prof": 5,
-          "g1": 5,
-          "g2": 6,
-          "g3": 7
-        },
-        {
-          "prof": 6,
-          "g1": 5,
-          "g2": 8,
-          "g3": 9
-        },
-        {
-          "prof": 7,
-          "g1": 6,
-          "g2": 10,
-          "g3": 11
-        },
-        {
-          "prof": 8,
-          "g1": 10,
-          "g2": 14,
-          "g3": 17
-        }
-      ]
-    },
-    {
       "id": "Fmtus4h8welp",
-      "hash": "g0tkg1",
+      "hash": "g0wrh5",
       "sondagemNum": "SM-01",
       "obra": "ECOMP MIRANDA",
+      "unidadeOperacional": "ECOMP MIRANDA",
       "cliente": "TBG - Transportadora Brasileira Gasoduto Bolívia-Brasil S.A.",
       "local": "MIRANDA-MS",
       "dataInicio": "16/03/2001",
       "dataFim": "19/03/2001",
-      "cota": "100",
+      "cota": "105.41",
       "datum": "SIRGAS2000",
       "zonaUTM": "21S",
       "lat": -20.121721,
@@ -3071,19 +468,19 @@
       "obs": "",
       "agua": [
         {
-          "data": "19/03/2001",
-          "prof": "6.2"
+          "prof": 6.2,
+          "data": "19/03/2001"
         }
       ],
       "camadas": [
         {
           "profFinal": 2.45,
-          "tipo": "silte_argiloso",
+          "tipo": "silte",
           "descricao": "Silte argiloso variegado duro com pedregulhos de granulometria variada"
         },
         {
           "profFinal": 7.08,
-          "tipo": "silte_argiloso",
+          "tipo": "silte",
           "descricao": "Silte argiloso variegado duro"
         },
         {
@@ -3127,14 +524,15 @@
     },
     {
       "id": "Fmtuskkbktxm",
-      "hash": "1nkye07",
+      "hash": "1nl1l0m",
       "sondagemNum": "SM-02",
       "obra": "ECOMP MIRANDA",
+      "unidadeOperacional": "ECOMP MIRANDA",
       "cliente": "TBG - Transportadora Brasileira Gasoduto Bolívia-Brasil S.A.",
       "local": "MIRANDA-MS",
       "dataInicio": "16/03/2001",
       "dataFim": "19/03/2001",
-      "cota": "100",
+      "cota": "105.37",
       "datum": "SIRGAS2000",
       "zonaUTM": "21S",
       "lat": -20.121797,
@@ -3162,12 +560,12 @@
       "camadas": [
         {
           "profFinal": 2.45,
-          "tipo": "silte_argiloso",
+          "tipo": "silte",
           "descricao": "Silte argiloso variegado duro com pedregulhos de granulometria variada"
         },
         {
           "profFinal": 7.08,
-          "tipo": "silte_argiloso",
+          "tipo": "silte",
           "descricao": "Silte argiloso variegado duro"
         },
         {
@@ -3211,14 +609,15 @@
     },
     {
       "id": "Fmtuslb1kugy",
-      "hash": "3fa3l3",
+      "hash": "3fdamd",
       "sondagemNum": "SM-03",
       "obra": "ECOMP MIRANDA",
+      "unidadeOperacional": "ECOMP MIRANDA",
       "cliente": "TBG - Transportadora Brasileira Gasoduto Bolívia-Brasil S.A.",
       "local": "MIRANDA-MS",
       "dataInicio": "17/03/01",
       "dataFim": "20/03/01",
-      "cota": "100",
+      "cota": "105.47",
       "datum": "SIRGAS2000",
       "zonaUTM": "21S",
       "lat": -20.121908,
@@ -3239,14 +638,14 @@
       "obs": "",
       "agua": [
         {
-          "data": "20/03/2001",
-          "prof": "6.2"
+          "prof": 6.2,
+          "data": "20/03/2001"
         }
       ],
       "camadas": [
         {
           "profFinal": 7.13,
-          "tipo": "silte_argiloso",
+          "tipo": "silte",
           "descricao": "Silte argiloso variegado duro"
         },
         {
@@ -3290,14 +689,15 @@
     },
     {
       "id": "Fmtuslzc2a8a",
-      "hash": "14evl3v",
+      "hash": "14eys5z",
       "sondagemNum": "SM-04",
       "obra": "ECOMP MIRANDA",
+      "unidadeOperacional": "ECOMP MIRANDA",
       "cliente": "TBG - Transportadora Brasileira Gasoduto Bolívia-Brasil S.A.",
       "local": "MIRANDA-MS",
       "dataInicio": "19/03/2001",
       "dataFim": "22/03/2001",
-      "cota": "100",
+      "cota": "105.56",
       "datum": "SIRGAS2000",
       "zonaUTM": "23S",
       "lat": -20.122175,
@@ -3318,24 +718,24 @@
       "obs": "",
       "agua": [
         {
-          "data": "17/03/2001",
-          "prof": "6.3"
+          "prof": 6.3,
+          "data": "17/03/2001"
         }
       ],
       "camadas": [
         {
           "profFinal": 1.45,
-          "tipo": "silte_argiloso",
+          "tipo": "silte",
           "descricao": "Silte argiloso variegado duro"
         },
         {
           "profFinal": 2.45,
-          "tipo": "silte_argiloso",
+          "tipo": "silte",
           "descricao": "Silte argiloso variegado rijo"
         },
         {
           "profFinal": 6.1,
-          "tipo": "silte_argiloso",
+          "tipo": "silte",
           "descricao": "Silte argiloso variegado duro"
         }
       ],
@@ -3380,14 +780,15 @@
     },
     {
       "id": "Fmtusn4bns8t",
-      "hash": "1wx1es5",
+      "hash": "1wx4lxp",
       "sondagemNum": "SM-05",
       "obra": "ECOMP MIRANDA",
+      "unidadeOperacional": "ECOMP MIRANDA",
       "cliente": "TBG - Transportadora Brasileira Gasoduto Bolívia-Brasil S.A.",
       "local": "MIRANDA-MS",
       "dataInicio": "20/03/2001",
       "dataFim": "23/03/2001",
-      "cota": "100",
+      "cota": "105.96",
       "datum": "SIRGAS2000",
       "zonaUTM": "21S",
       "lat": -20.122253,
@@ -3415,7 +816,7 @@
       "camadas": [
         {
           "profFinal": 8.3,
-          "tipo": "silte_argiloso",
+          "tipo": "silte",
           "descricao": "Silte argiloso variegado duro"
         },
         {
@@ -3478,6 +879,297 @@
           "g1": "23",
           "g2": "40",
           "g3": "23"
+        }
+      ]
+    },
+    {
+      "id": "Fmtvlfjv7xd1",
+      "hash": "1uka47n",
+      "sondagemNum": "SPT-01",
+      "obra": "ECOMP MIRANDA",
+      "unidadeOperacional": "ECOMP MIRANDA",
+      "cliente": "TBG - Transportadora Brasileira Gasoduto Bolívia-Brasil S.A.",
+      "local": "MIRANDA-MS",
+      "dataInicio": "12/07/2023",
+      "dataFim": "12/07/2023",
+      "cota": "105.08",
+      "datum": "SIRGAS2000",
+      "zonaUTM": "21S",
+      "lat": -20.12166,
+      "lng": -56.719168,
+      "responsavel": "",
+      "sondador": "",
+      "desenhista": "",
+      "amostrador": {
+        "diamInt": "34.9",
+        "diamExt": "50.8",
+        "peso": "65",
+        "altura": "75"
+      },
+      "metodo": "SPT (NBR 6484)",
+      "equipamento": "",
+      "revestimento": "",
+      "arquivo_ref": "",
+      "obs": "",
+      "agua": [
+        {
+          "prof": 2.45,
+          "data": ""
+        }
+      ],
+      "camadas": [
+        {
+          "profFinal": 0.1,
+          "tipo": "outro",
+          "descricao": "Camada vegetal"
+        },
+        {
+          "profFinal": 2.45,
+          "tipo": "silte",
+          "descricao": "Silte argiloso, consistência mole à rija, cor variegado."
+        },
+        {
+          "profFinal": 3.35,
+          "tipo": "rocha",
+          "descricao": "Alteração de calcário, cor variegado"
+        }
+      ],
+      "golpes": [
+        {
+          "prof": 1,
+          "g1": "2",
+          "g2": "2",
+          "g3": "4"
+        },
+        {
+          "prof": 2,
+          "g1": "7",
+          "g2": "7",
+          "g3": "9"
+        },
+        {
+          "prof": 3,
+          "g1": "20",
+          "g2": "20",
+          "g3": "55"
+        }
+      ]
+    },
+    {
+      "id": "Fmtvlygzlpp2",
+      "hash": "1oulo2w",
+      "sondagemNum": "SPT-03",
+      "obra": "ECOMP MIRANDA",
+      "unidadeOperacional": "ECOMP MIRANDA",
+      "cliente": "TBG - Transportadora Brasileira Gasoduto Bolívia-Brasil S.A.",
+      "local": "MIRANDA-MS",
+      "dataInicio": "12/07/2023",
+      "dataFim": "12/07/2023",
+      "cota": "105.63",
+      "datum": "SIRGAS2000",
+      "zonaUTM": "21S",
+      "lat": -20.122293,
+      "lng": -56.719616,
+      "responsavel": "",
+      "sondador": "",
+      "desenhista": "",
+      "amostrador": {
+        "diamInt": "34.9",
+        "diamExt": "50.8",
+        "peso": "65",
+        "altura": "75"
+      },
+      "metodo": "SPT (NBR 6484)",
+      "equipamento": "",
+      "revestimento": "",
+      "arquivo_ref": "",
+      "obs": "",
+      "agua": [
+        {
+          "prof": 2.45,
+          "data": ""
+        }
+      ],
+      "camadas": [
+        {
+          "profFinal": 0.1,
+          "tipo": "outro",
+          "descricao": "Camada vegetal"
+        },
+        {
+          "profFinal": 2.45,
+          "tipo": "silte",
+          "descricao": "Silte argiloso, consistência muito rija à dura, cor variegado"
+        },
+        {
+          "profFinal": 2.8,
+          "tipo": "rocha",
+          "descricao": "Alteração de calcário, cor variegado"
+        }
+      ],
+      "golpes": [
+        {
+          "prof": 1,
+          "g1": "12",
+          "g2": "15",
+          "g3": "17"
+        },
+        {
+          "prof": 2,
+          "g1": "19",
+          "g2": "20",
+          "g3": "30"
+        },
+        {
+          "prof": 3,
+          "g1": "35",
+          "g2": "40",
+          "g3": "35"
+        }
+      ]
+    },
+    {
+      "id": "Fmtvm4fq7tez",
+      "hash": "1vcm297",
+      "sondagemNum": "SPT-02",
+      "obra": "ECOMP MIRANDA",
+      "unidadeOperacional": "ECOMP MIRANDA",
+      "cliente": "TBG - Transportadora Brasileira Gasoduto Bolívia-Brasil S.A.",
+      "local": "MIRANDA-MS",
+      "dataInicio": "12/07/2023",
+      "dataFim": "12/07/2023",
+      "cota": "104.94",
+      "datum": "SIRGAS2000",
+      "zonaUTM": "21S",
+      "lat": -20.12185,
+      "lng": -56.719483,
+      "responsavel": "",
+      "sondador": "",
+      "desenhista": "",
+      "amostrador": {
+        "diamInt": "34.9",
+        "diamExt": "50.8",
+        "peso": "65",
+        "altura": "75"
+      },
+      "metodo": "SPT (NBR 6484)",
+      "equipamento": "",
+      "revestimento": "",
+      "arquivo_ref": "",
+      "obs": "",
+      "agua": [
+        {
+          "prof": 1.45,
+          "data": ""
+        }
+      ],
+      "camadas": [
+        {
+          "profFinal": 0.1,
+          "tipo": "outro",
+          "descricao": "Camada vegetal"
+        },
+        {
+          "profFinal": 1.45,
+          "tipo": "silte",
+          "descricao": "Silte argiloso, consistência rija à muito rija, cor variegado"
+        },
+        {
+          "profFinal": 2.35,
+          "tipo": "rocha",
+          "descricao": "Alteração de calcário, cor variegado"
+        }
+      ],
+      "golpes": [
+        {
+          "prof": 1,
+          "g1": "8",
+          "g2": "10",
+          "g3": "10"
+        },
+        {
+          "prof": 2,
+          "g1": "15",
+          "g2": "20",
+          "g3": "55"
+        }
+      ]
+    },
+    {
+      "id": "Fmtvm5bhd6ly",
+      "hash": "14twb3n",
+      "sondagemNum": "SPT-04",
+      "obra": "ECOMP MIRANDA",
+      "unidadeOperacional": "ECOMP MIRANDA",
+      "cliente": "TBG - Transportadora Brasileira Gasoduto Bolívia-Brasil S.A.",
+      "local": "MIRANDA-MS",
+      "dataInicio": "12/07/2023",
+      "dataFim": "12/07/2023",
+      "cota": "105.57",
+      "datum": "SIRGAS2000",
+      "zonaUTM": "21S",
+      "lat": -20.122493,
+      "lng": -56.720228,
+      "responsavel": "",
+      "sondador": "",
+      "desenhista": "",
+      "amostrador": {
+        "diamInt": "34.9",
+        "diamExt": "50.8",
+        "peso": "65",
+        "altura": "75"
+      },
+      "metodo": "SPT (NBR 6484)",
+      "equipamento": "",
+      "revestimento": "",
+      "arquivo_ref": "",
+      "obs": "",
+      "agua": [
+        {
+          "prof": 2.45,
+          "data": ""
+        }
+      ],
+      "camadas": [
+        {
+          "profFinal": 0.1,
+          "tipo": "outro",
+          "descricao": "Camada vegetal"
+        },
+        {
+          "profFinal": 1.45,
+          "tipo": "silte",
+          "descricao": "Silte argiloso, consistência rija, cor variegado."
+        },
+        {
+          "profFinal": 2.45,
+          "tipo": "silte",
+          "descricao": "Silte argiloso com pedregulho, consistência muito rija, cor variegado."
+        },
+        {
+          "profFinal": 3.35,
+          "tipo": "rocha",
+          "descricao": "Alteração de calcário, cor variegado."
+        }
+      ],
+      "golpes": [
+        {
+          "prof": 1,
+          "g1": "7",
+          "g2": "7",
+          "g3": "9"
+        },
+        {
+          "prof": 2,
+          "g1": "10",
+          "g2": "10",
+          "g3": "12"
+        },
+        {
+          "prof": 3,
+          "g1": "20",
+          "g2": "25",
+          "g3": "50"
         }
       ]
     }

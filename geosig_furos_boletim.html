@@ -82,7 +82,14 @@ input,select,textarea{font-family:inherit;font-size:12px}
 .nst-swatch-wrap .nst-pattern-swatch{width:34px;height:30px}
 .nst-picker-popover{position:absolute;top:calc(100% + 6px);left:0;z-index:10;background:var(--card);
   border:1px solid var(--bdr-s);border-radius:var(--r-lg);box-shadow:0 6px 18px rgba(0,0,0,.22);
-  padding:8px;display:flex;gap:6px;flex-wrap:wrap;width:186px}
+  padding:8px;width:186px}
+.nst-picker-patterns{display:flex;gap:6px;flex-wrap:wrap}
+.nst-picker-color-row{display:flex;align-items:center;gap:6px;margin-top:8px;padding-top:8px;
+  border-top:1px solid var(--bdr)}
+.nst-picker-color-row label{font-size:10.5px;color:var(--mu);flex:1;}
+.nst-color-input{width:30px;height:24px;padding:0;border:1px solid var(--bdr-s);border-radius:4px;
+  cursor:pointer;flex-shrink:0;background:none}
+.nst-color-reset{font-size:10px;padding:3px 6px;flex-shrink:0;white-space:nowrap}
 
 /* sub-itens colapsáveis de uma camada de pontos — lista os pontos individuais dentro do item,
    cada um clicável pra centralizar o mapa naquele ponto específico */
@@ -498,15 +505,26 @@ table.edit-tbl input:focus,table.edit-tbl select:focus{outline:none;border-color
   background:var(--bo-text);color:#fff;font-family:var(--bo-mono);font-size:8px;width:15px;height:15px;
   border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;
 }
-.soil-argila{background:repeating-linear-gradient(45deg,#a9825b,#a9825b 5px,#c79c72 5px,#c79c72 10px);}
-.soil-areia{background:#f0d98c;background-image:radial-gradient(#b8974a 1.3px,transparent 1.3px);background-size:9px 9px;background-color:#f3e2ab;}
-.soil-silte{background:repeating-linear-gradient(0deg,#b9b2a0,#b9b2a0 3px,#d3cdbe 3px,#d3cdbe 7px);}
-.soil-aterro{background:repeating-linear-gradient(45deg,#cdb06a,#cdb06a 4px,transparent 4px,transparent 8px),repeating-linear-gradient(-45deg,#cdb06a,#cdb06a 4px,transparent 4px,transparent 8px),#e6d6a4;}
-.soil-rocha{background:#8d8d8d;}
-.soil-outro{background:#d7d2c6;}
-.soil-pedregulho{background:#c9b896;background-image:radial-gradient(circle,#8a7654 3px,transparent 3.2px);background-size:16px 16px;}
-.soil-turfa{background-color:#3a2f20;background-image:repeating-linear-gradient(0deg,transparent,transparent 5px,#6b5738 5px,#6b5738 7px);}
-.soil-saprolito{background-color:#b5a179;background-image:repeating-linear-gradient(135deg,transparent,transparent 3px,rgba(94,74,42,.55) 3px,rgba(94,74,42,.55) 4px),repeating-linear-gradient(45deg,transparent,transparent 3px,rgba(94,74,42,.55) 3px,rgba(94,74,42,.55) 4px);}
+/* as 9 texturas de solo abaixo usam --soilcolor como cor de fundo — o valor padrão de cada
+   uma é o mesmo de sempre; quando um tipo tem uma cor customizada escolhida (no gerenciador
+   de tipos de solo), essa variável é sobrescrita via style inline no elemento, trocando só o
+   fundo sem mexer na textura/hachura em si */
+.soil-argila{background-color:var(--soilcolor,#a9825b);
+  background-image:repeating-linear-gradient(45deg,transparent,transparent 5px,rgba(0,0,0,.22) 5px,rgba(0,0,0,.22) 10px);}
+.soil-areia{background-color:var(--soilcolor,#f0d98c);
+  background-image:radial-gradient(rgba(0,0,0,.38) 1.3px,transparent 1.3px);background-size:9px 9px;}
+.soil-silte{background-color:var(--soilcolor,#b9b2a0);
+  background-image:repeating-linear-gradient(0deg,transparent,transparent 3px,rgba(0,0,0,.18) 3px,rgba(0,0,0,.18) 7px);}
+.soil-aterro{background-color:var(--soilcolor,#cdb06a);
+  background-image:repeating-linear-gradient(45deg,transparent,transparent 4px,rgba(0,0,0,.22) 4px,rgba(0,0,0,.22) 8px),repeating-linear-gradient(-45deg,transparent,transparent 4px,rgba(0,0,0,.22) 4px,rgba(0,0,0,.22) 8px);}
+.soil-rocha{background-color:var(--soilcolor,#8d8d8d);}
+.soil-outro{background-color:var(--soilcolor,#d7d2c6);}
+.soil-pedregulho{background-color:var(--soilcolor,#c9b896);
+  background-image:radial-gradient(circle,rgba(0,0,0,.38) 3px,transparent 3.2px);background-size:16px 16px;}
+.soil-turfa{background-color:var(--soilcolor,#3a2f20);
+  background-image:repeating-linear-gradient(0deg,transparent,transparent 5px,rgba(255,255,255,.22) 5px,rgba(255,255,255,.22) 7px);}
+.soil-saprolito{background-color:var(--soilcolor,#b5a179);
+  background-image:repeating-linear-gradient(135deg,transparent,transparent 3px,rgba(0,0,0,.28) 3px,rgba(0,0,0,.28) 4px),repeating-linear-gradient(45deg,transparent,transparent 3px,rgba(0,0,0,.28) 3px,rgba(0,0,0,.28) 4px);}
 
 .desc-block{position:absolute;left:0;right:0;padding:4px 7px;border-top:1px dashed var(--bo-border);overflow:hidden;}
 .desc-block .desc-prof{font-family:var(--bo-mono);font-size:9px;color:var(--bo-accent);font-weight:700;}
@@ -1105,7 +1123,7 @@ async function loadCustomSoilTypes(){
     const r = await window.storage.get('geosig:customSoilTypes');
     if(r){
       const custom = JSON.parse(r.value);
-      custom.forEach(([k,l,pat])=>{ if(!TIPOS_SOLO.some(t=>t[0]===k)) TIPOS_SOLO.push([k,l,pat||'outro']); });
+      custom.forEach(([k,l,pat,cor])=>{ if(!TIPOS_SOLO.some(t=>t[0]===k)) TIPOS_SOLO.push([k,l,pat||'outro',cor||'']); });
     }
   }catch(e){}
 }
@@ -1155,19 +1173,27 @@ let nstOpenPickerIdx = null; // índice (no rascunho) da linha com o seletor de 
 function renderNstList(){
   const el = document.getElementById('nst-list');
   el.innerHTML = nstDraftTipos.map((t,i)=>{
-    const [key, nome, pat] = t;
+    const [key, nome, pat, cor] = t;
     const ehDeFabrica = TIPOS_SOLO_BASE_KEYS.has(key);
+    const corAtualParaInput = cor || SOIL_FILL[pat] || '#d7d2c6';
     const pickerHtml = nstOpenPickerIdx===i ? `
       <div class="nst-picker-popover">
-        ${PADROES_DISPONIVEIS.map(([pk,pl])=>`
-          <div class="nst-pattern-item">
-            <div class="nst-pattern-swatch soil-${pk}${pk===pat?' selected':''}" data-pick-idx="${i}" data-pick-pat="${pk}" title="${pl}"></div>
-          </div>`).join('')}
+        <div class="nst-picker-patterns">
+          ${PADROES_DISPONIVEIS.map(([pk,pl])=>`
+            <div class="nst-pattern-item">
+              <div class="nst-pattern-swatch soil-${pk}${pk===pat?' selected':''}" data-pick-idx="${i}" data-pick-pat="${pk}" title="${pl}" style="${cor?`--soilcolor:${cor};`:''}"></div>
+            </div>`).join('')}
+        </div>
+        <div class="nst-picker-color-row">
+          <label>Cor de fundo</label>
+          <input type="color" class="nst-color-input" data-color-idx="${i}" value="${corAtualParaInput}">
+          ${cor ? `<button type="button" class="mini-btn nst-color-reset" data-colorreset-idx="${i}" title="Voltar pra cor padrão da hachura">↺ Padrão</button>` : ''}
+        </div>
       </div>` : '';
     return `
       <div class="nst-row">
         <div class="nst-swatch-wrap">
-          <div class="nst-pattern-swatch soil-${pat}" data-toggle-idx="${i}" title="Clique pra trocar a hachura"></div>
+          <div class="nst-pattern-swatch soil-${pat}" data-toggle-idx="${i}" title="Clique pra trocar a hachura/cor" style="${cor?`--soilcolor:${cor};`:''}"></div>
           ${pickerHtml}
         </div>
         <input class="f-input nst-row-name" data-name-idx="${i}" value="${escAttr(nome)}" placeholder="Nome do tipo">
@@ -1191,6 +1217,25 @@ function renderNstList(){
       renderNstList();
     });
   });
+  el.querySelectorAll('[data-color-idx]').forEach(inp=>{
+    inp.addEventListener('click', e=>e.stopPropagation());
+    inp.addEventListener('input', e=>{
+      e.stopPropagation();
+      nstDraftTipos[parseInt(inp.dataset.colorIdx,10)][3] = inp.value;
+      const idx = parseInt(inp.dataset.colorIdx,10);
+      // atualiza só as amostras visuais na hora, sem fechar o popover a cada pincelada de cor
+      el.querySelectorAll(`.nst-swatch-wrap [data-toggle-idx="${idx}"], [data-pick-idx="${idx}"]`)
+        .forEach(sw=>{ sw.style.setProperty('--soilcolor', inp.value); });
+    });
+    inp.addEventListener('change', ()=>{ renderNstList(); }); // solta o mouse -> re-renderiza (mostra o botão "Padrão")
+  });
+  el.querySelectorAll('[data-colorreset-idx]').forEach(btn=>{
+    btn.addEventListener('click', e=>{
+      e.stopPropagation();
+      nstDraftTipos[parseInt(btn.dataset.colorresetIdx,10)][3] = '';
+      renderNstList();
+    });
+  });
   el.querySelectorAll('[data-name-idx]').forEach(inp=>{
     inp.addEventListener('input', ()=>{ nstDraftTipos[parseInt(inp.dataset.nameIdx,10)][1] = inp.value; });
   });
@@ -1210,7 +1255,7 @@ document.getElementById('nst-list').addEventListener('click', ()=>{
   if(nstOpenPickerIdx!==null){ nstOpenPickerIdx=null; renderNstList(); }
 });
 document.getElementById('nst-add-new').addEventListener('click', ()=>{
-  nstDraftTipos.push(['', '', 'outro']); // chave vazia = ainda não tem nome definido/slug gerado
+  nstDraftTipos.push(['', '', 'outro', '']); // chave vazia = ainda não tem nome definido/slug gerado
   nstOpenPickerIdx = null;
   renderNstList();
   const inputs = document.querySelectorAll('.nst-row-name');
@@ -1218,7 +1263,7 @@ document.getElementById('nst-add-new').addEventListener('click', ()=>{
 });
 function abrirNovoTipoSolo(selectQueDisparou){
   novoTipoSolicitanteSelect = selectQueDisparou;
-  nstDraftTipos = TIPOS_SOLO.map(t=>[t[0], t[1], t[2]]); // cópia de trabalho
+  nstDraftTipos = TIPOS_SOLO.map(t=>[t[0], t[1], t[2], t[3]||'']); // cópia de trabalho
   nstOpenPickerIdx = null;
   renderNstList();
   document.getElementById('new-soiltype-overlay').classList.add('open');
@@ -1248,7 +1293,7 @@ document.getElementById('nst-confirm').addEventListener('click', ()=>{
     if(!t[0]){ t[0] = slugifySoilType(t[1], nstDraftTipos); ultimaNovaKey = t[0]; }
   });
   TIPOS_SOLO.length = 0;
-  nstDraftTipos.forEach(t=> TIPOS_SOLO.push([t[0], t[1].trim(), t[2]]));
+  nstDraftTipos.forEach(t=> TIPOS_SOLO.push([t[0], t[1].trim(), t[2], t[3]||'']));
   saveCustomSoilTypes();
   const solicitante = novoTipoSolicitanteSelect;
   if(solicitante){
@@ -2160,7 +2205,7 @@ function renderFuroBoletimHtml(state){
     const top = c.profInicial * PXM;
     const h = (c.profFinal - c.profInicial) * PXM;
     perfilHtml += `
-      <div class="perfil-block soil-${soilPatId(c.tipo)}" style="top:${top}px;height:${h}px;">
+      <div class="perfil-block soil-${soilPatId(c.tipo)}" style="top:${top}px;height:${h}px;${soilColorStyleAttr(c.tipo)}">
         <div class="perfil-idx">${String(i).padStart(2, '0')}</div>
       </div>`;
     descHtml += `
@@ -2184,7 +2229,7 @@ function renderFuroBoletimHtml(state){
   const tiposPresentes = [...new Set(camadas.map(c => c.tipo))];
   const legendHtml = tiposPresentes.map(t => {
     const label = (TIPOS_SOLO.find(x => x[0] === t) || [t, t])[1];
-    return `<div class="legend-chip"><span class="legend-swatch soil-${soilPatId(t)}"></span>${esc(label)}</div>`;
+    return `<div class="legend-chip"><span class="legend-swatch soil-${soilPatId(t)}" style="${soilColorStyleAttr(t)}"></span>${esc(label)}</div>`;
   }).join('');
 
   const aguaLegend = agua.length
@@ -4413,6 +4458,20 @@ function soilPatId(tipo){
   if(entry && entry[2]) return entry[2];
   return ['argila','areia','silte','aterro','rocha','outro'].includes(tipo) ? tipo : 'outro';
 }
+// cor de preenchimento de um tipo — usa a cor CUSTOMIZADA do tipo (escolhida no gerenciador de
+// tipos de solo), se houver; senão cai na cor padrão da hachura escolhida (SOIL_FILL)
+function soilColorHex(tipo){
+  const entry = TIPOS_SOLO.find(t=>t[0]===tipo);
+  if(entry && entry[3]) return entry[3];
+  return SOIL_FILL[soilPatId(tipo)];
+}
+// pedaço de "style" pra injetar em elementos que usam a classe CSS soil-X (--soilcolor é lido
+// pela própria classe, sobrescrevendo só a cor de fundo, mantendo a textura da hachura) — vazio
+// se o tipo não tiver cor customizada, então não afeta nada por padrão
+function soilColorStyleAttr(tipo){
+  const entry = TIPOS_SOLO.find(t=>t[0]===tipo);
+  return (entry && entry[3]) ? `--soilcolor:${entry[3]};` : '';
+}
 
 /* ══════════════════════════════════════════════════════════════
    EDIÇÃO INTERATIVA DAS CAMADAS DO PERFIL
@@ -4713,7 +4772,7 @@ function renderProfileEditView(){
       const estilo = selecionada
         ? 'cursor:pointer;filter:saturate(1.6) brightness(1.08);'
         : 'cursor:pointer;';
-      bandsHtml += `<path class="edit-band" data-band="${i}" data-seg="${si}" d="${seg.d}" fill="${SOIL_FILL[soilPatId(seg.tipo)]}" stroke="${SOIL_FILL[soilPatId(seg.tipo)]}" stroke-width="1.2" style="${estilo}"></path>`;
+      bandsHtml += `<path class="edit-band" data-band="${i}" data-seg="${si}" d="${seg.d}" fill="${soilColorHex(seg.tipo)}" stroke="${soilColorHex(seg.tipo)}" stroke-width="1.2" style="${estilo}"></path>`;
     });
     if(selecionada){
       // contorno de destaque em volta da camada selecionada, pra ficar óbvio qual está ativa
@@ -4775,7 +4834,7 @@ function renderProfileEditView(){
   const legendHtml = profileEditBoundaries.map((b,i)=>{
     const tiposPresentes = Array.from(new Set(b.nodes.map(n=>n.tipo)));
     const labels = tiposPresentes.map(t=>(TIPOS_SOLO.find(x=>x[0]===t)||[t,t])[1]).join(' • ');
-    const corPrincipal = SOIL_FILL[soilPatId(tiposPresentes[0])];
+    const corPrincipal = soilColorHex(tiposPresentes[0]);
     const ativa = profileEditSelected===i;
     return `<button type="button" class="layer-chip" data-layer="${i}" style="display:inline-flex;align-items:center;gap:6px;padding:4px 10px;margin:2px;border-radius:14px;border:2px solid ${ativa?'#1a4e7a':'rgba(0,0,0,.15)'};background:${ativa?'rgba(26,78,122,.08)':'#fff'};cursor:pointer;font-size:11px;font-family:inherit;">
       <span style="width:13px;height:13px;border-radius:3px;background:${corPrincipal};border:1px solid rgba(0,0,0,.3);flex-shrink:0;"></span>
@@ -4964,8 +5023,8 @@ function updateProfileEditVisuals(bi){
       path.setAttribute('data-band', idx);
       path.setAttribute('data-seg', si);
       path.setAttribute('d', seg.d);
-      path.setAttribute('fill', SOIL_FILL[soilPatId(seg.tipo)]);
-      path.setAttribute('stroke', SOIL_FILL[soilPatId(seg.tipo)]);
+      path.setAttribute('fill', soilColorHex(seg.tipo));
+      path.setAttribute('stroke', soilColorHex(seg.tipo));
       path.setAttribute('stroke-width', '1.2');
       if(firstLine) svg.insertBefore(path, firstLine);
       else svg.appendChild(path);
@@ -5002,7 +5061,7 @@ function renderProfileHtml(profile){
       const segs = buildBandSegments(geom, b, bottomBoundary, bottomElev-2);
       segs.forEach(seg=>{
         tiposPresentes.add(seg.tipo);
-        rects += `<path d="${seg.d}" fill="${SOIL_FILL[soilPatId(seg.tipo)]}" stroke="${SOIL_FILL[soilPatId(seg.tipo)]}" stroke-width="1.2"><title>${esc((TIPOS_SOLO.find(x=>x[0]===seg.tipo)||[seg.tipo,seg.tipo])[1])} (ajustado manualmente)</title></path>`;
+        rects += `<path d="${seg.d}" fill="${soilColorHex(seg.tipo)}" stroke="${soilColorHex(seg.tipo)}" stroke-width="1.2"><title>${esc((TIPOS_SOLO.find(x=>x[0]===seg.tipo)||[seg.tipo,seg.tipo])[1])} (ajustado manualmente)</title></path>`;
       });
     });
   } else {
@@ -5094,7 +5153,7 @@ function renderProfileHtml(profile){
 
   const legend = Array.from(tiposPresentes).map(t=>{
     const label = (TIPOS_SOLO.find(x=>x[0]===t)||[t,t])[1];
-    return `<span class="tag-chip soil-${soilPatId(t)}" style="border-color:rgba(0,0,0,.2)">${esc(label)}</span>`;
+    return `<span class="tag-chip soil-${soilPatId(t)}" style="border-color:rgba(0,0,0,.2);${soilColorStyleAttr(t)}">${esc(label)}</span>`;
   }).join('');
   const terrainLegend = `<span class="tag-chip" style="border-color:#3a5c2a;color:#3a5c2a;">— linha do terreno (topografia interpolada)</span>`;
   const naLegend = naLine ? `<span class="tag-chip" style="border-color:#2a6fb0;color:#2a6fb0;">▽ N.A. — nível d'água interpolado</span>` : '';
@@ -5109,7 +5168,7 @@ function renderProfileHtml(profile){
     let profAntRef = 0;
     descList = camadaRef.map(c=>{
       const row = `<div style="display:flex;gap:10px;align-items:flex-start;padding:6px 2px;border-bottom:1px dashed #bdb8ae;">
-        <span class="soil-${soilPatId(c.tipo)}" style="width:28px;height:20px;border-radius:3px;border:1px solid rgba(0,0,0,.25);flex-shrink:0;margin-top:1px;"></span>
+        <span class="soil-${soilPatId(c.tipo)}" style="width:28px;height:20px;border-radius:3px;border:1px solid rgba(0,0,0,.25);flex-shrink:0;margin-top:1px;${soilColorStyleAttr(c.tipo)}"></span>
         <div>
           <div style="font-family:'Courier New',monospace;font-size:9.5px;color:#b85c1a;font-weight:700;">até ${c.profFinal.toFixed(2)} m (prof. ${profAntRef.toFixed(2)}–${c.profFinal.toFixed(2)} m)</div>
           <div style="font-size:11.5px;">${esc(c.descricao)||'<i>sem descrição</i>'}</div>
@@ -5741,7 +5800,7 @@ function renderRasterToCanvas(gridResult, paramKey){
       let rgb=[0,0,0], alpha=0;
       if(cell.valid){
         alpha=255;
-        if(paramKey==='material') rgb = hexToRgb(SOIL_FILL[soilPatId(cell.tipo)]);
+        if(paramKey==='material') rgb = hexToRgb(soilColorHex(cell.tipo));
         else rgb = continuousColor((cell.num-minV)/(maxV-minV));
       }
       imgData.data[idx]=rgb[0]; imgData.data[idx+1]=rgb[1]; imgData.data[idx+2]=rgb[2]; imgData.data[idx+3]=alpha;
@@ -5767,7 +5826,7 @@ function buildRasterLegendHtml(paramDef, minV, maxV, tiposPresentes){
     if(!tipos.length) return '<p class="hint">Nenhuma célula válida nessa cota (toda a área ficou acima do terreno, ou fora do casco convexo).</p>';
     return '<div class="tag-list">'+tipos.map(t=>{
       const label = (TIPOS_SOLO.find(x=>x[0]===t)||[t,t])[1];
-      return `<span class="tag-chip" style="background:${SOIL_FILL[soilPatId(t)]};border-color:rgba(0,0,0,.2)">${esc(label)}</span>`;
+      return `<span class="tag-chip" style="background:${soilColorHex(t)};border-color:rgba(0,0,0,.2)">${esc(label)}</span>`;
     }).join('')+'</div>';
   }
   const stops = Array.from({length:11},(_,i)=>{ const [r,g,b]=continuousColor(i/10); return `rgb(${r},${g},${b})`; }).join(',');
@@ -5794,7 +5853,7 @@ function drawRasterLegendOnCanvas(ctx, x, y, width, paramDef, minV, maxV, tiposP
       const textW = ctx.measureText(label).width;
       const blocoW = 18+6+textW+22;
       if(cx+blocoW > x+width){ cx = x; cy += 24; } // quebra linha se não couber
-      ctx.fillStyle = SOIL_FILL[soilPatId(t)];
+      ctx.fillStyle = soilColorHex(t);
       ctx.fillRect(cx, cy, 16, 16);
       ctx.strokeStyle = 'rgba(0,0,0,.3)'; ctx.lineWidth=1; ctx.strokeRect(cx+0.5, cy+0.5, 16, 16);
       ctx.fillStyle = '#282420';
@@ -6278,7 +6337,7 @@ function hideModel3DHoverTip(){
 // cor de uma camada k, no modo atual (sólida por material, ou gradiente N-SPT por vértice)
 function model3DLayerColorHex(k){
   const tipo = model3DGeo.tipos[k];
-  return parseInt(SOIL_FILL[soilPatId(tipo)].replace('#',''), 16);
+  return parseInt(soilColorHex(tipo).replace('#',''), 16);
 }
 const MODEL3D_SPT_BINS = 6; // faixas discretas de N-SPT no modelo 3D (não mais gradiente contínuo)
 function model3DSptColor(sptVal){

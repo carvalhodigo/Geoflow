@@ -783,8 +783,241 @@ th .help-ic:hover,.cptu-track-hdr .help-ic:hover{background:var(--bo-accent)}
   .chart-scroll{overflow:visible !important;background:#fff}
 }
 </style>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style id="geosig-sistema">
+/* ══ GEO·SIG — sistema visual (tokens + navegação) ══ */
+:root{
+  --bg:#EDEAE3;--surf:#F2EFE8;--card:#FBFAF7;--bdr:#DCD7CC;--bdr-s:#C3BCAF;
+  --tx:#302B26;--mu:#7C756C;--mono:'IBM Plex Mono',ui-monospace,monospace;
+  --r:5px;--r-lg:8px;
+  --green:#2F6B4C;--amber:#C8880F;--blue:#33629B;--red:#B23A2A;--violet:#6E3E96;
+}
+body{font-family:'IBM Plex Sans',system-ui,sans-serif;font-size:13px}
+input,select,textarea,button{font-family:'IBM Plex Sans',system-ui,sans-serif}
+.f-input,input[type=number],input[type=text].f-input,.utm-box,table.dt input,
+.ft-table td,.sb-count,.item-sub{font-variant-numeric:tabular-nums}
+a{color:var(--green)}a:hover{color:#24523a}
+
+/* ── barra de comando ── */
+#topbar{height:52px;background:var(--card);border-bottom:1px solid var(--bdr-s);gap:6px;padding:0 10px}
+.logo{font-family:var(--mono);font-size:15px;font-weight:700;letter-spacing:1.8px;color:var(--tx);gap:9px;margin-right:4px}
+.logo::before{content:'';width:15px;height:22px;border-radius:2px;background:var(--tx);
+  box-shadow:inset 0 0 0 0 #000;position:relative;
+  background-image:linear-gradient(to bottom,var(--amber) 0 27%,var(--green) 27% 58%,var(--tx) 58% 100%)}
+.tgroup{display:flex;align-items:center;gap:2px;height:34px;padding:0 4px 0 0;border-radius:7px;
+  background:var(--surf);border:1px solid var(--bdr);flex-shrink:0}
+.tglabel{font-family:var(--mono);font-size:8.5px;font-weight:700;letter-spacing:1px;
+  text-transform:uppercase;color:var(--mu);padding:0 6px 0 8px;white-space:nowrap}
+.tgroup .tbtn{height:26px;border:none;background:transparent;font-family:'IBM Plex Sans',sans-serif;
+  font-size:12.5px;font-weight:500;letter-spacing:0;text-transform:none;color:var(--tx);padding:0 8px}
+.tgroup .tbtn:hover{background:#fff;color:var(--tx)}
+.tgroup .tbtn.on{background:var(--green);color:#fff;border-radius:5px}
+.tbtn{height:32px;border-radius:6px;font-family:'IBM Plex Sans',sans-serif;font-size:12.5px;
+  font-weight:500;letter-spacing:0;text-transform:none;color:var(--tx);background:var(--card);border:1px solid var(--bdr)}
+.tbtn:hover{background:var(--surf);color:var(--tx)}
+.tbtn.on{background:var(--green);color:#fff;border-color:var(--green)}
+#btn-add-furo{background:var(--green);color:#fff;border-color:var(--green);font-weight:600;padding:0 14px}
+#btn-add-furo:hover{background:#27593f;color:#fff}
+.tsel{height:32px;border-radius:6px;border:1px solid var(--bdr);font-size:12.5px;background:var(--card)}
+.sep{background:var(--bdr)}
+#tb-new-wrap{position:relative;flex-shrink:0;display:flex;align-items:stretch}
+#tb-new-wrap #btn-add-furo{border-radius:6px 0 0 6px}
+#tb-new-caret{background:var(--green);color:#fff;border:1px solid var(--green);border-left:1px solid #27593f;
+  border-radius:0 6px 6px 0;height:32px;width:24px;padding:0;justify-content:center;font-size:10px}
+#tb-new-caret:hover{background:#27593f;color:#fff}
+#tb-new-menu{position:fixed;min-width:268px;background:var(--card);
+  border:1px solid var(--bdr-s);border-radius:var(--r-lg);box-shadow:0 10px 28px rgba(48,43,38,.22);
+  padding:6px;display:none;flex-direction:column;gap:2px;z-index:900}
+#tb-new-menu.open{display:flex}
+#tb-new-menu .tbtn{width:100%;justify-content:flex-start;border:none;background:transparent;height:32px}
+#tb-new-menu .tbtn:hover{background:var(--surf)}
+#tb-new-menu hr{border:none;border-top:1px solid var(--bdr);margin:4px 2px}
+.tnew-label{font-family:var(--mono);font-size:8.5px;font-weight:700;letter-spacing:1.1px;
+  text-transform:uppercase;color:var(--mu);padding:5px 10px 2px}
+#tb-more-wrap{position:relative;flex-shrink:0}
+#tb-more-btn{width:32px;padding:0;justify-content:center;font-family:var(--mono);font-size:15px}
+#tb-more-menu{position:fixed;min-width:230px;background:var(--card);
+  border:1px solid var(--bdr-s);border-radius:var(--r-lg);box-shadow:0 10px 28px rgba(48,43,38,.22);
+  padding:6px;display:none;flex-direction:column;gap:2px;z-index:900}
+#tb-more-menu.open{display:flex}
+#tb-more-menu .tbtn{width:100%;justify-content:flex-start;border:none;background:transparent;height:32px}
+#tb-more-menu .tbtn:hover{background:var(--surf)}
+#tb-more-menu .tbtn.warn{color:var(--red)}
+#tb-more-menu hr{border-top:1px solid var(--bdr);margin:4px 2px}
+.tgroup #btn-publish-furos{color:var(--green);font-weight:600}
+.tgroup #btn-publish-furos:hover{background:var(--green);color:#fff;border-radius:5px}
+#btn-user{background:var(--surf);border:1px solid var(--bdr);font-weight:600}
+
+/* ── trilha de módulos (lateral) ── */
+#sidebar{background:var(--card)}
+.sb-tabs{display:grid;grid-template-columns:repeat(3,1fr);background:var(--surf);border-bottom:1px solid var(--bdr)}
+.sb-tab{font-family:var(--mono);font-size:9px;letter-spacing:.4px;padding:9px 2px;background:transparent;
+  line-height:1.25;display:flex;align-items:center;justify-content:center;border-right:1px solid var(--bdr)}
+.sb-tab:nth-child(3n){border-right:none}
+.sb-tab:hover{color:var(--tx)}
+.sb-tab.on{background:var(--card);color:var(--green);border-bottom-color:var(--green)}
+.sb-list{padding:8px;background:var(--card)}
+.item{border-radius:var(--r);border-color:var(--bdr);padding:8px 10px;box-shadow:none}
+.item:hover{border-color:var(--green)}
+.item.sel{border-color:var(--green);border-left:3px solid var(--green);background:#EFF5F1}
+.item-title{font-family:var(--mono);font-size:12.5px;font-weight:700;letter-spacing:.3px}
+.item-sub{font-size:10px;color:var(--mu)}
+.sb-count{font-family:var(--mono);font-size:9.5px;letter-spacing:1.1px;text-transform:uppercase}
+
+/* ── tabela de furos ── */
+#furo-table-panel{border-bottom:1px solid var(--bdr-s)}
+#furo-table-header{background:var(--surf);padding:9px 12px}
+.ft-chip{height:28px;border-radius:14px;font-family:var(--mono);font-size:10px;border-color:var(--bdr-s)}
+.ft-chip.has-filter{background:#E6EFE9;border-color:var(--green);color:var(--green)}
+.ft-group-header{font-family:var(--mono);font-size:10px;letter-spacing:1.1px;text-transform:uppercase;color:var(--green)}
+.ft-table{border-color:var(--bdr);border-radius:var(--r)}
+.ft-table th{font-family:var(--mono);font-size:9px;letter-spacing:.8px;background:var(--surf)}
+.ft-table td{font-size:12px;font-variant-numeric:tabular-nums}
+.ft-table tbody tr:hover{background:#F1F6F2}
+.ft-table tbody tr.sel{background:#E6EFE9;box-shadow:inset 3px 0 0 var(--green)}
+
+.ft-ic{width:14px;height:14px;vertical-align:-2.5px;margin-right:5px}
+.ft-ic-spt{color:var(--amber)}
+.ft-ic-cptu{color:var(--blue)}
+.ft-ic-interp{color:var(--violet)}
+.ft-legend{display:flex;align-items:center;gap:14px;font-family:var(--mono);font-size:9.5px;
+  letter-spacing:.6px;text-transform:uppercase;color:var(--mu)}
+.ft-legend span{display:inline-flex;align-items:center;gap:5px}
+
+/* ── inspetor / painel direito ── */
+#panel{background:var(--card)}
+.p-hdr{background:var(--surf);padding:12px 14px}
+.p-hdr b{font-family:var(--mono);font-size:12px;letter-spacing:.8px}
+.sec-title{font-family:var(--mono);font-size:9px;letter-spacing:1.2px;color:var(--green)}
+label{font-size:9px;letter-spacing:.8px;color:var(--mu)}
+.f-input{border-radius:var(--r);border-color:var(--bdr);font-size:12.5px}
+.f-input:focus{border-color:var(--green);box-shadow:0 0 0 3px rgba(47,107,76,.14)}
+.utm-box{font-family:var(--mono);border-radius:var(--r)}
+.mini-btn{border-radius:var(--r);border-color:var(--bdr);font-size:11.5px;font-weight:600;letter-spacing:0;
+  padding:6px 12px;white-space:nowrap;display:inline-flex;align-items:center;gap:6px}
+.mini-btn.primary{background:var(--green);border-color:var(--green)}
+.mini-btn.primary:hover{background:#27593f;color:#fff}
+.popup-header h3{font-family:var(--mono);font-size:13px;letter-spacing:.6px}
+
+/* ── pinos e rótulos ── */
+.furo-pin{box-shadow:0 1px 3px rgba(48,43,38,.4)}
+.furo-pin.cptu{background:var(--blue)}
+.furo-pin.interp{background:var(--violet)}
+.furo-pin.selpin{background:var(--green);box-shadow:0 0 0 4px rgba(47,107,76,.22),0 1px 3px rgba(48,43,38,.4)}
+.furo-label,.shape-label{font-family:var(--mono);font-size:10px;letter-spacing:.3px;border-color:var(--bdr-s)}
+.shape-label{color:var(--blue)}
+
+/* ── ícones ── */
+.ic{width:15px;height:15px;flex-shrink:0;vertical-align:-2.5px;stroke:currentColor;fill:none;
+  stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+.ic-lg{width:17px;height:17px}
+.tbtn .ic{margin-right:1px}.mini-btn .ic{margin:0}
+.eye-btn{font-size:0;color:var(--mu)}
+.eye-btn .ic{width:17px;height:17px;vertical-align:-3px}
+.eye-btn:hover{color:var(--tx)}
+.eye-btn.off{opacity:.4}
+.item-title .ic{color:var(--mu);margin-right:5px}
+.ft-group-header .ic,.sec-title .ic{color:var(--green)}
+.popup-header h3 .ic{width:16px;height:16px;margin-right:6px;color:var(--green)}
+.point-subitem-icon .ic{width:12px;height:12px;color:var(--mu)}
+
+
+/* ── painel do bloco interpolado ── */
+.pb-hdr{display:flex;align-items:center;gap:10px;padding:12px 14px;background:var(--surf);
+  border-bottom:1px solid var(--bdr);position:sticky;top:0;z-index:6}
+.pb-dot{width:15px;height:15px;background:var(--violet);border:2px solid #fff;transform:rotate(45deg);
+  box-shadow:0 0 0 1px var(--bdr-s);flex-shrink:0}
+.pb-hdr-t{flex:1;min-width:0}
+.pb-hdr-t b{display:block;font-family:var(--mono);font-size:13px;letter-spacing:.5px}
+.pb-hdr-t span{font-size:11px;color:var(--mu)}
+.pb-metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--bdr);
+  border-bottom:1px solid var(--bdr)}
+.pb-metric{background:var(--card);padding:9px 11px}
+.pb-metric i{display:block;font-family:var(--mono);font-size:8.5px;font-style:normal;font-weight:700;
+  letter-spacing:1px;text-transform:uppercase;color:var(--mu)}
+.pb-metric b{display:block;font-family:var(--mono);font-size:15px;font-weight:600;margin-top:3px;
+  font-variant-numeric:tabular-nums}
+.pb-tabs{display:flex;background:var(--surf);border-bottom:1px solid var(--bdr);position:sticky;top:0;z-index:5}
+.pb-tab{flex:1;padding:10px 6px;background:transparent;border:none;border-bottom:2px solid transparent;
+  font-family:var(--mono);font-size:10px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:var(--mu)}
+.pb-tab.on{color:var(--green);border-bottom-color:var(--green);background:var(--card)}
+.pb-pane{padding:14px;display:flex;flex-direction:column;gap:12px}
+.pb-pane[hidden]{display:none}
+.pb-cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px}
+.pb-card{text-align:left;background:var(--card);border:1px solid var(--bdr);border-radius:var(--r-lg);
+  padding:12px 13px;display:flex;flex-direction:column;gap:5px;cursor:pointer;transition:border-color .12s,background .12s}
+.pb-card:hover{border-color:var(--green);background:#F4F8F5}
+.pb-card{position:relative;padding-left:46px}
+.pb-card-ic{position:absolute;left:13px;top:13px;width:22px;height:22px;stroke-width:1.5;color:var(--green)}
+.pb-card:hover .pb-card-ic{color:var(--tx)}
+.pb-card b{font-size:13px;font-weight:600;color:var(--tx)}
+.pb-card span{font-size:11.5px;line-height:1.45;color:var(--mu)}
+.pb-card em{font-family:var(--mono);font-size:8.5px;font-style:normal;font-weight:700;letter-spacing:1px;
+  text-transform:uppercase;color:var(--green)}
+.pb-foot{position:sticky;bottom:0;display:flex;gap:8px;align-items:center;padding:11px 14px;
+  background:var(--surf);border-top:1px solid var(--bdr)}
+.pb-foot .hint{margin:0;font-size:10.5px;color:var(--mu)}
+.pb-tags{display:flex;flex-wrap:wrap;gap:6px}
+.tag-chip{font-family:var(--mono);border-radius:12px;border-color:var(--bdr-s);background:var(--card)}
+
+/* ── barra de status ── */
+#statusbar{height:28px;flex-shrink:0;background:var(--tx);color:#D9D3C9;display:flex;align-items:center;
+  gap:14px;padding:0 14px;font-family:var(--mono);font-size:10px;letter-spacing:.5px;
+  font-variant-numeric:tabular-nums;user-select:none;z-index:600}
+#statusbar .sbar-div{color:#6A625A}
+#statusbar .sbar-right{margin-left:auto;display:flex;align-items:center;gap:14px}
+#statusbar .sbar-ok{color:#8FC79F}
+
+/* ── abertura ── */
+.splash-logo{font-family:var(--mono);letter-spacing:2.5px}
+.splash-progress-fill{background:var(--green)}
+#hint-toast{font-family:var(--mono);background:var(--tx)}
+</style>
 </head>
 <body>
+
+<svg id="geosig-icons" width="0" height="0" style="position:absolute" aria-hidden="true">
+<symbol id="ic-furo" viewBox="0 0 24 24"><circle fill="none" cx="12" cy="6" r="3"/><path fill="none" d="M12 9v12"/><path fill="none" d="M9 13h6M9 17h6"/></symbol>
+<symbol id="ic-cptu" viewBox="0 0 24 24"><rect fill="none" x="8.5" y="3.5" width="7" height="6" rx="1"/><path fill="none" d="M12 9.5V21"/><path fill="none" d="M9.5 14h5"/></symbol>
+<symbol id="ic-poly" viewBox="0 0 24 24"><path fill="none" d="M4 8l8-4 8 5-4 10-8-2z"/></symbol>
+<symbol id="ic-line" viewBox="0 0 24 24"><path fill="none" d="M4 18l5-9 6 5 5-8"/></symbol>
+<symbol id="ic-interp" viewBox="0 0 24 24"><path fill="none" d="M12 3l9 9-9 9-9-9z"/></symbol>
+<symbol id="ic-topo" viewBox="0 0 24 24"><path fill="none" d="M3 19l6-10 4 5 3-4 5 9z"/></symbol>
+<symbol id="ic-perfil" viewBox="0 0 24 24"><path fill="none" d="M4 4v16h16"/><path fill="none" d="M7 15l4-4 3 2 4-5"/></symbol>
+<symbol id="ic-raster" viewBox="0 0 24 24"><rect fill="none" x="3" y="4" width="18" height="16" rx="1"/><path fill="none" d="M3 9h18M3 14h18M9 4v16M15 4v16"/></symbol>
+<symbol id="ic-import" viewBox="0 0 24 24"><path fill="none" d="M12 3v11"/><path fill="none" d="M8 10l4 4 4-4"/><path fill="none" d="M4 18v2h16v-2"/></symbol>
+<symbol id="ic-export" viewBox="0 0 24 24"><path fill="none" d="M12 15V4"/><path fill="none" d="M8 8l4-4 4 4"/><path fill="none" d="M4 18v2h16v-2"/></symbol>
+<symbol id="ic-save" viewBox="0 0 24 24"><rect fill="none" x="4" y="4" width="16" height="16" rx="2"/><path fill="none" d="M9 4v5h6V4"/><rect fill="none" x="8" y="13" width="8" height="7"/></symbol>
+<symbol id="ic-table" viewBox="0 0 24 24"><rect fill="none" x="3" y="4" width="18" height="16" rx="1"/><path fill="none" d="M3 9h18M3 14.5h18M10 9v11"/></symbol>
+<symbol id="ic-trash" viewBox="0 0 24 24"><path fill="none" d="M5 7h14"/><path fill="none" d="M10 4h4"/><path fill="none" d="M7 7l1 13h8l1-13"/></symbol>
+<symbol id="ic-storage" viewBox="0 0 24 24"><rect fill="none" x="3" y="4" width="18" height="4.5" rx="1"/><rect fill="none" x="3" y="10" width="18" height="4.5" rx="1"/><rect fill="none" x="3" y="16" width="18" height="4.5" rx="1"/></symbol>
+<symbol id="ic-user" viewBox="0 0 24 24"><circle fill="none" cx="12" cy="8" r="3.5"/><path fill="none" d="M5 20c0-3.9 3.1-6 7-6s7 2.1 7 6"/></symbol>
+<symbol id="ic-publish" viewBox="0 0 24 24"><path fill="none" d="M4 4h16"/><path fill="none" d="M12 21V9"/><path fill="none" d="M7.5 13.5L12 9l4.5 4.5"/></symbol>
+<symbol id="ic-eye" viewBox="0 0 24 24"><path fill="none" d="M2.5 12S6 6.5 12 6.5 21.5 12 21.5 12 18 17.5 12 17.5 2.5 12 2.5 12z"/><circle fill="none" cx="12" cy="12" r="2.6"/></symbol>
+<symbol id="ic-edit" viewBox="0 0 24 24"><path fill="none" d="M4.5 19.5l4-1L19 8l-3-3L5.5 15.5z"/><path fill="none" d="M15 6l3 3"/></symbol>
+<symbol id="ic-print" viewBox="0 0 24 24"><rect fill="none" x="7" y="3" width="10" height="5"/><path fill="none" d="M5 8h14v8h-3v5H8v-5H5z"/></symbol>
+<symbol id="ic-image" viewBox="0 0 24 24"><rect fill="none" x="3" y="5" width="18" height="14" rx="1"/><circle fill="none" cx="8.5" cy="10" r="1.6"/><path fill="none" d="M5 18l5-5 3.5 3L18 11l3 3"/></symbol>
+<symbol id="ic-cube" viewBox="0 0 24 24"><path fill="none" d="M12 3l8 4.5v9L12 21l-8-4.5v-9z"/><path fill="none" d="M4 7.5l8 4.5 8-4.5M12 12v9"/></symbol>
+<symbol id="ic-globe" viewBox="0 0 24 24"><circle fill="none" cx="12" cy="12" r="8.5"/><path fill="none" d="M3.5 12h17"/><path fill="none" d="M12 3.5c3 3 3 14 0 17c-3-3-3-14 0-17z"/></symbol>
+<symbol id="ic-pin" viewBox="0 0 24 24"><path fill="none" d="M12 21s6.5-7 6.5-11.5a6.5 6.5 0 10-13 0C5.5 14 12 21 12 21z"/><circle fill="none" cx="12" cy="9.5" r="2.4"/></symbol>
+<symbol id="ic-map" viewBox="0 0 24 24"><path fill="none" d="M3 6l6-2 6 3 6-2v13l-6 2-6-3-6 2z"/><path fill="none" d="M9 4v13M15 7v13"/></symbol>
+<symbol id="ic-target" viewBox="0 0 24 24"><circle fill="none" cx="12" cy="12" r="7"/><path fill="none" d="M12 2v4M12 18v4M2 12h4M18 12h4"/></symbol>
+<symbol id="ic-rect-sel" viewBox="0 0 24 24"><rect fill="none" x="3" y="6" width="18" height="12" rx="1" stroke-dasharray="3 2.6"/></symbol>
+<symbol id="ic-soil" viewBox="0 0 24 24"><rect fill="none" x="3" y="5" width="18" height="14" rx="1"/><path fill="none" d="M3 9.5h18M3 14h18"/></symbol>
+<symbol id="ic-crosshair-area" viewBox="0 0 24 24"><rect fill="none" x="3" y="3" width="18" height="18" rx="1.5" stroke-dasharray="3 2.6"/><path fill="none" d="M12 7.5v9M7.5 12h9"/></symbol>
+<symbol id="ic-compare" viewBox="0 0 24 24"><rect fill="none" x="3" y="5" width="11" height="11" rx="1"/><rect fill="none" x="10" y="8" width="11" height="11" rx="1"/></symbol>
+<symbol id="ic-window" viewBox="0 0 24 24"><rect fill="none" x="3" y="4" width="18" height="16" rx="2"/><path fill="none" d="M3 8.5h18"/></symbol>
+<symbol id="ic-package" viewBox="0 0 24 24"><path fill="none" d="M4 8l8-4 8 4v8l-8 4-8-4z"/><path fill="none" d="M4 8l8 4 8-4M12 12v8"/></symbol>
+<symbol id="ic-gear" viewBox="0 0 24 24"><circle fill="none" cx="12" cy="12" r="3.4"/><circle fill="none" cx="12" cy="12" r="7.5" stroke-dasharray="2.4 2.6"/></symbol>
+<symbol id="ic-pointer" viewBox="0 0 24 24"><path fill="none" d="M6 3l12 7-5 1.5L16 19l-3 1-3-7.5L6 15z"/></symbol>
+<symbol id="ic-plus" viewBox="0 0 24 24"><path fill="none" d="M12 5v14M5 12h14"/></symbol>
+<symbol id="ic-minus" viewBox="0 0 24 24"><path fill="none" d="M5 12h14"/></symbol>
+<symbol id="ic-check" viewBox="0 0 24 24"><path fill="none" d="M4 12.5l5 5L20 6.5"/></symbol>
+<symbol id="ic-close" viewBox="0 0 24 24"><path fill="none" d="M6 6l12 12M18 6L6 18"/></symbol>
+</svg>
 
 <div id="splash-screen">
   <div class="splash-inner">
@@ -831,46 +1064,82 @@ th .help-ic:hover,.cptu-track-hdr .help-ic:hover{background:var(--bo-accent)}
 
 <div id="topbar">
   <div class="logo">GEO·SIG</div>
-  <button class="tbtn" id="btn-add-furo">＋ Furo SPT</button>
-  <button class="tbtn" id="btn-add-poly">＋ Polígono</button>
-  <button class="tbtn" id="btn-add-line">＋ Linha</button>
-  <div class="sep"></div>
-  <button class="tbtn" id="btn-interp-mode" title="Selecione 3+ furos para gerar uma área interpolada (IDW)">🧭 Interpolar</button>
-  <button class="tbtn" id="btn-topo-mode" title="Selecione 3+ pontos (furos ou camada de pontos) com cota conhecida para gerar uma superfície topográfica (IDW)">🏔️ Topografia</button>
-  <div class="sep"></div>
-  <button class="tbtn" id="cptu-btn-new" title="Cria um ensaio de CPTu novo, vazio">🧊 CPTu: Novo</button>
-  <button class="tbtn" id="cptu-btn-import" title="Importa a planilha exportada pelo CPeT-IT (abas '...- Basic' e '...- Estimations')">🧊 CPTu: Importar Excel</button>
-  <input type="file" id="cptu-file-input" accept=".xls,.xlsx" style="display:none">
-  <button class="tbtn" id="btn-load-sample" title="Carrega um ensaio de CPTu de exemplo com perfil sintético, útil pra testar o módulo">🧊 CPTu: Exemplo</button>
-  <div class="sep"></div>
-  <button class="tbtn" id="btn-import" title="Aceita shapefile (.zip), GeoJSON, ou campanha completa em JSON ({&quot;furos&quot;:[...]}, com camadas e golpes por profundidade)">⇪ Importar</button>
-  <button class="tbtn" id="btn-export-shp">⇩ Shapefile</button>
-  <button class="tbtn" id="btn-save-project" title="Salva o estudo deste projeto num arquivo: áreas/linhas, blocos interpolados, superfícies topográficas, perfis, rasters, furos interpolados e ensaios de CPTu. Não inclui os furos do banco principal — esses são publicados à parte via furos.json">💾 Salvar Projeto</button>
-  <button class="tbtn" id="btn-export-csv">⇩ CSV</button>
-  <div class="sep"></div>
-  <select class="tsel" id="sel-base">
-    <option value="osm">Mapa (OSM)</option>
-    <option value="sat">Satélite (Esri)</option>
-    <option value="gsat">Satélite (Google)</option>
-    <option value="ghyb">Híbrido (Google)</option>
-  </select>
-  <select class="tsel" id="sel-labels" title="Controla quando os rótulos (nomes dos furos, pontos, linhas e áreas) aparecem no mapa">
-    <option value="auto" selected>Rótulos: automático</option>
-    <option value="always">Rótulos: sempre visíveis</option>
-    <option value="never">Rótulos: sempre ocultos</option>
-  </select>
-  <div class="sep"></div>
-  <button class="tbtn" id="btn-toggle-table" title="Mostra os furos em forma de tabela, agrupados por estado">📋 Tabela de furos</button>
-  <button class="tbtn" id="btn-publish-furos" title="Baixa o furos.json atualizado — depois substitua o arquivo no repositório para publicar pra todo mundo" style="display:none">📤 Publicar furos.json</button>
+
+  <div id="tb-new-wrap">
+    <button class="tbtn" id="btn-add-furo"><svg class="ic"><use href="#ic-furo"></use></svg> Furo SPT</button>
+    <button class="tbtn" id="tb-new-caret" title="Outros tipos de sondagem">▾</button>
+    <div id="tb-new-menu">
+      <span class="tnew-label">Sondagem</span>
+      <button class="tbtn" id="tb-new-spt"><svg class="ic"><use href="#ic-furo"></use></svg> Furo SPT — cadastrar no mapa</button>
+      <hr>
+      <span class="tnew-label">CPTu (piezocone)</span>
+      <button class="tbtn" id="cptu-btn-new" title="Cria um ensaio de CPTu novo, vazio"><svg class="ic"><use href="#ic-cptu"></use></svg> Novo ensaio de CPTu</button>
+      <button class="tbtn" id="cptu-btn-import" title="Importa a planilha exportada pelo CPeT-IT (abas '...- Basic' e '...- Estimations')"><svg class="ic"><use href="#ic-import"></use></svg> Importar Excel (CPeT-IT)</button>
+      <input type="file" id="cptu-file-input" accept=".xls,.xlsx" style="display:none">
+    </div>
+  </div>
+
+  <div class="tgroup">
+    <span class="tglabel">Desenhar</span>
+    <button class="tbtn" id="btn-add-poly"><svg class="ic"><use href="#ic-poly"></use></svg> Polígono</button>
+    <button class="tbtn" id="btn-add-line"><svg class="ic"><use href="#ic-line"></use></svg> Linha</button>
+  </div>
+
+  <div class="tgroup">
+    <span class="tglabel">Analisar</span>
+    <button class="tbtn" id="btn-interp-mode" title="Selecione 3+ furos para gerar uma área interpolada (IDW)"><svg class="ic"><use href="#ic-interp"></use></svg> Interpolar</button>
+    <button class="tbtn" id="btn-topo-mode" title="Selecione 3+ pontos (furos ou camada de pontos) com cota conhecida para gerar uma superfície topográfica (IDW)"><svg class="ic"><use href="#ic-topo"></use></svg> Topografia</button>
+  </div>
+
+  <div class="tgroup">
+    <span class="tglabel">Importar</span>
+    <button class="tbtn" id="btn-import" title="Aceita shapefile (.zip), GeoJSON, ou campanha completa em JSON ({&quot;furos&quot;:[...]}, com camadas e golpes por profundidade)"><svg class="ic"><use href="#ic-import"></use></svg> Arquivo</button>
+  </div>
+
+  <div class="tgroup">
+    <span class="tglabel">Exportar</span>
+    <button class="tbtn" id="btn-export-shp" title="Exporta os itens selecionados como shapefile (.zip)"><svg class="ic"><use href="#ic-export"></use></svg> Shapefile</button>
+    <button class="tbtn" id="btn-export-csv" title="Exporta a tabela de furos em CSV"><svg class="ic"><use href="#ic-export"></use></svg> CSV</button>
+    <button class="tbtn" id="btn-save-project" title="Salva o estudo deste projeto num arquivo: áreas/linhas, blocos interpolados, superfícies topográficas, perfis, rasters, furos interpolados e ensaios de CPTu. Não inclui os furos do banco principal — esses são publicados à parte via furos.json"><svg class="ic"><use href="#ic-save"></use></svg> Salvar projeto</button>
+    <button class="tbtn" id="btn-publish-furos" title="Baixa o furos.json atualizado — depois substitua o arquivo no repositório para publicar pra todo mundo" style="display:none"><svg class="ic"><use href="#ic-publish"></use></svg> Publicar furos.json</button>
+  </div>
+
+  <div class="tgroup">
+    <span class="tglabel">Mapa</span>
+    <select class="tsel" id="sel-base" style="height:26px;border:none;background:transparent">
+      <option value="osm">Mapa (OSM)</option>
+      <option value="sat">Satélite (Esri)</option>
+      <option value="gsat">Satélite (Google)</option>
+      <option value="ghyb">Híbrido (Google)</option>
+    </select>
+    <select class="tsel" id="sel-labels" title="Controla quando os rótulos (nomes dos furos, pontos, linhas e áreas) aparecem no mapa" style="height:26px;border:none;background:transparent">
+      <option value="auto" selected>Rótulos: automático</option>
+      <option value="always">Rótulos: sempre visíveis</option>
+      <option value="never">Rótulos: sempre ocultos</option>
+    </select>
+  </div>
+
+  <button class="tbtn" id="btn-toggle-table" title="Mostra os furos em forma de tabela, agrupados por estado"><svg class="ic"><use href="#ic-table"></use></svg> Tabela de furos</button>
+
   <button class="tbtn" id="btn-user" style="margin-left:auto"></button>
-  <button class="tbtn" id="btn-storage" title="Gerenciar os dados salvos neste navegador">🧹 Armazenamento</button>
-  <button class="tbtn warn" id="btn-clear">🗑 Limpar</button>
+
+  <div id="tb-more-wrap">
+    <button class="tbtn" id="tb-more-btn" title="Mais ações">⋯</button>
+    <div id="tb-more-menu">
+      <span class="tnew-label">Utilidades</span>
+      <button class="tbtn" id="btn-load-sample" title="Carrega um ensaio de CPTu de exemplo com perfil sintético"><svg class="ic"><use href="#ic-cptu"></use></svg> Carregar CPTu de exemplo</button>
+      <button class="tbtn" id="btn-storage" title="Gerenciar os dados salvos neste navegador"><svg class="ic"><use href="#ic-storage"></use></svg> Armazenamento do navegador</button>
+      <hr>
+      <button class="tbtn warn" id="btn-clear"><svg class="ic"><use href="#ic-trash"></use></svg> Limpar tudo</button>
+    </div>
+  </div>
+
   <input type="file" id="file-input" accept=".zip,.geojson,.json">
 </div>
 
 <div class="popup-overlay" id="storage-settings-overlay">
   <div class="editor-box" style="max-width:460px;">
-    <div class="popup-header"><h3>🧹 Armazenamento do navegador</h3></div>
+    <div class="popup-header"><h3><svg class="ic"><use href="#ic-storage"></use></svg> Armazenamento do navegador</h3></div>
     <div class="p-body">
       <p class="hint">Os dados desta aba (furos, áreas/linhas, blocos interpolados, superfícies topográficas, perfis, rasters) ficam salvos no armazenamento local deste navegador — não em nenhum servidor. Eles se acumulam com o tempo, o que pode deixar o carregamento mais pesado.</p>
 
@@ -892,10 +1161,15 @@ th .help-ic:hover,.cptu-track-hdr .help-ic:hover{background:var(--bo-accent)}
 
 <div id="furo-table-panel" class="hidden">
   <div id="furo-table-header">
-    <b>📋 Furos por estado</b>
+    <b><svg class="ic"><use href="#ic-table"></use></svg> Furos por estado</b>
     <div id="furo-table-chips"></div>
+    <span class="ft-legend">
+      <span><svg class="ic ft-ic ft-ic-spt"><use href="#ic-furo"></use></svg>SPT</span>
+      <span><svg class="ic ft-ic ft-ic-cptu"><use href="#ic-cptu"></use></svg>CPTu</span>
+      <span><svg class="ic ft-ic ft-ic-interp"><use href="#ic-interp"></use></svg>Interpolado</span>
+    </span>
     <span class="hint" id="furo-table-hint" style="font-size:10.5px;color:var(--mu);"></span>
-    <button class="mini-btn" type="button" id="furo-table-float" title="Alternar entre fixo no topo e janela flutuante">🗗 Flutuante</button>
+    <button class="mini-btn" type="button" id="furo-table-float" title="Alternar entre fixo no topo e janela flutuante"><svg class="ic"><use href="#ic-window"></use></svg> Flutuante</button>
     <button class="mini-btn" type="button" id="furo-table-close" style="margin-left:auto">✕ Fechar</button>
   </div>
   <div id="furo-table-content">
@@ -926,7 +1200,7 @@ th .help-ic:hover,.cptu-track-hdr .help-ic:hover{background:var(--bo-accent)}
   <div id="map-raster-legend-panel" class="hidden"></div>
   <div id="interp-select-bar">
     <span id="interp-select-count"></span>
-    <button class="mini-btn" id="interp-btn-rect" type="button" title="Arraste um retângulo no mapa para selecionar vários furos de uma vez">▭ Selecionar por retângulo</button>
+    <button class="mini-btn" id="interp-btn-rect" type="button" title="Arraste um retângulo no mapa para selecionar vários furos de uma vez"><svg class="ic"><use href="#ic-rect-sel"></use></svg> Selecionar por retângulo</button>
     <button class="mini-btn primary" id="interp-btn-confirm" disabled>Criar bloco interpolado</button>
     <button class="mini-btn" id="interp-btn-cancel">Cancelar</button>
   </div>
@@ -937,7 +1211,7 @@ th .help-ic:hover,.cptu-track-hdr .help-ic:hover{background:var(--bo-accent)}
   </div>
   <div id="export-select-bar">
     <span id="export-select-count"></span>
-    <button class="mini-btn" id="export-btn-rect" type="button" title="Arraste um retângulo no mapa para selecionar vários itens de uma vez">▭ Selecionar por retângulo</button>
+    <button class="mini-btn" id="export-btn-rect" type="button" title="Arraste um retângulo no mapa para selecionar vários itens de uma vez"><svg class="ic"><use href="#ic-rect-sel"></use></svg> Selecionar por retângulo</button>
     <button class="mini-btn primary" id="export-btn-confirm" disabled>Exportar selecionados</button>
     <button class="mini-btn" id="export-btn-cancel">Cancelar</button>
   </div>
@@ -950,7 +1224,7 @@ th .help-ic:hover,.cptu-track-hdr .help-ic:hover{background:var(--bo-accent)}
 <!-- ══ EDITOR COMPLETO DO BOLETIM — NBR 6484 ══ -->
 <div class="popup-overlay" id="user-setup-overlay">
   <div class="editor-box" style="max-width:420px;">
-    <div class="popup-header"><h3>👤 Identifique-se</h3></div>
+    <div class="popup-header"><h3><svg class="ic"><use href="#ic-user"></use></svg> Identifique-se</h3></div>
     <div class="p-body">
       <p class="hint">Organiza o que cada um vê e mantém os dados de estudo de cada pessoa separados. Não é uma senha — dá pra trocar de perfil quando quiser, pelo botão no topo.</p>
       <div class="f-row">
@@ -973,7 +1247,7 @@ th .help-ic:hover,.cptu-track-hdr .help-ic:hover{background:var(--bo-accent)}
 
 <div class="popup-overlay" id="new-soiltype-overlay">
   <div class="editor-box" style="max-width:540px;">
-    <div class="popup-header"><h3>🧱 Tipos de solo</h3></div>
+    <div class="popup-header"><h3><svg class="ic"><use href="#ic-soil"></use></svg> Tipos de solo</h3></div>
     <div class="p-body">
       <p class="hint">Edite o nome ou a hachura de qualquer tipo (inclusive os 6 padrão), ou cadastre um novo — clique na amostra colorida pra trocar a hachura. Vale em todo o app: boletins, legendas, rasters.</p>
       <div id="nst-list" style="max-height:320px;overflow-y:auto;"></div>
@@ -988,7 +1262,7 @@ th .help-ic:hover,.cptu-track-hdr .help-ic:hover{background:var(--bo-accent)}
 
 <div class="popup-overlay" id="import-overlay">
   <div class="editor-box">
-    <div class="popup-header"><h3>⇪ Importar dados de CPTu</h3><button class="popup-close" id="import-close">✕</button></div>
+    <div class="popup-header"><h3><svg class="ic"><use href="#ic-import"></use></svg> Importar dados de CPTu</h3><button class="popup-close" id="import-close">✕</button></div>
     <div class="p-body">
       <p class="hint">Aceita a planilha exportada pelo CPeT-IT (abas "NomeDoEnsaio - Basic" e "NomeDoEnsaio - Estimations"). Cada par de abas vira um ensaio novo — desmarque o que não quiser importar.</p>
       <div id="import-groups" style="margin-top:14px;"></div>
@@ -1068,13 +1342,13 @@ th .help-ic:hover,.cptu-track-hdr .help-ic:hover{background:var(--bo-accent)}
           <div class="field" id="bo-f-na-estimado-wrap" style="display:none"><label>N.A. estimado (m)</label><input id="bo-f-na-estimado" type="number" step="0.01"></div>
           <div class="field" id="bo-f-khkv-wrap" style="display:none"><label>Razão kh/kv assumida</label><input id="bo-f-khkv" type="number" step="0.1" value="2"></div>
         </div>
-        <button class="add-row-btn" type="button" id="bo-fill-utm" style="margin-top:8px">📍 Preencher Coord. N/E e Zona UTM (registro do boletim) com a posição atual do furo</button>
+        <button class="add-row-btn" type="button" id="bo-fill-utm" style="margin-top:8px"><svg class="ic"><use href="#ic-pin"></use></svg> Preencher Coord. N/E e Zona UTM (registro do boletim) com a posição atual do furo</button>
 
         <div class="fieldset-title">Localização do furo (posição real no mapa)</div>
         <div class="loc-toggle">
           <button type="button" class="loc-mode-btn active" data-mode="latlng">Lat / Long</button>
           <button type="button" class="loc-mode-btn" data-mode="utm">UTM</button>
-          <button type="button" class="loc-pick-btn" id="bo-pick-map" title="Clicar no mapa para definir a localização">🗺️ Marcar no mapa</button>
+          <button type="button" class="loc-pick-btn" id="bo-pick-map" title="Clicar no mapa para definir a localização"><svg class="ic"><use href="#ic-target"></use></svg> Marcar no mapa</button>
         </div>
         <div class="input-grid" id="bo-loc-latlng">
           <div class="field"><label>Latitude (graus decimais)</label><input id="bo-f-lat" type="number" step="0.000001" placeholder="Ex: -23.550520"></div>
@@ -1093,7 +1367,7 @@ th .help-ic:hover,.cptu-track-hdr .help-ic:hover{background:var(--bo-accent)}
             </select>
           </div>
         </div>
-        <p class="hint">Digite as coordenadas de qualquer um dos dois jeitos, ou clique em <b>🗺️ Marcar no mapa</b> para posicionar o furo clicando diretamente no mapa. Datums históricos (SAD69, Córrego Alegre) usam transformação aproximada — confirme em um SIG antes de uso em projeto executivo.</p>
+        <p class="hint">Digite as coordenadas de qualquer um dos dois jeitos, ou clique em <b><svg class="ic"><use href="#ic-target"></use></svg> Marcar no mapa</b> para posicionar o furo clicando diretamente no mapa. Datums históricos (SAD69, Córrego Alegre) usam transformação aproximada — confirme em um SIG antes de uso em projeto executivo.</p>
 
         <div class="fieldset-title" id="bo-f-amostrador-title">Amostrador bipartido (padrão NBR 6484)</div>
         <div class="input-grid" id="bo-f-amostrador-grid">
@@ -1166,7 +1440,7 @@ th .help-ic:hover,.cptu-track-hdr .help-ic:hover{background:var(--bo-accent)}
     </div>
     <div class="popup-footer">
       <button class="btn-ghost" type="button" onclick="cancelBoletimEditor()">Cancelar</button>
-      <button class="btn-primary" type="button" onclick="saveBoletimEditor()">💾 Salvar Boletim</button>
+      <button class="btn-primary" type="button" onclick="saveBoletimEditor()"><svg class="ic"><use href="#ic-save"></use></svg> Salvar Boletim</button>
     </div>
   </div>
 </div>
@@ -1182,10 +1456,10 @@ th .help-ic:hover,.cptu-track-hdr .help-ic:hover{background:var(--bo-accent)}
     <div class="popup-footer">
       <input class="f-input" id="profile-name-input" placeholder="Nome do perfil" style="margin-right:auto;max-width:260px">
       <button class="mini-btn danger" id="profile-delete-btn" type="button" style="display:none" onclick="deleteProfile()">Excluir perfil</button>
-      <button class="btn-ghost" id="profile-edit-toggle-btn" type="button" onclick="toggleProfileEditMode()">✏️ Editar camadas</button>
-      <button class="btn-ghost" type="button" onclick="printProfileView()">🖨 Imprimir</button>
+      <button class="btn-ghost" id="profile-edit-toggle-btn" type="button" onclick="toggleProfileEditMode()"><svg class="ic"><use href="#ic-edit"></use></svg> Editar camadas</button>
+      <button class="btn-ghost" type="button" onclick="printProfileView()"><svg class="ic"><use href="#ic-print"></use></svg> Imprimir</button>
       <button class="btn-ghost" type="button" onclick="closeProfileView()">Fechar</button>
-      <button class="btn-primary" type="button" onclick="saveProfile()">💾 Salvar perfil</button>
+      <button class="btn-primary" type="button" onclick="saveProfile()"><svg class="ic"><use href="#ic-save"></use></svg> Salvar perfil</button>
     </div>
   </div>
 </div>
@@ -1207,7 +1481,7 @@ th .help-ic:hover,.cptu-track-hdr .help-ic:hover{background:var(--bo-accent)}
         <div class="field"><label>&nbsp;</label><button class="add-row-btn" type="button" id="raster-elev-sugestao">Sugerir cota (~3 m abaixo do terreno)</button></div>
       </div>
 
-      <button class="btn-primary" type="button" id="raster-gerar-btn" style="margin-top:10px;">🖼️ Gerar raster</button>
+      <button class="btn-primary" type="button" id="raster-gerar-btn" style="margin-top:10px;"><svg class="ic"><use href="#ic-image"></use></svg> Gerar raster</button>
 
       <div id="raster-canvas-area" style="margin-top:14px;"></div>
       <div id="raster-legend" style="margin-top:10px;"></div>
@@ -1215,10 +1489,10 @@ th .help-ic:hover,.cptu-track-hdr .help-ic:hover{background:var(--bo-accent)}
     </div>
     <div class="popup-footer">
       <button class="btn-ghost" type="button" onclick="closeRasterView()">Fechar</button>
-      <button class="btn-primary" type="button" id="raster-addmap-btn">📍 Adicionar ao mapa</button>
-      <button class="btn-primary" type="button" id="raster-save-btn">💾 Salvar imagem (PNG)</button>
-      <button class="btn-primary" type="button" id="raster-print-btn">🖨️ Imprimir</button>
-      <button class="btn-primary" type="button" id="raster-save-tif-btn">🌍 Salvar GeoTIFF</button>
+      <button class="btn-primary" type="button" id="raster-addmap-btn"><svg class="ic"><use href="#ic-pin"></use></svg> Adicionar ao mapa</button>
+      <button class="btn-primary" type="button" id="raster-save-btn"><svg class="ic"><use href="#ic-save"></use></svg> Salvar imagem (PNG)</button>
+      <button class="btn-primary" type="button" id="raster-print-btn"><svg class="ic"><use href="#ic-print"></use></svg> Imprimir</button>
+      <button class="btn-primary" type="button" id="raster-save-tif-btn"><svg class="ic"><use href="#ic-globe"></use></svg> Salvar GeoTIFF</button>
     </div>
   </div>
 </div>
@@ -1293,10 +1567,10 @@ th .help-ic:hover,.cptu-track-hdr .help-ic:hover{background:var(--bo-accent)}
       <p class="hint">Escolha o que incluir no shapefile (furos, áreas e linhas viram camadas separadas dentro do .zip).</p>
       <div class="btn-row" style="flex-direction:column;gap:10px;margin-top:6px;">
         <button class="btn-primary" type="button" id="export-shp-all-btn" style="width:100%;text-align:left;padding:14px 16px;">
-          📦 Exportar tudo<br><span id="export-shp-all-count" style="font-weight:400;font-size:11px;opacity:.85;"></span>
+          <svg class="ic"><use href="#ic-package"></use></svg> Exportar tudo<br><span id="export-shp-all-count" style="font-weight:400;font-size:11px;opacity:.85;"></span>
         </button>
         <button class="btn-ghost" type="button" id="export-shp-select-btn" style="width:100%;text-align:left;padding:14px 16px;border:1.5px solid var(--blue);color:var(--blue);">
-          🖱️ Selecionar no mapa<br><span style="font-weight:400;font-size:11px;opacity:.85;">Clique nos furos/áreas, ou use seleção por retângulo</span>
+          <svg class="ic"><use href="#ic-pointer"></use></svg> Selecionar no mapa<br><span style="font-weight:400;font-size:11px;opacity:.85;">Clique nos furos/áreas, ou use seleção por retângulo</span>
         </button>
       </div>
     </div>
@@ -2240,9 +2514,9 @@ let furoTableFilters = { uf: new Set(), obra: new Set(), uo: new Set() };
 // campos disponíveis pra filtro — ícone, rótulo, e como extrair o valor de um furo. Usado
 // tanto pra montar os chips quanto pra aplicar o filtro em si (furoPassaFiltros)
 const FURO_FILTER_CAMPOS = [
-  {key:'uf', icon:'📍', titulo:'UF', getter:f=>extrairEstadoDoLocal(f.ident.local)},
-  {key:'obra', icon:'🏗', titulo:'Obra', getter:f=>f.ident.obra},
-  {key:'uo', icon:'⚙', titulo:'UO', getter:f=>f.ident.unidadeOperacional},
+  {key:'uf', icon:'', titulo:'UF', getter:f=>extrairEstadoDoLocal(f.ident.local)},
+  {key:'obra', icon:'', titulo:'Obra', getter:f=>f.ident.obra},
+  {key:'uo', icon:'', titulo:'UO', getter:f=>f.ident.unidadeOperacional},
 ];
 function furoPassaFiltros(f, keyExcluida){
   const uf = extrairEstadoDoLocal(f.ident.local) || '';
@@ -2351,7 +2625,7 @@ function renderFuroTable(){
   renderFuroTableChips();
 
   if(furos.length===0){
-    el.innerHTML = '<div class="sb-empty">Nenhum furo cadastrado ainda.<br>Use "＋ Furo SPT" e clique no mapa, ou importe uma campanha.</div>';
+    el.innerHTML = '<div class="sb-empty">Nenhum furo cadastrado ainda.<br>Use "Furo SPT" e clique no mapa, ou importe uma campanha.</div>';
     hint.textContent = '';
     return;
   }
@@ -2376,7 +2650,7 @@ function renderFuroTable(){
   estadoNames.forEach(estado=>{
     const list = groups[estado].slice().sort((a,b)=> a.ident.sondagemNum.localeCompare(b.ident.sondagemNum, 'pt-BR', {numeric:true}));
     html += `<div class="ft-group">
-      <div class="ft-group-header">📍 ${esc(estado)} <span class="ft-count">(${list.length} furo${list.length!==1?'s':''})</span></div>
+      <div class="ft-group-header"><svg class="ic"><use href="#ic-pin"></use></svg> ${esc(estado)} <span class="ft-count">(${list.length} furo${list.length!==1?'s':''})</span></div>
       <table class="ft-table">
         <thead><tr>
           <th>Sondagem</th><th>Obra</th><th>Cliente</th><th>Local</th><th>Data</th><th>Cota (m)</th><th>Prof. máx (m)</th><th>Camadas / Leituras</th>
@@ -2384,7 +2658,12 @@ function renderFuroTable(){
         <tbody>`;
     list.forEach(f=>{
       const selCls = (selected&&selected.kind==='furo'&&selected.id===f.id) ? ' sel' : '';
-      const badge = (f._interpolado ? '🔮 ' : '') + (f.tipoSondagem==='CPTU' ? '🧊 ' : '');
+      const tipoIc = f._interpolado
+        ? '<svg class="ic ft-ic ft-ic-interp" title="Furo interpolado"><use href="#ic-interp"></use></svg>'
+        : (f.tipoSondagem==='CPTU'
+            ? '<svg class="ic ft-ic ft-ic-cptu" title="Ensaio CPTu"><use href="#ic-cptu"></use></svg>'
+            : '<svg class="ic ft-ic ft-ic-spt" title="Sondagem SPT"><use href="#ic-furo"></use></svg>');
+      const badge = tipoIc + ' ';
       const cotaTxt = (f.ident.cota!==''&&f.ident.cota!=null&&isFinite(parseFloat(f.ident.cota))) ? parseFloat(f.ident.cota).toFixed(2) : '—';
       const camadasTxt = f.tipoSondagem==='CPTU' ? f.cptuPerfil.length+' leituras' : String(f.camadas.length);
       html += `<tr class="ft-row${selCls}" data-furo="${f.id}">
@@ -2706,8 +2985,8 @@ function openFuroPanel(id){
     <div class="p-body">
 
       <div class="btn-row" style="margin-top:6px">
-        <button class="mini-btn" id="pf-edit-full">✏️ ${ehCptu ? 'Editor completo (identificação · dados do ensaio · perfil)' : 'Editor completo (NA · camadas · golpes)'}</button>
-        <button class="mini-btn" id="pf-print">🖨 ${ehCptu ? 'Imprimir boletim CPTu' : 'Imprimir boletim NBR 6484'}</button>
+        <button class="mini-btn" id="pf-edit-full"><svg class="ic"><use href="#ic-edit"></use></svg> ${ehCptu ? 'Editor completo (identificação · dados do ensaio · perfil)' : 'Editor completo (NA · camadas · golpes)'}</button>
+        <button class="mini-btn" id="pf-print"><svg class="ic"><use href="#ic-print"></use></svg> ${ehCptu ? 'Imprimir boletim CPTu' : 'Imprimir boletim NBR 6484'}</button>
         <button class="mini-btn danger" id="pf-del">Excluir furo</button>
       </div>
 
@@ -2899,7 +3178,7 @@ document.getElementById('bo-fill-utm').addEventListener('click', ()=>{
 
 function saveBoletimEditor(){
   const f = furos.find(x=>x.id===editingFuroId); if(!f) return;
-  if(!f._interpolado && !isAdmin()){ alert('Só o Administrador pode editar furos do banco principal. Troque de perfil no botão "👤" no topo se for o caso.'); return; }
+  if(!f._interpolado && !isAdmin()){ alert('Só o Administrador pode editar furos do banco principal. Troque de perfil no botão de perfil no topo se for o caso.'); return; }
   const val = elId=>{ const e=document.getElementById(elId); return e?e.value:''; };
   const tipo = val('bo-f-tipo-sondagem') || 'SPT';
   const ehCptu = tipo==='CPTU';
@@ -3036,6 +3315,46 @@ function printFuroBoletim(f){
     .print-btn{margin-top:16px;padding:9px 18px;border-radius:8px;border:1.5px solid #b85c1a;background:#b85c1a;color:#fff;font-weight:700;cursor:pointer;font-family:system-ui,sans-serif;}
   </style>
   </head><body>
+
+<svg id="geosig-icons" width="0" height="0" style="position:absolute" aria-hidden="true">
+<symbol id="ic-furo" viewBox="0 0 24 24"><circle cx="12" cy="6" r="3"/><path d="M12 9v12"/><path d="M9 13h6M9 17h6"/></symbol>
+<symbol id="ic-cptu" viewBox="0 0 24 24"><rect x="8.5" y="3.5" width="7" height="6" rx="1"/><path d="M12 9.5V21"/><path d="M9.5 14h5"/></symbol>
+<symbol id="ic-poly" viewBox="0 0 24 24"><path d="M4 8l8-4 8 5-4 10-8-2z"/></symbol>
+<symbol id="ic-line" viewBox="0 0 24 24"><path d="M4 18l5-9 6 5 5-8"/></symbol>
+<symbol id="ic-interp" viewBox="0 0 24 24"><path d="M12 3l9 9-9 9-9-9z"/></symbol>
+<symbol id="ic-topo" viewBox="0 0 24 24"><path d="M3 19l6-10 4 5 3-4 5 9z"/></symbol>
+<symbol id="ic-perfil" viewBox="0 0 24 24"><path d="M4 4v16h16"/><path d="M7 15l4-4 3 2 4-5"/></symbol>
+<symbol id="ic-raster" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="1"/><path d="M3 9h18M3 14h18M9 4v16M15 4v16"/></symbol>
+<symbol id="ic-import" viewBox="0 0 24 24"><path d="M12 3v11"/><path d="M8 10l4 4 4-4"/><path d="M4 18v2h16v-2"/></symbol>
+<symbol id="ic-export" viewBox="0 0 24 24"><path d="M12 15V4"/><path d="M8 8l4-4 4 4"/><path d="M4 18v2h16v-2"/></symbol>
+<symbol id="ic-save" viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M9 4v5h6V4"/><rect x="8" y="13" width="8" height="7"/></symbol>
+<symbol id="ic-table" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="1"/><path d="M3 9h18M3 14.5h18M10 9v11"/></symbol>
+<symbol id="ic-trash" viewBox="0 0 24 24"><path d="M5 7h14"/><path d="M10 4h4"/><path d="M7 7l1 13h8l1-13"/></symbol>
+<symbol id="ic-storage" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="4.5" rx="1"/><rect x="3" y="10" width="18" height="4.5" rx="1"/><rect x="3" y="16" width="18" height="4.5" rx="1"/></symbol>
+<symbol id="ic-user" viewBox="0 0 24 24"><circle cx="12" cy="8" r="3.5"/><path d="M5 20c0-3.9 3.1-6 7-6s7 2.1 7 6"/></symbol>
+<symbol id="ic-publish" viewBox="0 0 24 24"><path d="M4 4h16"/><path d="M12 21V9"/><path d="M7.5 13.5L12 9l4.5 4.5"/></symbol>
+<symbol id="ic-eye" viewBox="0 0 24 24"><path d="M2.5 12S6 6.5 12 6.5 21.5 12 21.5 12 18 17.5 12 17.5 2.5 12 2.5 12z"/><circle cx="12" cy="12" r="2.6"/></symbol>
+<symbol id="ic-edit" viewBox="0 0 24 24"><path d="M4.5 19.5l4-1L19 8l-3-3L5.5 15.5z"/><path d="M15 6l3 3"/></symbol>
+<symbol id="ic-print" viewBox="0 0 24 24"><rect x="7" y="3" width="10" height="5"/><path d="M5 8h14v8h-3v5H8v-5H5z"/></symbol>
+<symbol id="ic-image" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="1"/><circle cx="8.5" cy="10" r="1.6"/><path d="M5 18l5-5 3.5 3L18 11l3 3"/></symbol>
+<symbol id="ic-cube" viewBox="0 0 24 24"><path d="M12 3l8 4.5v9L12 21l-8-4.5v-9z"/><path d="M4 7.5l8 4.5 8-4.5M12 12v9"/></symbol>
+<symbol id="ic-globe" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M3.5 12h17"/><path d="M12 3.5c3 3 3 14 0 17c-3-3-3-14 0-17z"/></symbol>
+<symbol id="ic-pin" viewBox="0 0 24 24"><path d="M12 21s6.5-7 6.5-11.5a6.5 6.5 0 10-13 0C5.5 14 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.4"/></symbol>
+<symbol id="ic-map" viewBox="0 0 24 24"><path d="M3 6l6-2 6 3 6-2v13l-6 2-6-3-6 2z"/><path d="M9 4v13M15 7v13"/></symbol>
+<symbol id="ic-target" viewBox="0 0 24 24"><circle cx="12" cy="12" r="7"/><path d="M12 2v4M12 18v4M2 12h4M18 12h4"/></symbol>
+<symbol id="ic-rect-sel" viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="12" rx="1" stroke-dasharray="3 2.6"/></symbol>
+<symbol id="ic-soil" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="1"/><path d="M3 9.5h18M3 14h18"/></symbol>
+<symbol id="ic-crosshair-area" viewBox="0 0 24 24"><rect fill="none" x="3" y="3" width="18" height="18" rx="1.5" stroke-dasharray="3 2.6"/><path fill="none" d="M12 7.5v9M7.5 12h9"/></symbol>
+<symbol id="ic-compare" viewBox="0 0 24 24"><rect x="3" y="5" width="11" height="11" rx="1"/><rect x="10" y="8" width="11" height="11" rx="1"/></symbol>
+<symbol id="ic-window" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 8.5h18"/></symbol>
+<symbol id="ic-package" viewBox="0 0 24 24"><path d="M4 8l8-4 8 4v8l-8 4-8-4z"/><path d="M4 8l8 4 8-4M12 12v8"/></symbol>
+<symbol id="ic-gear" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3.4"/><circle cx="12" cy="12" r="7.5" stroke-dasharray="2.4 2.6"/></symbol>
+<symbol id="ic-pointer" viewBox="0 0 24 24"><path d="M6 3l12 7-5 1.5L16 19l-3 1-3-7.5L6 15z"/></symbol>
+<symbol id="ic-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+<symbol id="ic-minus" viewBox="0 0 24 24"><path d="M5 12h14"/></symbol>
+<symbol id="ic-check" viewBox="0 0 24 24"><path d="M4 12.5l5 5L20 6.5"/></symbol>
+<symbol id="ic-close" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></symbol>
+</svg>
   <div class="print-header no-print">
     <div class="print-tag">GEO·SIG — GEOTECNIA DE CAMPO</div>
     <div class="print-title">Boletim de Sondagem${ehCptu?' — CPTu':''}</div>
@@ -3244,7 +3563,7 @@ function zoomToShapePoint(lat, lng){
 }
 function renderShapeList(){
   const el = document.getElementById('list-shapes');
-  if(shapes.length===0){ el.innerHTML='<div class="sb-empty">Nenhuma área/linha.<br>Use "＋ Polígono" ou "＋ Linha".</div>'; return; }
+  if(shapes.length===0){ el.innerHTML='<div class="sb-empty">Nenhuma área/linha.<br>Use "Polígono" ou "Linha".</div>'; return; }
   el.innerHTML='';
   shapes.forEach(s=>{
     const div=document.createElement('div');
@@ -3266,12 +3585,12 @@ function renderShapeList(){
         const checkboxHtml = topoSelectMode
           ? `<input type="checkbox" class="topo-pt-checkbox" data-selkey="${escAttr(selKey)}" ${topoSelected.has(selKey)?'checked':''}>`
           : '';
-        return `<div class="point-subitem" data-idx="${i}">${checkboxHtml}<span class="point-subitem-icon">📍</span>${esc(label)}</div>`;
+        return `<div class="point-subitem" data-idx="${i}">${checkboxHtml}<span class="point-subitem-icon"><svg class="ic"><use href="#ic-pin"></use></svg></span>${esc(label)}</div>`;
       }).join('')}</div>`;
     }
     div.innerHTML=`<div style="display:flex;align-items:flex-start;gap:6px;">
       ${expandBtnHtml}
-      <button type="button" class="eye-btn${visivel?'':' off'}" title="${visivel?'Ocultar':'Mostrar'} no mapa">👁</button>
+      <button type="button" class="eye-btn${visivel?'':' off'}" title="${visivel?'Ocultar':'Mostrar'} no mapa"><svg class="ic"><use href="#ic-eye"></use></svg></button>
       <div style="flex:1;min-width:0;">
         <div class="item-title">${esc(s.name)}</div><div class="item-sub">${subLabel}</div>
       </div>
@@ -3612,7 +3931,7 @@ function enterInterpSelectMode(){
   document.getElementById('interp-select-bar').style.display = 'flex';
   updateInterpSelectBar();
   closePanel();
-  toast('Clique nos furos que deseja usar na interpolação (mín. 3), ou use "▭ Selecionar por retângulo"');
+  toast('Clique nos furos que deseja usar na interpolação (mín. 3), ou use "Selecionar por retângulo"');
 }
 function exitInterpSelectMode(){
   interpSelectMode = false;
@@ -4003,7 +4322,7 @@ function toggleTopoVisible(id){
 function renderTopoList(){
   const el = document.getElementById('list-topo'); if(!el) return;
   if(topoSurfaces.length===0){
-    el.innerHTML = '<div class="sb-empty">Nenhuma superfície topográfica.<br>Use "🏔️ Topografia", selecione 3+ pontos com cota conhecida (furos ou camada de pontos) e confirme.</div>';
+    el.innerHTML = '<div class="sb-empty">Nenhuma superfície topográfica.<br>Use "Topografia", selecione 3+ pontos com cota conhecida (furos ou camada de pontos) e confirme.</div>';
     return;
   }
   el.innerHTML = '';
@@ -4012,9 +4331,9 @@ function renderTopoList(){
     div.className = 'item'+(selected&&selected.kind==='topo'&&selected.id===s.id?' sel':'');
     const visivel = s.visible!==false;
     div.innerHTML = `<div style="display:flex;align-items:flex-start;gap:8px;">
-      <button type="button" class="eye-btn${visivel?'':' off'}" title="${visivel?'Ocultar':'Mostrar'} no mapa">👁</button>
+      <button type="button" class="eye-btn${visivel?'':' off'}" title="${visivel?'Ocultar':'Mostrar'} no mapa"><svg class="ic"><use href="#ic-eye"></use></svg></button>
       <div style="flex:1;min-width:0;">
-        <div class="item-title">🏔️ ${esc(s.nome)}</div>
+        <div class="item-title"><svg class="ic"><use href="#ic-topo"></use></svg>${esc(s.nome)}</div>
         <div class="item-sub">${s.pontos.length} pontos de origem${s.showIsolines?' · isolinhas':''}</div>
       </div>
     </div>`;
@@ -4616,7 +4935,7 @@ function showInterpPreview(previewFuro){
       <div class="f-row"><label>Nome do furo interpolado</label><input class="f-input" id="pi-num" value="${escAttr(previewFuro.ident.sondagemNum)}"></div>
       <div class="boletim-preview-wrap">${boletimHtml}</div>
       <div class="btn-row" style="margin-top:10px">
-        <button class="mini-btn primary" id="pi-save">💾 Salvar como furo</button>
+        <button class="mini-btn primary" id="pi-save"><svg class="ic"><use href="#ic-save"></use></svg> Salvar como furo</button>
         <button class="mini-btn" id="pi-discard">Descartar</button>
       </div>
     </div>`;
@@ -4650,48 +4969,83 @@ function openInterpBlockPanel(id){
   const panel = document.getElementById('panel');
   panel.classList.remove('hidden');
   const srcNames = b.furoIds.map(fid=>{ const f=furos.find(x=>x.id===fid); return f? f.ident.sondagemNum : '(removido)'; });
+  const hullXY = (b.hull||[]).map(([la,ln])=>localXY(la,ln,b.refLat,b.refLng));
+  let areaM2 = 0;
+  for(let i=0;i<hullXY.length;i++){ const p=hullXY[i], q=hullXY[(i+1)%hullXY.length]; areaM2 += p.x*q.y - q.x*p.y; }
+  areaM2 = Math.abs(areaM2/2);
+  const areaTxt = areaM2>=10000 ? (areaM2/10000).toFixed(2).replace('.',',')+' ha' : Math.round(areaM2)+' m²';
+  const nInterp = (typeof interpFuros!=='undefined' && Array.isArray(interpFuros))
+    ? interpFuros.filter(f=>f.blockId===b.id).length : 0;
   panel.innerHTML = `
-    <div class="p-hdr"><b>Bloco Interpolado</b><button class="p-close" onclick="closePanel()">✕</button></div>
-    <div class="p-body">
-      <div class="f-row"><label>Nome</label><input class="f-input" id="pb-nome" value="${escAttr(b.nome)}"></div>
+    <div class="pb-hdr">
+      <span class="pb-dot"></span>
+      <span class="pb-hdr-t"><b>${esc(b.nome)}</b><span>Bloco interpolado · IDW p=${b.power||2}</span></span>
+      <button class="p-close" onclick="closePanel()" title="Fechar">✕</button>
+    </div>
+    <div class="pb-metrics">
+      <div class="pb-metric"><i>Furos</i><b>${srcNames.length}</b></div>
+      <div class="pb-metric"><i>Área</i><b>${areaTxt}</b></div>
+      <div class="pb-metric"><i>Extrap.</i><b>${b.extrapDist!=null?b.extrapDist:DEFAULT_EXTRAP_M} m</b></div>
+      <div class="pb-metric"><i>Pontos</i><b>${nInterp}</b></div>
+    </div>
+    <div class="pb-tabs">
+      <button class="pb-tab on" type="button" data-pane="produtos">Produtos</button>
+      <button class="pb-tab" type="button" data-pane="ajustes">Ajustes</button>
+    </div>
+
+    <div class="pb-pane" id="pb-pane-produtos">
+      <div class="pb-cards">
+        <button class="pb-card" id="pb-add-interp-point" type="button">
+          <svg class="ic pb-card-ic"><use href="#ic-crosshair-area"></use></svg><em>Sondagem</em><b>Ponto interpolado</b>
+          <span>Clique num local dentro da área tracejada: a cruz provisória mostra a prévia e, ao salvar, vira um furo interpolado.</span>
+        </button>
+        <button class="pb-card" id="pb-draw-profile" type="button">
+          <svg class="ic pb-card-ic"><use href="#ic-perfil"></use></svg><em>Seção</em><b>Perfil geotécnico</b>
+          <span>Trace uma linha sobre a área para gerar a seção transversal de camadas ao longo do traçado.</span>
+        </button>
+        <button class="pb-card" id="pb-open-raster" type="button">
+          <svg class="ic pb-card-ic"><use href="#ic-raster"></use></svg><em>Planta</em><b>Fatia em planta (raster)</b>
+          <span>Interpolação vista de cima — cota do terreno, N.A., profundidade até a rocha, material ou N-SPT numa cota.</span>
+        </button>
+        <button class="pb-card" id="pb-open-model3d" type="button">
+          <svg class="ic pb-card-ic"><use href="#ic-cube"></use></svg><em>Volume</em><b>Modelo 3D</b>
+          <span>Cubo 3D do volume interpolado; arraste as setas das faces para cortar e expor a estratigrafia.</span>
+        </button>
+        <button class="pb-card" id="pb-compare-cptu" type="button">
+          <svg class="ic pb-card-ic"><use href="#ic-compare"></use></svg><em>Validação</em><b>Comparar com CPTu</b>
+          <span>Confronta N60×N-SPT com o furo interpolado na mesma posição e permite incorporar o CPTu como fonte.</span>
+        </button>
+      </div>
+    </div>
+
+    <div class="pb-pane" id="pb-pane-ajustes" hidden>
+      <div class="f-row"><label>Nome do bloco</label><input class="f-input" id="pb-nome" value="${escAttr(b.nome)}"></div>
+      <div class="f-row two">
+        <div><label>Potência IDW (p)</label>
+          <input class="f-input" type="number" id="pb-power" value="${b.power||2}" step="0.5" min="0.5" max="6">
+          <span class="hint" style="font-size:10.5px">Maior = mais peso ao furo mais próximo.</span></div>
+        <div><label>Extrapolação (m)</label>
+          <input class="f-input" type="number" id="pb-extrap" value="${b.extrapDist!=null?b.extrapDist:DEFAULT_EXTRAP_M}" step="1" min="0" max="200">
+          <span class="hint" style="font-size:10.5px">Expande o retângulo envolvente em todas as direções.</span></div>
+      </div>
       <div class="f-row"><label>Furos de origem (${srcNames.length})</label>
-        <div class="tag-list">${srcNames.map(n=>`<span class="tag-chip">${esc(n)}</span>`).join('')}</div>
+        <div class="pb-tags">${srcNames.map(n=>`<span class="tag-chip">${esc(n)}</span>`).join('')}</div>
       </div>
-      <div class="f-row"><label>Potência IDW (p) — maior = mais peso ao furo mais próximo</label>
-        <input class="f-input" type="number" id="pb-power" value="${b.power||2}" step="0.5" min="0.5" max="6"></div>
-      <div class="f-row"><label>Extrapolação além dos furos (m) — expande o retângulo envolvente em todas as direções</label>
-        <input class="f-input" type="number" id="pb-extrap" value="${b.extrapDist!=null?b.extrapDist:DEFAULT_EXTRAP_M}" step="1" min="0" max="200"></div>
-      <p class="hint">A área de interpolação é sempre o retângulo envolvente dos furos selecionados, expandido pela distância de extrapolação acima.</p>
-      <div class="sec-title">Ponto de sondagem interpolado</div>
-      <p class="hint">Clique no botão abaixo e depois clique num local dentro da área tracejada roxa no mapa. O ponto fica marcado com uma cruz provisória (✛) enquanto a prévia é mostrada aqui ao lado — salvando, a cruz vira um furo interpolado de verdade (pino roxo); descartando, a cruz simplesmente some.</p>
-      <div class="btn-row">
-        <button class="mini-btn" id="pb-add-interp-point" type="button">➕ Criar ponto de sondagem interpolado</button>
-      </div>
-      <div class="sec-title">Perfil geotécnico</div>
-      <p class="hint">Trace uma linha sobre a área para gerar a seção transversal interpolada (perfil de camadas ao longo do traçado).</p>
-      <div class="btn-row">
-        <button class="mini-btn" id="pb-draw-profile" type="button">📐 Traçar perfil geotécnico</button>
-      </div>
-      <div class="sec-title">Visualização em planta</div>
-      <p class="hint">Gera um raster mostrando a interpolação vista de cima — escolha cota do terreno, N.A., profundidade até a rocha, material ou N-SPT numa cota específica.</p>
-      <div class="btn-row">
-        <button class="mini-btn" id="pb-open-raster" type="button">🗺️ Fatia em planta (raster)</button>
-      </div>
-      <div class="sec-title">Modelo 3D</div>
-      <p class="hint">Abre um cubo 3D representando o volume interpolado do bloco — arraste as setas nas faces pra cortar e ver a estratigrafia (material ou N-SPT) exposta em qualquer posição.</p>
-      <div class="btn-row">
-        <button class="mini-btn" id="pb-open-model3d" type="button">🧊 Modelo 3D</button>
-      </div>
-      <div class="sec-title">Comparar com CPTu</div>
-      <p class="hint">Selecione um ensaio de CPTu (no mapa ou na tabela de furos) pra comparar com o furo interpolado deste bloco na mesma posição, ajustar a correlação de camadas, e opcionalmente incorporar o CPTu como fonte desta interpolação.</p>
-      <div class="btn-row">
-        <button class="mini-btn" id="pb-compare-cptu" type="button">🧊 Comparar com CPTu</button>
-      </div>
-      <div class="btn-row" style="margin-top:10px">
-        <button class="mini-btn primary" id="pb-save">Salvar</button>
-        <button class="mini-btn danger" id="pb-del">Excluir bloco</button>
-      </div>
+      <p class="hint">A área de interpolação é sempre o retângulo envolvente dos furos selecionados, expandido pela distância de extrapolação.</p>
+      <div class="btn-row"><button class="mini-btn danger" id="pb-del">Excluir bloco</button></div>
+    </div>
+
+    <div class="pb-foot">
+      <span class="hint">Alterações de p e extrapolação recalculam a área.</span>
+      <button class="mini-btn primary" id="pb-save" style="margin-left:auto">Salvar</button>
     </div>`;
+  panel.querySelectorAll('.pb-tab').forEach(t=>{
+    t.onclick = ()=>{
+      panel.querySelectorAll('.pb-tab').forEach(x=>x.classList.toggle('on', x===t));
+      panel.querySelector('#pb-pane-produtos').hidden = t.dataset.pane!=='produtos';
+      panel.querySelector('#pb-pane-ajustes').hidden = t.dataset.pane!=='ajustes';
+    };
+  });
   document.getElementById('pb-compare-cptu').onclick=()=>{
     startPickCptuForBlock(b.id);
   };
@@ -4738,16 +5092,16 @@ function openInterpBlockPanel(id){
 }
 function renderInterpList(){
   const el = document.getElementById('list-interp'); if(!el) return;
-  if(interpBlocks.length===0){ el.innerHTML='<div class="sb-empty">Nenhum bloco interpolado.<br>Use "🧭 Interpolar", selecione 3+ furos no mapa e confirme.</div>'; return; }
+  if(interpBlocks.length===0){ el.innerHTML='<div class="sb-empty">Nenhum bloco interpolado.<br>Use "Interpolar", selecione 3+ furos no mapa e confirme.</div>'; return; }
   el.innerHTML='';
   interpBlocks.forEach(b=>{
     const div = document.createElement('div');
     div.className = 'item'+(selected&&selected.kind==='interp'&&selected.id===b.id?' sel':'');
     const visivel = b.visible!==false;
     div.innerHTML = `<div style="display:flex;align-items:flex-start;gap:8px;">
-      <button type="button" class="eye-btn${visivel?'':' off'}" title="${visivel?'Ocultar':'Mostrar'} no mapa">👁</button>
+      <button type="button" class="eye-btn${visivel?'':' off'}" title="${visivel?'Ocultar':'Mostrar'} no mapa"><svg class="ic"><use href="#ic-eye"></use></svg></button>
       <div style="flex:1;min-width:0;">
-        <div class="item-title">🔮 ${esc(b.nome)}</div><div class="item-sub">${b.furoIds.length} furos de origem · IDW p=${b.power||2}</div>
+        <div class="item-title"><svg class="ic"><use href="#ic-interp"></use></svg>${esc(b.nome)}</div><div class="item-sub">${b.furoIds.length} furos de origem · IDW p=${b.power||2}</div>
       </div>
     </div>`;
     div.querySelector('.eye-btn').addEventListener('click', e=>{ e.stopPropagation(); toggleInterpBlockVisible(b.id); });
@@ -5170,7 +5524,7 @@ function enterProfileEditMode(){
   profileEditMode = true;
   profileEditSelected = null;
   profileEditZoom = 1;
-  document.getElementById('profile-edit-toggle-btn').textContent = '✕ Sair da edição';
+  document.getElementById('profile-edit-toggle-btn').textContent = '\u2715 Sair da edição';
   renderProfileEditView();
 }
 function exitProfileEditMode(discard){
@@ -5326,9 +5680,9 @@ function renderProfileEditView(){
     <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin:10px 0 6px;">
       <div style="display:flex;flex-wrap:wrap;">${legendHtml}</div>
       <div class="btn-row" style="margin:0;flex-shrink:0;">
-        <button class="mini-btn" type="button" id="profile-edit-zoom-out" title="Diminuir zoom">➖</button>
+        <button class="mini-btn" type="button" id="profile-edit-zoom-out" title="Diminuir zoom"><svg class="ic"><use href="#ic-minus"></use></svg></button>
         <span style="font-size:11px;color:#666;min-width:40px;text-align:center;display:inline-block;">${Math.round(profileEditZoom*100)}%</span>
-        <button class="mini-btn" type="button" id="profile-edit-zoom-in" title="Aumentar zoom">➕</button>
+        <button class="mini-btn" type="button" id="profile-edit-zoom-in" title="Aumentar zoom"><svg class="ic"><use href="#ic-plus"></use></svg></button>
         <button class="mini-btn" type="button" id="profile-edit-zoom-reset">Redefinir zoom</button>
       </div>
     </div>
@@ -5344,7 +5698,7 @@ function renderProfileEditView(){
       </svg>
     </div>
     <div class="btn-row" style="margin-top:10px;">
-      <button class="btn-primary" type="button" id="profile-edit-commit">✅ Concluir edição</button>
+      <button class="btn-primary" type="button" id="profile-edit-commit"><svg class="ic"><use href="#ic-check"></use></svg> Concluir edição</button>
       <button class="btn-ghost" type="button" id="profile-edit-cancel">Cancelar edição</button>
       <button class="mini-btn danger" type="button" id="profile-edit-reset">↺ Restaurar interpolação automática</button>
     </div>
@@ -5788,6 +6142,46 @@ function printProfileView(){
       }
     }
   </style></head><body>
+
+<svg id="geosig-icons" width="0" height="0" style="position:absolute" aria-hidden="true">
+<symbol id="ic-furo" viewBox="0 0 24 24"><circle cx="12" cy="6" r="3"/><path d="M12 9v12"/><path d="M9 13h6M9 17h6"/></symbol>
+<symbol id="ic-cptu" viewBox="0 0 24 24"><rect x="8.5" y="3.5" width="7" height="6" rx="1"/><path d="M12 9.5V21"/><path d="M9.5 14h5"/></symbol>
+<symbol id="ic-poly" viewBox="0 0 24 24"><path d="M4 8l8-4 8 5-4 10-8-2z"/></symbol>
+<symbol id="ic-line" viewBox="0 0 24 24"><path d="M4 18l5-9 6 5 5-8"/></symbol>
+<symbol id="ic-interp" viewBox="0 0 24 24"><path d="M12 3l9 9-9 9-9-9z"/></symbol>
+<symbol id="ic-topo" viewBox="0 0 24 24"><path d="M3 19l6-10 4 5 3-4 5 9z"/></symbol>
+<symbol id="ic-perfil" viewBox="0 0 24 24"><path d="M4 4v16h16"/><path d="M7 15l4-4 3 2 4-5"/></symbol>
+<symbol id="ic-raster" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="1"/><path d="M3 9h18M3 14h18M9 4v16M15 4v16"/></symbol>
+<symbol id="ic-import" viewBox="0 0 24 24"><path d="M12 3v11"/><path d="M8 10l4 4 4-4"/><path d="M4 18v2h16v-2"/></symbol>
+<symbol id="ic-export" viewBox="0 0 24 24"><path d="M12 15V4"/><path d="M8 8l4-4 4 4"/><path d="M4 18v2h16v-2"/></symbol>
+<symbol id="ic-save" viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M9 4v5h6V4"/><rect x="8" y="13" width="8" height="7"/></symbol>
+<symbol id="ic-table" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="1"/><path d="M3 9h18M3 14.5h18M10 9v11"/></symbol>
+<symbol id="ic-trash" viewBox="0 0 24 24"><path d="M5 7h14"/><path d="M10 4h4"/><path d="M7 7l1 13h8l1-13"/></symbol>
+<symbol id="ic-storage" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="4.5" rx="1"/><rect x="3" y="10" width="18" height="4.5" rx="1"/><rect x="3" y="16" width="18" height="4.5" rx="1"/></symbol>
+<symbol id="ic-user" viewBox="0 0 24 24"><circle cx="12" cy="8" r="3.5"/><path d="M5 20c0-3.9 3.1-6 7-6s7 2.1 7 6"/></symbol>
+<symbol id="ic-publish" viewBox="0 0 24 24"><path d="M4 4h16"/><path d="M12 21V9"/><path d="M7.5 13.5L12 9l4.5 4.5"/></symbol>
+<symbol id="ic-eye" viewBox="0 0 24 24"><path d="M2.5 12S6 6.5 12 6.5 21.5 12 21.5 12 18 17.5 12 17.5 2.5 12 2.5 12z"/><circle cx="12" cy="12" r="2.6"/></symbol>
+<symbol id="ic-edit" viewBox="0 0 24 24"><path d="M4.5 19.5l4-1L19 8l-3-3L5.5 15.5z"/><path d="M15 6l3 3"/></symbol>
+<symbol id="ic-print" viewBox="0 0 24 24"><rect x="7" y="3" width="10" height="5"/><path d="M5 8h14v8h-3v5H8v-5H5z"/></symbol>
+<symbol id="ic-image" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="1"/><circle cx="8.5" cy="10" r="1.6"/><path d="M5 18l5-5 3.5 3L18 11l3 3"/></symbol>
+<symbol id="ic-cube" viewBox="0 0 24 24"><path d="M12 3l8 4.5v9L12 21l-8-4.5v-9z"/><path d="M4 7.5l8 4.5 8-4.5M12 12v9"/></symbol>
+<symbol id="ic-globe" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M3.5 12h17"/><path d="M12 3.5c3 3 3 14 0 17c-3-3-3-14 0-17z"/></symbol>
+<symbol id="ic-pin" viewBox="0 0 24 24"><path d="M12 21s6.5-7 6.5-11.5a6.5 6.5 0 10-13 0C5.5 14 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.4"/></symbol>
+<symbol id="ic-map" viewBox="0 0 24 24"><path d="M3 6l6-2 6 3 6-2v13l-6 2-6-3-6 2z"/><path d="M9 4v13M15 7v13"/></symbol>
+<symbol id="ic-target" viewBox="0 0 24 24"><circle cx="12" cy="12" r="7"/><path d="M12 2v4M12 18v4M2 12h4M18 12h4"/></symbol>
+<symbol id="ic-rect-sel" viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="12" rx="1" stroke-dasharray="3 2.6"/></symbol>
+<symbol id="ic-soil" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="1"/><path d="M3 9.5h18M3 14h18"/></symbol>
+<symbol id="ic-crosshair-area" viewBox="0 0 24 24"><rect fill="none" x="3" y="3" width="18" height="18" rx="1.5" stroke-dasharray="3 2.6"/><path fill="none" d="M12 7.5v9M7.5 12h9"/></symbol>
+<symbol id="ic-compare" viewBox="0 0 24 24"><rect x="3" y="5" width="11" height="11" rx="1"/><rect x="10" y="8" width="11" height="11" rx="1"/></symbol>
+<symbol id="ic-window" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 8.5h18"/></symbol>
+<symbol id="ic-package" viewBox="0 0 24 24"><path d="M4 8l8-4 8 4v8l-8 4-8-4z"/><path d="M4 8l8 4 8-4M12 12v8"/></symbol>
+<symbol id="ic-gear" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3.4"/><circle cx="12" cy="12" r="7.5" stroke-dasharray="2.4 2.6"/></symbol>
+<symbol id="ic-pointer" viewBox="0 0 24 24"><path d="M6 3l12 7-5 1.5L16 19l-3 1-3-7.5L6 15z"/></symbol>
+<symbol id="ic-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+<symbol id="ic-minus" viewBox="0 0 24 24"><path d="M5 12h14"/></symbol>
+<symbol id="ic-check" viewBox="0 0 24 24"><path d="M4 12.5l5 5L20 6.5"/></symbol>
+<symbol id="ic-close" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></symbol>
+</svg>
   <h1 class="no-print">Perfil Geotécnico — ${escXml(currentProfileView.nome)}</h1>
   ${html}
   <button class="print-btn no-print" onclick="window.print()">🖨 Imprimir / Salvar PDF</button>
@@ -5797,16 +6191,16 @@ function printProfileView(){
 
 function renderProfileList(){
   const el = document.getElementById('list-profiles'); if(!el) return;
-  if(profiles.length===0){ el.innerHTML='<div class="sb-empty">Nenhum perfil geotécnico salvo.<br>Abra um bloco interpolado (aba Interpolação) e use "📐 Traçar perfil geotécnico".</div>'; return; }
+  if(profiles.length===0){ el.innerHTML='<div class="sb-empty">Nenhum perfil geotécnico salvo.<br>Abra um bloco interpolado (aba Interpolação) e use " Traçar perfil geotécnico".</div>'; return; }
   el.innerHTML='';
   profiles.forEach(p=>{
     const div = document.createElement('div');
     div.className = 'item';
     const visivel = p.visible!==false;
     div.innerHTML = `<div style="display:flex;align-items:flex-start;gap:8px;">
-      <button type="button" class="eye-btn${visivel?'':' off'}" title="${visivel?'Ocultar':'Mostrar'} no mapa">👁</button>
+      <button type="button" class="eye-btn${visivel?'':' off'}" title="${visivel?'Ocultar':'Mostrar'} no mapa"><svg class="ic"><use href="#ic-eye"></use></svg></button>
       <div style="flex:1;min-width:0;">
-        <div class="item-title">📐 ${esc(p.nome)}</div><div class="item-sub">${p.samples.length} amostras · ${p.totalLength.toFixed(0)} m de extensão</div>
+        <div class="item-title"><svg class="ic"><use href="#ic-perfil"></use></svg>${esc(p.nome)}</div><div class="item-sub">${p.samples.length} amostras · ${p.totalLength.toFixed(0)} m de extensão</div>
       </div>
     </div>`;
     div.querySelector('.eye-btn').addEventListener('click', e=>{ e.stopPropagation(); toggleProfileVisible(p.id); });
@@ -5913,7 +6307,7 @@ function removeRasterLayer(id){
 function renderRasterLayersList(){
   const el = document.getElementById('list-rasters'); if(!el) return;
   if(rasterLayers.length===0){
-    el.innerHTML = '<div class="sb-empty">Nenhum raster no mapa ainda.<br>Abra um bloco interpolado → "🖼️ Fatia em planta" → gere um raster → "📍 Adicionar ao mapa".</div>';
+    el.innerHTML = '<div class="sb-empty">Nenhum raster no mapa ainda.<br>Abra um bloco interpolado → "Fatia em planta" → gere um raster → "Adicionar ao mapa".</div>';
     return;
   }
   el.innerHTML = '';
@@ -5925,13 +6319,13 @@ function renderRasterLayersList(){
     const elevTxt = r.elev!=null && isFinite(r.elev) ? ` @ ${r.elev.toFixed(1)}m` : '';
     div.innerHTML = `
       <div style="display:flex;align-items:flex-start;gap:8px;">
-        <button type="button" class="eye-btn${r.visible!==false?'':' off'}" title="${r.visible!==false?'Ocultar':'Mostrar'} no mapa">👁</button>
+        <button type="button" class="eye-btn${r.visible!==false?'':' off'}" title="${r.visible!==false?'Ocultar':'Mostrar'} no mapa"><svg class="ic"><use href="#ic-eye"></use></svg></button>
         <div style="flex:1;min-width:0;">
-          <div class="item-title">🖼️ ${esc(r.paramLabel)}${elevTxt}</div>
+          <div class="item-title"><svg class="ic"><use href="#ic-raster"></use></svg>${esc(r.paramLabel)}${elevTxt}</div>
           <div class="item-sub">Bloco: ${esc(r.blockNome)}</div>
         </div>
-        <button type="button" class="mini-btn" title="Editar este raster">✏️</button>
-        <button type="button" class="mini-btn danger" title="Remover camada">🗑</button>
+        <button type="button" class="mini-btn" title="Editar este raster"><svg class="ic"><use href="#ic-edit"></use></svg></button>
+        <button type="button" class="mini-btn danger" title="Remover camada"><svg class="ic"><use href="#ic-trash"></use></svg></button>
       </div>`;
     div.addEventListener('click', ()=> zoomToRasterLayer(r.id));
     div.querySelector('.eye-btn').addEventListener('click', e=>{ e.stopPropagation(); toggleRasterLayerVisible(r.id); });
@@ -6416,6 +6810,46 @@ function printRaster(){
     img{max-width:100%;display:block;margin:0 auto;}
     @media print{ body{padding:0} }
   </style></head><body>
+
+<svg id="geosig-icons" width="0" height="0" style="position:absolute" aria-hidden="true">
+<symbol id="ic-furo" viewBox="0 0 24 24"><circle cx="12" cy="6" r="3"/><path d="M12 9v12"/><path d="M9 13h6M9 17h6"/></symbol>
+<symbol id="ic-cptu" viewBox="0 0 24 24"><rect x="8.5" y="3.5" width="7" height="6" rx="1"/><path d="M12 9.5V21"/><path d="M9.5 14h5"/></symbol>
+<symbol id="ic-poly" viewBox="0 0 24 24"><path d="M4 8l8-4 8 5-4 10-8-2z"/></symbol>
+<symbol id="ic-line" viewBox="0 0 24 24"><path d="M4 18l5-9 6 5 5-8"/></symbol>
+<symbol id="ic-interp" viewBox="0 0 24 24"><path d="M12 3l9 9-9 9-9-9z"/></symbol>
+<symbol id="ic-topo" viewBox="0 0 24 24"><path d="M3 19l6-10 4 5 3-4 5 9z"/></symbol>
+<symbol id="ic-perfil" viewBox="0 0 24 24"><path d="M4 4v16h16"/><path d="M7 15l4-4 3 2 4-5"/></symbol>
+<symbol id="ic-raster" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="1"/><path d="M3 9h18M3 14h18M9 4v16M15 4v16"/></symbol>
+<symbol id="ic-import" viewBox="0 0 24 24"><path d="M12 3v11"/><path d="M8 10l4 4 4-4"/><path d="M4 18v2h16v-2"/></symbol>
+<symbol id="ic-export" viewBox="0 0 24 24"><path d="M12 15V4"/><path d="M8 8l4-4 4 4"/><path d="M4 18v2h16v-2"/></symbol>
+<symbol id="ic-save" viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M9 4v5h6V4"/><rect x="8" y="13" width="8" height="7"/></symbol>
+<symbol id="ic-table" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="1"/><path d="M3 9h18M3 14.5h18M10 9v11"/></symbol>
+<symbol id="ic-trash" viewBox="0 0 24 24"><path d="M5 7h14"/><path d="M10 4h4"/><path d="M7 7l1 13h8l1-13"/></symbol>
+<symbol id="ic-storage" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="4.5" rx="1"/><rect x="3" y="10" width="18" height="4.5" rx="1"/><rect x="3" y="16" width="18" height="4.5" rx="1"/></symbol>
+<symbol id="ic-user" viewBox="0 0 24 24"><circle cx="12" cy="8" r="3.5"/><path d="M5 20c0-3.9 3.1-6 7-6s7 2.1 7 6"/></symbol>
+<symbol id="ic-publish" viewBox="0 0 24 24"><path d="M4 4h16"/><path d="M12 21V9"/><path d="M7.5 13.5L12 9l4.5 4.5"/></symbol>
+<symbol id="ic-eye" viewBox="0 0 24 24"><path d="M2.5 12S6 6.5 12 6.5 21.5 12 21.5 12 18 17.5 12 17.5 2.5 12 2.5 12z"/><circle cx="12" cy="12" r="2.6"/></symbol>
+<symbol id="ic-edit" viewBox="0 0 24 24"><path d="M4.5 19.5l4-1L19 8l-3-3L5.5 15.5z"/><path d="M15 6l3 3"/></symbol>
+<symbol id="ic-print" viewBox="0 0 24 24"><rect x="7" y="3" width="10" height="5"/><path d="M5 8h14v8h-3v5H8v-5H5z"/></symbol>
+<symbol id="ic-image" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="1"/><circle cx="8.5" cy="10" r="1.6"/><path d="M5 18l5-5 3.5 3L18 11l3 3"/></symbol>
+<symbol id="ic-cube" viewBox="0 0 24 24"><path d="M12 3l8 4.5v9L12 21l-8-4.5v-9z"/><path d="M4 7.5l8 4.5 8-4.5M12 12v9"/></symbol>
+<symbol id="ic-globe" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M3.5 12h17"/><path d="M12 3.5c3 3 3 14 0 17c-3-3-3-14 0-17z"/></symbol>
+<symbol id="ic-pin" viewBox="0 0 24 24"><path d="M12 21s6.5-7 6.5-11.5a6.5 6.5 0 10-13 0C5.5 14 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.4"/></symbol>
+<symbol id="ic-map" viewBox="0 0 24 24"><path d="M3 6l6-2 6 3 6-2v13l-6 2-6-3-6 2z"/><path d="M9 4v13M15 7v13"/></symbol>
+<symbol id="ic-target" viewBox="0 0 24 24"><circle cx="12" cy="12" r="7"/><path d="M12 2v4M12 18v4M2 12h4M18 12h4"/></symbol>
+<symbol id="ic-rect-sel" viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="12" rx="1" stroke-dasharray="3 2.6"/></symbol>
+<symbol id="ic-soil" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="1"/><path d="M3 9.5h18M3 14h18"/></symbol>
+<symbol id="ic-crosshair-area" viewBox="0 0 24 24"><rect fill="none" x="3" y="3" width="18" height="18" rx="1.5" stroke-dasharray="3 2.6"/><path fill="none" d="M12 7.5v9M7.5 12h9"/></symbol>
+<symbol id="ic-compare" viewBox="0 0 24 24"><rect x="3" y="5" width="11" height="11" rx="1"/><rect x="10" y="8" width="11" height="11" rx="1"/></symbol>
+<symbol id="ic-window" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 8.5h18"/></symbol>
+<symbol id="ic-package" viewBox="0 0 24 24"><path d="M4 8l8-4 8 4v8l-8 4-8-4z"/><path d="M4 8l8 4 8-4M12 12v8"/></symbol>
+<symbol id="ic-gear" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3.4"/><circle cx="12" cy="12" r="7.5" stroke-dasharray="2.4 2.6"/></symbol>
+<symbol id="ic-pointer" viewBox="0 0 24 24"><path d="M6 3l12 7-5 1.5L16 19l-3 1-3-7.5L6 15z"/></symbol>
+<symbol id="ic-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+<symbol id="ic-minus" viewBox="0 0 24 24"><path d="M5 12h14"/></symbol>
+<symbol id="ic-check" viewBox="0 0 24 24"><path d="M4 12.5l5 5L20 6.5"/></symbol>
+<symbol id="ic-close" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></symbol>
+</svg>
   <img src="${dataUrl}">
   <script>window.onload = function(){ window.print(); };<\/script>
   </body></html>`);
@@ -7680,7 +8114,7 @@ document.getElementById('file-input').addEventListener('change', async e=>{
         e.target.value=''; return;
       }
       if(parsed && Array.isArray(parsed.furos)){
-        if(!isAdmin()){ alert('Só o Administrador pode importar furos para o banco principal. Peça pra alguém com esse perfil importar, ou troque de perfil no botão "👤" no topo (isso é só organizacional, não uma senha).'); e.target.value=''; return; }
+        if(!isAdmin()){ alert('Só o Administrador pode importar furos para o banco principal. Peça pra alguém com esse perfil importar, ou troque de perfil no botão de perfil no topo (isso é só organizacional, não uma senha).'); e.target.value=''; return; }
         const n = importFuroCampaignJSON(parsed.furos);
         const dup = importFuroCampaignJSON.lastSkipped||0;
         renderFuroList(); fitAll(); scheduleSave();
@@ -8074,7 +8508,7 @@ function enterExportSelectMode(){
   document.getElementById('export-select-bar').style.display = 'flex';
   updateExportSelectBar();
   closePanel();
-  toast('Clique nos furos/áreas que deseja exportar, ou use "▭ Selecionar por retângulo"');
+  toast('Clique nos furos/áreas que deseja exportar, ou use "Selecionar por retângulo"');
 }
 function exitExportSelectMode(){
   exportSelectMode = false;
@@ -8190,12 +8624,14 @@ function updateUserBadge(){
   const btn = document.getElementById('btn-user');
   if(!btn) return;
   const roleLabel = isAdmin() ? 'Administrador' : 'Consultor';
-  btn.textContent = '👤 '+(currentUser.name || 'Identificar-se')+' · '+roleLabel;
+  btn.textContent = '\u25CF '+(currentUser.name || 'Identificar-se')+' · '+roleLabel;
 }
 function applyRolePermissions(){
   const admin = isAdmin();
   const addFuroBtn = document.getElementById('btn-add-furo');
-  if(addFuroBtn) addFuroBtn.style.display = admin ? '' : 'none';
+  const addFuroWrap = document.getElementById('tb-new-wrap');
+  if(addFuroWrap) addFuroWrap.style.display = admin ? 'flex' : 'none';
+  else if(addFuroBtn) addFuroBtn.style.display = admin ? '' : 'none';
   const publishBtn = document.getElementById('btn-publish-furos');
   if(publishBtn) publishBtn.style.display = admin ? '' : 'none';
 }
@@ -9307,6 +9743,94 @@ function carregarEnsaioExemplo(){
 document.getElementById('btn-load-sample').addEventListener('click', carregarEnsaioExemplo);
 
 initApp();
+</script>
+
+<div id="statusbar">
+  <span id="sbar-coord">UTM — / —</span>
+  <span class="sbar-div">│</span>
+  <span id="sbar-zoom">ZOOM —</span>
+  <span class="sbar-div">│</span>
+  <span id="sbar-esc">ESC —</span>
+  <span class="sbar-div">│</span>
+  <span>SIRGAS 2000</span>
+  <span class="sbar-right">
+    <span id="sbar-counts"></span>
+    <span class="sbar-div">│</span>
+    <span class="sbar-ok" id="sbar-storage">● DADOS LOCAIS</span>
+  </span>
+</div>
+<script>
+/* ══ sistema visual: navegação agrupada, módulo Furos e barra de status ══ */
+(function(){
+  // menu "⋯" da barra de comando
+  var moreBtn = document.getElementById('tb-more-btn'),
+      moreMenu = document.getElementById('tb-more-menu');
+  if(moreBtn){
+    moreBtn.addEventListener('click', function(e){
+      e.stopPropagation();
+      var r = moreBtn.getBoundingClientRect();
+      moreMenu.style.left = Math.max(8, Math.min(r.right - 230, window.innerWidth - 238)) + 'px';
+      moreMenu.style.top = (r.bottom + 6) + 'px';
+      moreMenu.classList.toggle('open');
+    });
+    document.addEventListener('click', function(e){
+      if(moreMenu.classList.contains('open') && !moreMenu.contains(e.target) && e.target!==moreBtn)
+        moreMenu.classList.remove('open');
+    });
+    moreMenu.addEventListener('click', function(){ moreMenu.classList.remove('open'); });
+  }
+
+  // menu de criação (SPT / CPTu) na ação primária
+  var caret = document.getElementById('tb-new-caret'),
+      newMenu = document.getElementById('tb-new-menu'),
+      addFuro = document.getElementById('btn-add-furo');
+  if(caret){
+    caret.addEventListener('click', function(e){
+      e.stopPropagation();
+      var r = caret.getBoundingClientRect();
+      newMenu.style.left = Math.max(8, r.right - 268) + 'px';
+      newMenu.style.top = (r.bottom + 6) + 'px';
+      newMenu.classList.toggle('open');
+    });
+    document.addEventListener('click', function(e){
+      if(newMenu.classList.contains('open') && !newMenu.contains(e.target) && e.target!==caret)
+        newMenu.classList.remove('open');
+    });
+    newMenu.addEventListener('click', function(){ newMenu.classList.remove('open'); });
+    var sptItem = document.getElementById('tb-new-spt');
+    if(sptItem && addFuro) sptItem.addEventListener('click', function(){ addFuro.click(); });
+  }
+
+  // barra de status: coordenada, zoom, escala e contagens
+  function fmt(n, d){ return Number(n).toLocaleString('pt-BR', {minimumFractionDigits:d, maximumFractionDigits:d}); }
+  function updateCounts(){
+    var el = document.getElementById('sbar-counts'); if(!el) return;
+    var furos = document.querySelectorAll('.furo-pin:not(.interp)').length,
+        interp = document.querySelectorAll('.furo-pin.interp').length,
+        perfis = document.querySelectorAll('#list-profiles .item').length;
+    el.textContent = furos + ' FUROS · ' + interp + ' INTERPOLADOS · ' + perfis + ' PERFIS';
+  }
+  function updateView(){
+    if(typeof map === 'undefined' || !map.getZoom) return;
+    var z = map.getZoom(), c = map.getCenter();
+    document.getElementById('sbar-zoom').textContent = 'ZOOM ' + z;
+    var mpp = 156543.03392 * Math.cos(c.lat * Math.PI/180) / Math.pow(2, z);
+    var esc = Math.round(mpp * 3779.5275 / 1000) * 1000;
+    document.getElementById('sbar-esc').textContent = 'ESC ~1:' + esc.toLocaleString('pt-BR');
+    updateCounts();
+  }
+  function start(){
+    if(typeof map === 'undefined' || !map.on){ return setTimeout(start, 400); }
+    map.on('mousemove', function(e){
+      document.getElementById('sbar-coord').textContent =
+        'LAT ' + fmt(e.latlng.lat, 5) + ' / LON ' + fmt(e.latlng.lng, 5);
+    });
+    map.on('moveend zoomend layeradd layerremove', updateView);
+    updateView();
+    setInterval(updateCounts, 3000);
+  }
+  if(document.readyState === 'complete') start(); else window.addEventListener('load', start);
+})();
 </script>
 </body>
 </html>

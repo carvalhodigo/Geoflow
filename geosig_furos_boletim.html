@@ -233,6 +233,10 @@ hr{border:none;border-top:1px solid var(--bdr);margin:2px 0}
 .furo-pin.interpsel{box-shadow:0 0 0 3px rgba(122,63,160,.5),0 1px 3px rgba(0,0,0,.4)}
 .furo-pin.exportsel{box-shadow:0 0 0 3px rgba(42,90,140,.6),0 1px 3px rgba(0,0,0,.4)}
 .furo-pin.selpin{background:var(--green)}
+/* CPTu usa um quadrado azul em vez do círculo âmbar padrão do SPT — diferenciação visual
+   rápida no mapa, sem precisar abrir o furo pra saber o tipo de sondagem */
+.furo-pin.cptu{background:#2a5a8c;border-radius:3px;}
+.furo-pin.cptu.interp{background:#1a3a5a;}
 
 /* cruz provisória — marca onde o usuário clicou pra gerar um ponto de sondagem interpolado,
    antes de decidir se salva (vira o pin roxo de furo interpolado) ou descarta (some) */
@@ -547,6 +551,238 @@ table.edit-tbl input:focus,table.edit-tbl select:focus{outline:none;border-color
 }
 
 </style>
+<style>
+/* ══════════════════ MÓDULO CPTu (PIEZOCONE) — CSS exclusivo, incorporado ══════════════════ */
+
+:root{
+  --bg:#ede7db;--surf:#e8e2d6;--card:#faf8f3;--bdr:#bdb8ae;--bdr-s:#9a9080;
+  --tx:#282420;--mu:#8a8680;--mono:'Courier New',monospace;
+  --r:3px;--r-lg:6px;
+  --green:#2d6b4a;--amber:#c8860b;--blue:#2a5a8c;--red:#b43025;
+  --bo-card:#faf8f5; --bo-border:#d6d0c8; --bo-surface:#e8e4dd;
+  --bo-accent:#b85c1a; --bo-accent2:#1a7a52; --bo-accent3:#c0392b;
+}
+
+*{box-sizing:border-box;margin:0;padding:0}
+
+html,body{height:100%;overflow:hidden}
+
+body{font-family:system-ui,sans-serif;font-size:13px;background:var(--bg);color:var(--tx);
+  display:flex;flex-direction:column}
+
+button{font-family:inherit;cursor:pointer}
+
+input,select,textarea{font-family:inherit;font-size:12px}
+
+
+/* ── barra superior ── */
+#topbar{height:44px;display:flex;align-items:center;gap:6px;padding:0 12px;
+  background:var(--card);border-bottom:2px solid var(--bdr-s);flex-shrink:0;user-select:none;
+  position:relative;z-index:500;flex-wrap:nowrap;overflow-x:auto}
+
+.logo::before{content:'';width:18px;height:2px;background:var(--green)}
+
+.logo b{color:var(--bo-accent)}
+
+.tbtn:hover{background:var(--bdr);color:var(--tx)}
+
+.tbtn.on{background:var(--green);color:#fff;border-color:var(--green)}
+
+.tbtn.warn{border-color:var(--red);color:var(--red)}
+
+.tbtn.primary{background:var(--bo-accent);color:#fff;border-color:var(--bo-accent)}
+
+
+/* ── layout principal: lista de ensaios + area de trabalho ── */
+#ws{flex:1;display:flex;min-height:0}
+
+#sidebar{width:280px;flex-shrink:0;background:var(--card);border-right:1px solid var(--bdr-s);
+  display:flex;flex-direction:column;overflow:hidden}
+
+#sidebar-hdr{padding:12px 14px 8px;font-family:var(--mono);font-size:10px;letter-spacing:.6px;
+  text-transform:uppercase;color:var(--mu);border-bottom:1px solid var(--bdr)}
+
+#ensaio-list{flex:1;overflow-y:auto;padding:10px}
+
+.ens-item{background:#fff;border:1px solid var(--bdr);border-radius:var(--r);padding:9px 11px;
+  margin-bottom:7px;cursor:pointer;transition:border-color .12s}
+
+.ens-item:hover{border-color:var(--bo-accent)}
+
+.ens-item.sel{border-color:var(--bo-accent);background:#fdf3ea}
+
+.ens-item-title{font-weight:700;font-size:12.5px}
+
+.ens-item-sub{font-size:10px;color:var(--mu);margin-top:3px;font-family:var(--mono)}
+
+.ens-item-del{float:right;background:none;border:none;color:var(--red);font-size:13px;
+  opacity:.55;padding:0 2px}
+
+.ens-item-del:hover{opacity:1}
+
+
+#main{flex:1;display:flex;flex-direction:column;min-width:0;overflow:hidden}
+
+#main-empty{flex:1;display:flex;align-items:center;justify-content:center;color:var(--mu);
+  font-size:13px;text-align:center;line-height:1.7;flex-direction:column;gap:10px}
+
+#main-empty b{color:var(--tx);font-size:15px}
+
+
+/* ── abas do ensaio selecionado ── */
+#ens-tabs{display:none;background:var(--card);border-bottom:1px solid var(--bdr-s);
+  padding:0 16px;gap:4px}
+
+.ens-tab{padding:11px 14px;font-family:var(--mono);font-size:10.5px;font-weight:700;
+  letter-spacing:.4px;color:var(--mu);cursor:pointer;border-bottom:2px solid transparent}
+
+.ens-tab:hover{color:var(--tx)}
+
+.ens-tab.on{color:var(--bo-accent);border-bottom-color:var(--bo-accent)}
+
+#ens-body{flex:1;overflow-y:auto;display:none}
+
+
+
+/* ── formulário de identificação ── */
+.ens-pane{padding:22px 26px;max-width:920px}
+
+.fieldset-title:first-child{margin-top:0}
+
+.field.full{grid-column:1/-1}
+
+.field.two{grid-column:span 2}
+
+.field label{font-size:10.5px;color:var(--mu);font-weight:600}
+
+.f-input:focus{outline:none;border-color:var(--bo-accent)}
+
+
+/* ── aba de gráfico (perfil contínuo) ── */
+.chart-toolbar{display:flex;align-items:center;gap:10px;padding:12px 20px;background:var(--card);
+  border-bottom:1px solid var(--bdr);flex-wrap:wrap}
+
+.chart-toolbar label{font-size:10.5px;color:var(--mu);font-weight:600;margin-right:-4px}
+
+.chart-scroll{flex:1;overflow:auto;padding:20px;background:var(--bg)}
+
+.cptu-chart-wrap{background:var(--bo-card);border:1px solid var(--bo-border);border-radius:var(--r-lg);
+  padding:18px 14px;display:inline-block;min-width:100%}
+
+.cptu-track-row{display:flex;gap:0}
+
+.cptu-track{flex-shrink:0;position:relative}
+
+.cptu-track-hdr{font-family:var(--mono);font-size:9.5px;font-weight:700;text-align:center;
+  color:var(--tx);padding-bottom:6px;letter-spacing:.3px}
+
+.cptu-track-hdr small{display:block;font-weight:400;color:var(--mu);font-size:8.5px;margin-top:1px}
+
+.cptu-depth-axis{width:38px;flex-shrink:0}
+
+.sbtn-legend{display:flex;flex-wrap:wrap;gap:8px 14px;padding:12px 18px;background:var(--bo-card);
+  border-top:1px solid var(--bo-border);font-size:10.5px}
+
+.sbtn-legend-item{display:flex;align-items:center;gap:6px}
+
+.sbtn-legend-swatch{width:13px;height:13px;border-radius:2px;border:1px solid rgba(0,0,0,.2);flex-shrink:0}
+
+
+/* ── boletim / relatório imprimível ── */
+.boletim-view{max-width:1000px;margin:0 auto;background:var(--bo-card);border:1px solid var(--bo-border);
+  border-radius:var(--r-lg);overflow:hidden}
+
+.boletim-topbar h2{font-size:15px;font-weight:700}
+
+.boletim-topbar .lab-num{font-family:var(--mono);font-size:11px;opacity:.85}
+
+.info-tbl td{padding:8px 14px;border-bottom:1px solid var(--bo-border);border-right:1px solid var(--bo-border)}
+
+.info-tbl td:last-child{border-right:none}
+
+.info-tbl .lbl{font-family:var(--mono);font-size:8.5px;letter-spacing:.7px;text-transform:uppercase;
+  color:var(--mu);display:block;margin-bottom:2px}
+
+.info-tbl .val{font-weight:700}
+
+.diss-tbl{width:100%;border-collapse:collapse;font-size:10.5px;margin-top:8px}
+
+.diss-tbl th,.diss-tbl td{padding:6px 10px;border:1px solid var(--bo-border);text-align:right}
+
+.diss-tbl th{background:var(--bo-surface);font-family:var(--mono);font-size:9px;text-transform:uppercase}
+
+.diss-tbl td:first-child,.diss-tbl th:first-child{text-align:left}
+
+.boletim-section-title{font-family:var(--mono);font-size:10px;letter-spacing:.6px;text-transform:uppercase;
+  color:var(--bo-accent);padding:16px 20px 8px}
+
+.boletim-body-pad{padding:0 20px 20px}
+
+
+/* ── popup de importação ── */
+.popup-overlay{display:none;position:fixed;inset:0;background:rgba(30,26,22,0.5);
+  z-index:2000;align-items:center;justify-content:center;padding:20px;backdrop-filter:blur(3px)}
+
+.popup-overlay.open{display:flex}
+
+.popup-header h3{font-size:15px}
+
+.mini-btn:hover{background:var(--surf)}
+
+.mini-btn.danger{border-color:var(--red);color:var(--red)}
+
+.btn-primary:hover{filter:brightness(1.08)}
+
+.import-group-row{display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--bo-border)}
+
+.import-group-row:last-child{border-bottom:none}
+
+.import-group-check{flex-shrink:0}
+
+.import-group-name{flex:1;font-weight:700;font-size:12.5px}
+
+.import-group-sub{font-size:10.5px;color:var(--mu);font-family:var(--mono)}
+
+#toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--tx);
+  color:#fff;padding:10px 18px;border-radius:var(--r-lg);font-size:12.5px;z-index:5000;
+  display:none;box-shadow:0 6px 20px rgba(0,0,0,.3)}
+
+
+/* ── ícone de ajuda + popup de explicação de parâmetros ── */
+.help-ic{display:inline-flex;align-items:center;justify-content:center;width:14px;height:14px;
+  border-radius:50%;background:var(--bdr);color:#fff;font-size:9.5px;font-weight:700;
+  font-family:system-ui,sans-serif;line-height:1;cursor:pointer;flex-shrink:0;margin-left:3px;
+  vertical-align:middle;border:none;padding:0;transition:background .12s}
+
+.help-ic:hover{background:var(--bo-accent)}
+
+th .help-ic,.cptu-track-hdr .help-ic{background:rgba(0,0,0,.25)}
+
+th .help-ic:hover,.cptu-track-hdr .help-ic:hover{background:var(--bo-accent)}
+
+#help-popover{display:none;position:fixed;z-index:3000;background:var(--bo-card);
+  border:1px solid var(--bo-border);border-radius:var(--r-lg);box-shadow:0 10px 30px rgba(0,0,0,.28);
+  max-width:320px;padding:14px 16px;font-size:12px;line-height:1.55;color:var(--tx)}
+
+#help-popover.open{display:block}
+
+#help-popover .hp-title{font-weight:700;font-size:12.5px;margin-bottom:6px;color:var(--bo-accent)}
+
+#help-popover .hp-formula{font-family:var(--mono);font-size:11px;background:var(--surf);
+  padding:6px 9px;border-radius:var(--r);margin:8px 0;color:var(--tx);}
+
+#help-popover .hp-close{position:absolute;top:8px;right:10px;background:none;border:none;
+  font-size:13px;color:var(--mu);cursor:pointer;padding:2px}
+
+
+@media print{
+  #topbar,#sidebar,#ens-tabs,#toast,#help-popover,.help-ic{display:none !important}
+  #ws,#main,#ens-body{overflow:visible !important;display:block !important}
+  body{overflow:visible !important;background:#fff}
+  .boletim-view{border:none;max-width:100%}
+  .chart-scroll{overflow:visible !important;background:#fff}
+}
+</style>
 </head>
 <body>
 
@@ -601,9 +837,15 @@ table.edit-tbl input:focus,table.edit-tbl select:focus{outline:none;border-color
   <div class="sep"></div>
   <button class="tbtn" id="btn-interp-mode" title="Selecione 3+ furos para gerar uma área interpolada (IDW)">🧭 Interpolar</button>
   <button class="tbtn" id="btn-topo-mode" title="Selecione 3+ pontos (furos ou camada de pontos) com cota conhecida para gerar uma superfície topográfica (IDW)">🏔️ Topografia</button>
+  <div class="sep"></div>
+  <button class="tbtn" id="cptu-btn-new" title="Cria um ensaio de CPTu novo, vazio">🧊 CPTu: Novo</button>
+  <button class="tbtn" id="cptu-btn-import" title="Importa a planilha exportada pelo CPeT-IT (abas '...- Basic' e '...- Estimations')">🧊 CPTu: Importar Excel</button>
+  <input type="file" id="cptu-file-input" accept=".xls,.xlsx" style="display:none">
+  <button class="tbtn" id="btn-load-sample" title="Carrega um ensaio de CPTu de exemplo com perfil sintético, útil pra testar o módulo">🧊 CPTu: Exemplo</button>
+  <div class="sep"></div>
   <button class="tbtn" id="btn-import" title="Aceita shapefile (.zip), GeoJSON, ou campanha completa em JSON ({&quot;furos&quot;:[...]}, com camadas e golpes por profundidade)">⇪ Importar</button>
   <button class="tbtn" id="btn-export-shp">⇩ Shapefile</button>
-  <button class="tbtn" id="btn-save-project" title="Salva o estudo deste projeto num arquivo: áreas/linhas, blocos interpolados, superfícies topográficas, perfis, rasters e furos interpolados. Não inclui os furos do banco principal — esses são publicados à parte via furos.json">💾 Salvar Projeto</button>
+  <button class="tbtn" id="btn-save-project" title="Salva o estudo deste projeto num arquivo: áreas/linhas, blocos interpolados, superfícies topográficas, perfis, rasters, furos interpolados e ensaios de CPTu. Não inclui os furos do banco principal — esses são publicados à parte via furos.json">💾 Salvar Projeto</button>
   <button class="tbtn" id="btn-export-csv">⇩ CSV</button>
   <div class="sep"></div>
   <select class="tsel" id="sel-base">
@@ -744,18 +986,62 @@ table.edit-tbl input:focus,table.edit-tbl select:focus{outline:none;border-color
   </div>
 </div>
 
+<div class="popup-overlay" id="import-overlay">
+  <div class="editor-box">
+    <div class="popup-header"><h3>⇪ Importar dados de CPTu</h3><button class="popup-close" id="import-close">✕</button></div>
+    <div class="p-body">
+      <p class="hint">Aceita a planilha exportada pelo CPeT-IT (abas "NomeDoEnsaio - Basic" e "NomeDoEnsaio - Estimations"). Cada par de abas vira um ensaio novo — desmarque o que não quiser importar.</p>
+      <div id="import-groups" style="margin-top:14px;"></div>
+    </div>
+    <div class="popup-footer">
+      <button class="btn-ghost" id="import-cancel">Cancelar</button>
+      <button class="btn-primary" id="import-confirm">Importar selecionados</button>
+    </div>
+  </div>
+</div>
+
+<div id="help-popover">
+  <button class="hp-close" id="help-close">✕</button>
+  <div class="hp-title" id="help-title"></div>
+  <div id="help-body"></div>
+</div>
+
+<div class="popup-overlay" id="cptu-compare-overlay">
+  <div class="editor-box" style="max-width:760px;max-height:88vh;">
+    <div class="popup-header">
+      <h3 id="cptu-compare-title">Comparar CPTu</h3>
+      <button class="popup-close" id="cptu-compare-close">✕</button>
+    </div>
+    <div class="popup-body" id="cptu-compare-body" style="overflow-y:auto;max-height:65vh;"></div>
+    <div class="popup-footer">
+      <button class="mini-btn" type="button" id="cptu-compare-cancel">Fechar</button>
+      <button class="btn-primary" type="button" id="cptu-compare-incorporar">Incorporar CPTu ao bloco</button>
+    </div>
+  </div>
+</div>
+
 <div class="popup-overlay" id="bo-editor-overlay">
   <div class="editor-box">
     <div class="popup-header">
-      <h3>Editor do Boletim de Sondagem — NBR 6484</h3>
+      <h3>Editor do Boletim de Sondagem</h3>
       <button class="popup-close" onclick="cancelBoletimEditor()">✕</button>
     </div>
     <div class="popup-body">
+      <div class="field" style="max-width:280px;margin-bottom:12px;">
+        <label>Tipo de sondagem</label>
+        <select id="bo-f-tipo-sondagem" class="f-input">
+          <option value="SPT">SPT (NBR 6484)</option>
+          <option value="CPTU">CPTu (Piezocone)</option>
+        </select>
+      </div>
       <div class="edit-tabs">
         <button class="edit-tab active" data-tab="ident" onclick="setBoletimTab('ident')">1 · Identificação</button>
         <button class="edit-tab" data-tab="agua" onclick="setBoletimTab('agua')">2 · Nível d'Água</button>
         <button class="edit-tab" data-tab="camadas" onclick="setBoletimTab('camadas')">3 · Camadas de Solo</button>
         <button class="edit-tab" data-tab="golpes" onclick="setBoletimTab('golpes')">4 · Golpes SPT</button>
+        <button class="edit-tab" data-tab="cptu-manual" style="display:none" onclick="setBoletimTab('cptu-manual')">2 · Dados do ensaio</button>
+        <button class="edit-tab" data-tab="cptu-grafico" style="display:none" onclick="setBoletimTab('cptu-grafico')">3 · Perfil gráfico</button>
+        <button class="edit-tab" data-tab="cptu-dissipacao" style="display:none" onclick="setBoletimTab('cptu-dissipacao')">4 · Dissipação</button>
       </div>
 
       <!-- PAINEL 1 — IDENTIFICAÇÃO -->
@@ -764,19 +1050,23 @@ table.edit-tbl input:focus,table.edit-tbl select:focus{outline:none;border-color
         <div class="input-grid">
           <div class="field"><label>Cliente</label><input id="bo-f-cliente" type="text" placeholder="Ex: Vision Engenharia"></div>
           <div class="field"><label>Obra</label><input id="bo-f-obra" type="text" placeholder="Ex: SE CAC3"></div>
-          <div class="field"><label>Unidade Operacional (UO)</label><input id="bo-f-uo" type="text" placeholder="Ex: UO-Sul"></div>
+          <div class="field" id="bo-f-uo-wrap"><label>Unidade Operacional (UO)</label><input id="bo-f-uo" type="text" placeholder="Ex: UO-Sul"></div>
           <div class="field"><label>Local</label><input id="bo-f-local" type="text" placeholder="Ex: Cachoeirinha - RS"></div>
-          <div class="field"><label>Sondagem N°</label><input id="bo-f-sondagem-num" type="text" placeholder="Ex: SPT-01"></div>
+          <div class="field"><label id="bo-f-sondagem-num-label">Sondagem N°</label><input id="bo-f-sondagem-num" type="text" placeholder="Ex: SPT-01"></div>
+          <div class="field" id="bo-f-laudo-wrap" style="display:none"><label>N° do laudo</label><input id="bo-f-laudo" type="text" placeholder="Ex: 2607307.R00"></div>
           <div class="field"><label>Início</label><input id="bo-f-data-inicio" type="text" placeholder="dd/mm/aa"></div>
-          <div class="field"><label>Término</label><input id="bo-f-data-fim" type="text" placeholder="dd/mm/aa"></div>
+          <div class="field" id="bo-f-data-fim-wrap"><label>Término</label><input id="bo-f-data-fim" type="text" placeholder="dd/mm/aa"></div>
           <div class="field"><label>Cota (m)</label><input id="bo-f-cota" type="text" placeholder="Ex: 4,50"></div>
-          <div class="field"><label>Datum</label><input id="bo-f-datum" type="text" placeholder="Ex: SIRGAS2000"></div>
-          <div class="field"><label>Zona UTM</label><input id="bo-f-zona-utm" type="text" placeholder="Ex: 23S"></div>
-          <div class="field"><label>Coord. N</label><input id="bo-f-coord-n" type="text"></div>
-          <div class="field"><label>Coord. E</label><input id="bo-f-coord-e" type="text"></div>
+          <div class="field" id="bo-f-datum-wrap"><label>Datum</label><input id="bo-f-datum" type="text" placeholder="Ex: SIRGAS2000"></div>
+          <div class="field" id="bo-f-zona-utm-wrap"><label>Zona UTM</label><input id="bo-f-zona-utm" type="text" placeholder="Ex: 23S"></div>
+          <div class="field" id="bo-f-coord-n-wrap"><label>Coord. N</label><input id="bo-f-coord-n" type="text"></div>
+          <div class="field" id="bo-f-coord-e-wrap"><label>Coord. E</label><input id="bo-f-coord-e" type="text"></div>
           <div class="field"><label>Responsável técnico</label><input id="bo-f-responsavel" type="text"></div>
-          <div class="field"><label>Sondador</label><input id="bo-f-sondador" type="text"></div>
-          <div class="field"><label>Desenhista</label><input id="bo-f-desenhista" type="text"></div>
+          <div class="field" id="bo-f-crea-wrap" style="display:none"><label>CREA</label><input id="bo-f-crea" type="text"></div>
+          <div class="field"><label id="bo-f-sondador-label">Sondador</label><input id="bo-f-sondador" type="text"></div>
+          <div class="field" id="bo-f-desenhista-wrap"><label>Desenhista</label><input id="bo-f-desenhista" type="text"></div>
+          <div class="field" id="bo-f-na-estimado-wrap" style="display:none"><label>N.A. estimado (m)</label><input id="bo-f-na-estimado" type="number" step="0.01"></div>
+          <div class="field" id="bo-f-khkv-wrap" style="display:none"><label>Razão kh/kv assumida</label><input id="bo-f-khkv" type="number" step="0.1" value="2"></div>
         </div>
         <button class="add-row-btn" type="button" id="bo-fill-utm" style="margin-top:8px">📍 Preencher Coord. N/E e Zona UTM (registro do boletim) com a posição atual do furo</button>
 
@@ -805,8 +1095,8 @@ table.edit-tbl input:focus,table.edit-tbl select:focus{outline:none;border-color
         </div>
         <p class="hint">Digite as coordenadas de qualquer um dos dois jeitos, ou clique em <b>🗺️ Marcar no mapa</b> para posicionar o furo clicando diretamente no mapa. Datums históricos (SAD69, Córrego Alegre) usam transformação aproximada — confirme em um SIG antes de uso em projeto executivo.</p>
 
-        <div class="fieldset-title">Amostrador bipartido (padrão NBR 6484)</div>
-        <div class="input-grid">
+        <div class="fieldset-title" id="bo-f-amostrador-title">Amostrador bipartido (padrão NBR 6484)</div>
+        <div class="input-grid" id="bo-f-amostrador-grid">
           <div class="field"><label>Ø interno (mm)</label><input id="bo-f-am-diam-int" type="number" step="0.1" value="34.9"></div>
           <div class="field"><label>Ø externo (mm)</label><input id="bo-f-am-diam-ext" type="number" step="0.1" value="50.8"></div>
           <div class="field"><label>Peso do martelo (kg)</label><input id="bo-f-am-peso" type="number" step="1" value="65"></div>
@@ -815,9 +1105,10 @@ table.edit-tbl input:focus,table.edit-tbl select:focus{outline:none;border-color
 
         <div class="fieldset-title">Execução (dados de campo)</div>
         <div class="input-grid">
-          <div class="field"><label>Método</label><input id="bo-f-metodo" type="text" placeholder="SPT (NBR 6484)"></div>
-          <div class="field"><label>Equipamento</label><input id="bo-f-equip" type="text"></div>
-          <div class="field"><label>Revestimento / diâmetro</label><input id="bo-f-revest" type="text"></div>
+          <div class="field" id="bo-f-metodo-wrap"><label>Método</label><input id="bo-f-metodo" type="text" placeholder="SPT (NBR 6484)"></div>
+          <div class="field"><label id="bo-f-equip-label">Equipamento</label><input id="bo-f-equip" type="text"></div>
+          <div class="field" id="bo-f-revest-wrap"><label>Revestimento / diâmetro</label><input id="bo-f-revest" type="text"></div>
+          <div class="field" id="bo-f-cone-tipo-wrap" style="display:none"><label>Tipo de cone</label><input id="bo-f-cone-tipo" type="text" placeholder="Ex: 1378 - 10cm²"></div>
           <div class="field full">
             <label>Arquivo de origem do boletim</label>
             <input id="bo-f-arq" type="text" placeholder="Ex: SP-01.pdf">
@@ -826,7 +1117,7 @@ table.edit-tbl input:focus,table.edit-tbl select:focus{outline:none;border-color
         </div>
       </div>
 
-      <!-- PAINEL 2 — NÍVEL D'ÁGUA -->
+      <!-- PAINEL 2 — NÍVEL D'ÁGUA (SPT) -->
       <div class="edit-panel" id="bo-panel-agua">
         <div class="fieldset-title">Leituras do nível d'água</div>
         <p class="hint">Registre profundidade (m) e data de cada leitura de N.A.</p>
@@ -837,7 +1128,7 @@ table.edit-tbl input:focus,table.edit-tbl select:focus{outline:none;border-color
         <button class="add-row-btn" type="button" onclick="boAddAguaRow()">+ Leitura de N.A.</button>
       </div>
 
-      <!-- PAINEL 3 — CAMADAS DE SOLO -->
+      <!-- PAINEL 3 — CAMADAS DE SOLO (SPT) -->
       <div class="edit-panel" id="bo-panel-camadas">
         <div class="fieldset-title">Perfil geológico — camadas</div>
         <p class="hint">Informe a profundidade final de cada camada (m), o tipo predominante (define a textura do perfil) e a descrição do material. Insira em ordem crescente de profundidade.</p>
@@ -847,6 +1138,13 @@ table.edit-tbl input:focus,table.edit-tbl select:focus{outline:none;border-color
         </table>
         <button class="add-row-btn" type="button" onclick="boAddCamadaRow()">+ Camada</button>
       </div>
+
+      <!-- PAINEL CPTu · Dados do ensaio -->
+      <div class="edit-panel" id="bo-panel-cptu-manual"></div>
+      <!-- PAINEL CPTu · Perfil gráfico -->
+      <div class="edit-panel" id="bo-panel-cptu-grafico"></div>
+      <!-- PAINEL CPTu · Dissipação -->
+      <div class="edit-panel" id="bo-panel-cptu-dissipacao"></div>
 
       <!-- PAINEL 4 — GOLPES SPT -->
       <div class="edit-panel" id="bo-panel-golpes">
@@ -1013,6 +1311,7 @@ table.edit-tbl input:focus,table.edit-tbl select:focus{outline:none;border-color
 <script src="https://unpkg.com/@mapbox/shp-write@0.4.3/shpwrite.js"></script>
 <script src="https://unpkg.com/three@0.128.0/build/three.min.js"></script>
 <script src="https://unpkg.com/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script>
 /* ══════════════════ JANELA DE ABERTURA (SPLASH) ══════════════════
    Some sozinha 5s depois de carregar, ou no clique — roda logo no início
@@ -1088,18 +1387,35 @@ function blankFuro(lat,lng){
   const sondagemNum = 'F-'+(furos.length+1).toString().padStart(2,'0');
   return {
     id:newFuroId(), lat, lng, hash: computeFuroHash(sondagemNum, '', lat, lng, ''),
+    tipoSondagem:'SPT', // 'SPT' | 'CPTU' — controla quais campos o editor de boletim mostra
     ident:{
       cliente:'', obra:'', unidadeOperacional:'', local:'', sondagemNum,
       dataInicio:'', dataFim:'', cota:'', datum:'SIRGAS2000', zonaUTM:'', coordN:'', coordE:'',
       responsavel:'', sondador:'', desenhista:'',
-      amDiamInt:'34.9', amDiamExt:'50.8', amPeso:'65', amAltura:'75'
+      amDiamInt:'34.9', amDiamExt:'50.8', amPeso:'65', amAltura:'75',
+      // campos usados só por CPTu, mas vivem no mesmo objeto ident — mantém o furo como um
+      // único formato de dados pra qualquer tipo de sondagem
+      laudo:'', crea:'', coneTipo:'',
     },
     agua:[{data:'', prof:''}],
     camadas:[{profFinal:1, tipo:'argila', descricao:''}],
     golpes:[{prof:1, g1:'', g2:'', g3:''}],
     metodo:'SPT (NBR 6484)', equipamento:'', revestimento:'', arquivo_ref:'',
+    // dados específicos de CPTu (perfil contínuo, parâmetros estimados, ensaios de dissipação)
+    // — ficam vazios e não usados quando tipoSondagem==='SPT'
+    cptuPerfil:[], cptuEstimativas:[], cptuDissipacoes:[], cptuKhKvRatio:2,
     obs:''
   };
+}
+// mesma estrutura de blankFuro, só troca o tipo e o prefixo do nome padrão — CPTu usa as
+// MESMAS funções de desenho/lista/publicação que um furo SPT, só o editor de boletim exibe
+// campos diferentes dependendo do tipo
+function blankFuroCPTU(lat,lng){
+  const f = blankFuro(lat,lng);
+  f.tipoSondagem = 'CPTU';
+  f.ident.sondagemNum = 'CPTU-'+(furos.length+1).toString().padStart(2,'0');
+  f.hash = computeFuroHash(f.ident.sondagemNum, '', lat, lng, '');
+  return f;
 }
 
 /* ══════════════════ TIPOS DE SOLO (textura do perfil) ══════════════════ */
@@ -1650,14 +1966,21 @@ function scheduleSave(){ clearTimeout(saveTimer); saveTimer=setTimeout(saveStudy
 function furoToFlatExportData(f){
   return {
     id: f.id, hash: f.hash,
+    tipoSondagem: f.tipoSondagem || 'SPT',
     sondagemNum: f.ident.sondagemNum, obra: f.ident.obra, unidadeOperacional: f.ident.unidadeOperacional, cliente: f.ident.cliente, local: f.ident.local,
     dataInicio: f.ident.dataInicio, dataFim: f.ident.dataFim, cota: f.ident.cota,
     datum: f.ident.datum, zonaUTM: f.ident.zonaUTM,
     lat: f.lat, lng: f.lng,
     responsavel: f.ident.responsavel, sondador: f.ident.sondador, desenhista: f.ident.desenhista,
+    laudo: f.ident.laudo, crea: f.ident.crea, coneTipo: f.ident.coneTipo,
     amostrador: {diamInt:f.ident.amDiamInt, diamExt:f.ident.amDiamExt, peso:f.ident.amPeso, altura:f.ident.amAltura},
     metodo: f.metodo, equipamento: f.equipamento, revestimento: f.revestimento, arquivo_ref: f.arquivo_ref, obs: f.obs,
-    agua: f.agua, camadas: f.camadas, golpes: f.golpes
+    agua: f.agua, camadas: f.camadas, golpes: f.golpes,
+    // dados específicos de CPTu — antes desta correção, ficavam de fora do furos.json/cache
+    // local, e todo o perfil/estimativas/dissipação de um furo CPTu era perdido a cada
+    // salvar/publicar/recarregar
+    cptuPerfil: f.cptuPerfil||[], cptuEstimativas: f.cptuEstimativas||[],
+    cptuDissipacoes: f.cptuDissipacoes||[], cptuKhKvRatio: f.cptuKhKvRatio!=null ? f.cptuKhKvRatio : 2,
   };
 }
 
@@ -1728,6 +2051,16 @@ function migrateLegacyFuroFormat(f){
   if(!f.golpes.length) f.golpes=[{prof:1,g1:'',g2:'',g3:''}];
   if(!f.agua.length) f.agua=[{data:'',prof:''}];
   if(!f.hash) f.hash = computeFuroHash(f.ident.sondagemNum, f.ident.obra, f.lat, f.lng, f.ident.cota);
+  // retrocompatibilidade: furos salvos antes do CPTu virar um tipo de sondagem não têm esses
+  // campos — preenche com os padrões (todo furo antigo é SPT, já que CPTu não existia)
+  if(!f.tipoSondagem) f.tipoSondagem = 'SPT';
+  if(!f.cptuPerfil) f.cptuPerfil = [];
+  if(!f.cptuEstimativas) f.cptuEstimativas = [];
+  if(!f.cptuDissipacoes) f.cptuDissipacoes = [];
+  if(f.cptuKhKvRatio==null) f.cptuKhKvRatio = 2;
+  if(f.ident.laudo==null) f.ident.laudo = '';
+  if(f.ident.crea==null) f.ident.crea = '';
+  if(f.ident.coneTipo==null) f.ident.coneTipo = '';
 }
 
 // primeira execução depois desta atualização: migra dados salvos no formato antigo (chaves
@@ -1768,6 +2101,28 @@ async function saveStudyData(){
   }catch(e){ console.error('erro ao salvar dados de estudo', e); }
 }
 
+// migração: numa versão anterior deste app, o CPTu era guardado num array separado
+// (cptuEnsaios), como "dados de estudo" por usuário — agora é só mais um furo no banco
+// principal (tipoSondagem:'CPTU'), igual o SPT. Converte cada ensaio salvo sob a chave antiga
+// num furo completo, uma única vez; a chave antiga não é mais escrita depois disso.
+function migrarCptuEnsaioParaFuro(ens){
+  const f = blankFuroCPTU(parseFloat(ens.ident.lat)||-15.6, parseFloat(ens.ident.lng)||-50.5);
+  f.id = ens.id || f.id;
+  f.ident.sondagemNum = ens.ident.nome || f.ident.sondagemNum;
+  f.ident.obra = ens.ident.obra||''; f.ident.cliente = ens.ident.cliente||''; f.ident.local = ens.ident.local||'';
+  f.ident.laudo = ens.ident.laudo||''; f.ident.dataInicio = ens.ident.dataInicio||''; f.ident.cota = ens.ident.cota||'';
+  f.ident.responsavel = ens.ident.responsavel||''; f.ident.crea = ens.ident.crea||'';
+  f.ident.sondador = ens.ident.operador||''; f.ident.coneTipo = ens.ident.coneTipo||'';
+  f.equipamento = ens.ident.equipamento||'';
+  f.agua = ens.ident.naEstimado!=null && ens.ident.naEstimado!=='' ? [{prof:parseFloat(ens.ident.naEstimado), data:''}] : f.agua;
+  f.cptuPerfil = ens.perfil||[]; f.cptuEstimativas = ens.estimativas||[]; f.cptuDissipacoes = ens.dissipacoes||[];
+  f.cptuKhKvRatio = ens.ident.khKvRatio!=null ? ens.ident.khKvRatio : 2;
+  f.obs = ens.obs||'';
+  f.hash = computeFuroHash(f.ident.sondagemNum, f.ident.obra, f.lat, f.lng, f.ident.cota);
+  f._migradoCptu = true; // marca temporária pra loadStudyData saber que precisa avisar o Administrador a publicar
+  return f;
+}
+
 // carrega os dados de ESTUDO do usuário atual e junta os furos interpolados aos furos mestre
 // já carregados por loadFurosMaster() — desenha e renderiza tudo de uma vez só, no fim
 async function loadStudyData(){
@@ -1779,7 +2134,19 @@ async function loadStudyData(){
   try{ const r = await window.storage.get(p+'topoSurfaces'); topoSurfaces = JSON.parse(r.value); }catch(e){ topoSurfaces=[]; }
   try{ const r = await window.storage.get(p+'profiles'); profiles = JSON.parse(r.value); }catch(e){ profiles=[]; }
   try{ const r = await window.storage.get(p+'rasterLayers'); rasterLayers = JSON.parse(r.value); }catch(e){ rasterLayers=[]; }
+  // migração única: converte ensaios de CPTu salvos sob a arquitetura antiga em furos, e
+  // absorve no banco mestre local — deleta a chave antiga logo depois, pra não migrar de novo
+  // (e duplicar) na próxima carga da página
+  try{
+    const r = await window.storage.get(p+'cptuEnsaios');
+    const ensaiosAntigos = JSON.parse(r.value);
+    if(Array.isArray(ensaiosAntigos) && ensaiosAntigos.length){
+      ensaiosAntigos.forEach(ens=>{ loadedInterpFuros.push(migrarCptuEnsaioParaFuro(ens)); });
+    }
+    await window.storage.delete(p+'cptuEnsaios');
+  }catch(e){}
 
+  const houveMigracaoCptu = loadedInterpFuros.some(f=>f._migradoCptu);
   loadedInterpFuros.forEach(migrateLegacyFuroFormat);
   furos = furos.concat(loadedInterpFuros);
 
@@ -1793,6 +2160,10 @@ async function loadStudyData(){
   updateMapLegendPanel();
   renderFuroList(); renderShapeList(); renderInterpList(); renderTopoList(); renderProfileList(); renderRasterLayersList();
   fitAll();
+  // furos de CPTu migrados da arquitetura antiga entram como parte do banco mestre — marca
+  // como pendente de publicação (o Administrador confirma com "Publicar furos.json" quando
+  // quiser deixar visível pra todo mundo, do mesmo jeito que qualquer outra edição de furo)
+  if(houveMigracaoCptu) markMasterDirty();
 }
 
 // troca de usuário/perfil: limpa o que está desenhado, recarrega o banco mestre (o mesmo pra
@@ -1812,16 +2183,17 @@ async function reloadForCurrentUser(){
 function newFuroId(){ return 'F'+Date.now().toString(36)+Math.random().toString(36).slice(2,5); }
 
 function profFinal(f){
-  const ps = [...f.camadas.map(c=>+c.profFinal||0), ...f.golpes.map(g=>+g.prof||0)];
+  const ps = [...f.camadas.map(c=>+c.profFinal||0), ...f.golpes.map(g=>+g.prof||0), ...(f.cptuPerfil||[]).map(p=>+p.depth||0)];
   return ps.length? Math.max(...ps) : 0;
 }
 
 function drawFuro(f){
-  const cls = 'furo-pin'+(f._interpolado?' interp':'');
+  const cls = 'furo-pin'+(f._interpolado?' interp':'')+(f.tipoSondagem==='CPTU'?' cptu':'');
   const icon = L.divIcon({className:'leaflet-div-icon', html:`<div class="${cls}" id="pin-${f.id}"></div>`, iconSize:[16,16], iconAnchor:[8,8]});
   const m = L.marker([f.lat,f.lng], {icon, draggable:false}).addTo(map);
   m.bindTooltip(f.ident.sondagemNum || '(sem nome)', {permanent:true, direction:'right', offset:[6,0], className:'furo-label'});
   m.on('click', ()=>{
+    if(pickingCptuForBlock){ handlePickCptuForBlock(f.id); return; }
     if(interpSelectMode){ toggleInterpFuroSelect(f.id); return; }
     if(topoSelectMode){ toggleTopoSelect('furo:'+f.id); return; }
     if(exportSelectMode){ toggleExportFuroSelect(f.id); return; }
@@ -2007,13 +2379,14 @@ function renderFuroTable(){
       <div class="ft-group-header">📍 ${esc(estado)} <span class="ft-count">(${list.length} furo${list.length!==1?'s':''})</span></div>
       <table class="ft-table">
         <thead><tr>
-          <th>Sondagem</th><th>Obra</th><th>Cliente</th><th>Local</th><th>Data</th><th>Cota (m)</th><th>Prof. máx (m)</th><th>Camadas</th>
+          <th>Sondagem</th><th>Obra</th><th>Cliente</th><th>Local</th><th>Data</th><th>Cota (m)</th><th>Prof. máx (m)</th><th>Camadas / Leituras</th>
         </tr></thead>
         <tbody>`;
     list.forEach(f=>{
       const selCls = (selected&&selected.kind==='furo'&&selected.id===f.id) ? ' sel' : '';
-      const badge = f._interpolado ? '🔮 ' : '';
+      const badge = (f._interpolado ? '🔮 ' : '') + (f.tipoSondagem==='CPTU' ? '🧊 ' : '');
       const cotaTxt = (f.ident.cota!==''&&f.ident.cota!=null&&isFinite(parseFloat(f.ident.cota))) ? parseFloat(f.ident.cota).toFixed(2) : '—';
+      const camadasTxt = f.tipoSondagem==='CPTU' ? f.cptuPerfil.length+' leituras' : String(f.camadas.length);
       html += `<tr class="ft-row${selCls}" data-furo="${f.id}">
         <td>${badge}${esc(f.ident.sondagemNum)}</td>
         <td>${esc(f.ident.obra||'—')}</td>
@@ -2022,7 +2395,7 @@ function renderFuroTable(){
         <td>${esc(f.ident.dataInicio||'—')}</td>
         <td>${cotaTxt}</td>
         <td>${profFinal(f).toFixed(1)}</td>
-        <td>${f.camadas.length}</td>
+        <td>${camadasTxt}</td>
       </tr>`;
     });
     html += `</tbody></table></div>`;
@@ -2033,6 +2406,7 @@ function renderFuroTable(){
     row.addEventListener('click', ()=>{
       const id = row.dataset.furo;
       const f = furos.find(x=>x.id===id); if(!f) return;
+      if(pickingCptuForBlock){ handlePickCptuForBlock(id); return; }
       if(interpSelectMode){ toggleInterpFuroSelect(id); renderFuroTable(); return; }
       if(exportSelectMode){ toggleExportFuroSelect(id); renderFuroTable(); return; }
       selectFuro(id);
@@ -2324,15 +2698,16 @@ function openFuroPanel(id){
   const f = furos.find(x=>x.id===id); if(!f) return;
   const panel = document.getElementById('panel');
   panel.classList.remove('hidden');
-  const boletimHtml = renderFuroBoletimHtml(prepareBoletimState(f));
+  const ehCptu = f.tipoSondagem==='CPTU';
+  const boletimHtml = ehCptu ? renderCptuBoletimHtml(f) : renderFuroBoletimHtml(prepareBoletimState(f));
 
   panel.innerHTML = `
-    <div class="p-hdr"><b>Boletim de Sondagem</b><button class="p-close" onclick="closePanel()">✕</button></div>
+    <div class="p-hdr"><b>Boletim de Sondagem${ehCptu?' (CPTu)':''}</b><button class="p-close" onclick="closePanel()">✕</button></div>
     <div class="p-body">
 
       <div class="btn-row" style="margin-top:6px">
-        <button class="mini-btn" id="pf-edit-full">✏️ Editor completo (NA · camadas · golpes)</button>
-        <button class="mini-btn" id="pf-print">🖨 Imprimir boletim NBR 6484</button>
+        <button class="mini-btn" id="pf-edit-full">✏️ ${ehCptu ? 'Editor completo (identificação · dados do ensaio · perfil)' : 'Editor completo (NA · camadas · golpes)'}</button>
+        <button class="mini-btn" id="pf-print">🖨 ${ehCptu ? 'Imprimir boletim CPTu' : 'Imprimir boletim NBR 6484'}</button>
         <button class="mini-btn danger" id="pf-del">Excluir furo</button>
       </div>
 
@@ -2352,7 +2727,40 @@ function openFuroPanel(id){
 function setBoletimTab(tab){
   document.querySelectorAll('#bo-editor-overlay .edit-tab').forEach(b=>b.classList.toggle('active', b.dataset.tab===tab));
   document.querySelectorAll('#bo-editor-overlay .edit-panel').forEach(p=>p.classList.toggle('active', p.id==='bo-panel-'+tab));
+  const f = furos.find(x=>x.id===editingFuroId);
+  if(!f) return;
+  // as abas exclusivas de CPTu montam o conteúdo dinamicamente na hora que ficam visíveis —
+  // evita recalcular tudo (gráficos, comparação SPT) toda vez que qualquer campo muda
+  if(tab==='cptu-manual') renderManualPane(f);
+  else if(tab==='cptu-grafico') renderGraficoPane(f);
+  else if(tab==='cptu-dissipacao') renderDissipacaoPane(f);
 }
+// alterna quais abas/campos aparecem no editor conforme o tipo de sondagem escolhido — SPT
+// mostra Nível d'Água/Camadas/Golpes (fluxo de sempre); CPTu troca por Dados do
+// ensaio/Perfil gráfico/SPT×CPTu/Dissipação, e esconde os campos de identificação que só fazem
+// sentido pra SPT (amostrador, revestimento, etc), mostrando os equivalentes de CPTu no lugar
+function setBoletimTipoSondagem(tipo){
+  const ehCptu = tipo==='CPTU';
+  document.getElementById('bo-f-tipo-sondagem').value = tipo;
+
+  document.querySelectorAll('#bo-editor-overlay .edit-tab[data-tab="agua"], #bo-editor-overlay .edit-tab[data-tab="camadas"], #bo-editor-overlay .edit-tab[data-tab="golpes"]')
+    .forEach(b=> b.style.display = ehCptu ? 'none' : '');
+  document.querySelectorAll('#bo-editor-overlay .edit-tab[data-tab^="cptu-"]')
+    .forEach(b=> b.style.display = ehCptu ? '' : 'none');
+
+  const soSpt = ['bo-f-uo-wrap','bo-f-data-fim-wrap','bo-f-datum-wrap','bo-f-zona-utm-wrap','bo-f-coord-n-wrap','bo-f-coord-e-wrap','bo-f-desenhista-wrap','bo-f-metodo-wrap','bo-f-revest-wrap'];
+  const soCptu = ['bo-f-laudo-wrap','bo-f-crea-wrap','bo-f-na-estimado-wrap','bo-f-khkv-wrap','bo-f-cone-tipo-wrap'];
+  soSpt.forEach(id=>{ const el=document.getElementById(id); if(el) el.style.display = ehCptu?'none':''; });
+  soCptu.forEach(id=>{ const el=document.getElementById(id); if(el) el.style.display = ehCptu?'':'none'; });
+  document.getElementById('bo-f-amostrador-title').style.display = ehCptu?'none':'';
+  document.getElementById('bo-f-amostrador-grid').style.display = ehCptu?'none':'';
+  document.getElementById('bo-f-sondagem-num-label').textContent = ehCptu ? 'Nome do ensaio' : 'Sondagem N°';
+  document.getElementById('bo-f-sondador-label').textContent = ehCptu ? 'Operador' : 'Sondador';
+  document.getElementById('bo-f-equip-label').textContent = ehCptu ? 'Equipamento (cone)' : 'Equipamento';
+
+  setBoletimTab('ident');
+}
+document.getElementById('bo-f-tipo-sondagem').addEventListener('change', e=> setBoletimTipoSondagem(e.target.value));
 document.querySelectorAll('#bo-editor-overlay .edit-tab').forEach(btn=>{
   btn.addEventListener('click', ()=> setBoletimTab(btn.dataset.tab));
 });
@@ -2419,6 +2827,7 @@ function openBoletimEditor(id){
   set('bo-f-uo', f.ident.unidadeOperacional);
   set('bo-f-local', f.ident.local);
   set('bo-f-sondagem-num', f.ident.sondagemNum);
+  set('bo-f-laudo', f.ident.laudo);
   set('bo-f-data-inicio', f.ident.dataInicio);
   set('bo-f-data-fim', f.ident.dataFim);
   set('bo-f-cota', f.ident.cota);
@@ -2427,6 +2836,7 @@ function openBoletimEditor(id){
   set('bo-f-coord-n', f.ident.coordN);
   set('bo-f-coord-e', f.ident.coordE);
   set('bo-f-responsavel', f.ident.responsavel);
+  set('bo-f-crea', f.ident.crea);
   set('bo-f-sondador', f.ident.sondador);
   set('bo-f-desenhista', f.ident.desenhista);
   set('bo-f-am-diam-int', f.ident.amDiamInt||'34.9');
@@ -2436,7 +2846,10 @@ function openBoletimEditor(id){
   set('bo-f-metodo', f.metodo);
   set('bo-f-equip', f.equipamento);
   set('bo-f-revest', f.revestimento);
+  set('bo-f-cone-tipo', f.ident.coneTipo);
   set('bo-f-arq', f.arquivo_ref);
+  set('bo-f-na-estimado', f.agua && f.agua[0] ? f.agua[0].prof : '');
+  set('bo-f-khkv', f.cptuKhKvRatio!=null ? f.cptuKhKvRatio : 2);
 
   set('bo-f-lat', f.lat.toFixed(6));
   set('bo-f-lng', f.lng.toFixed(6));
@@ -2454,7 +2867,7 @@ function openBoletimEditor(id){
   document.getElementById('bo-tbody-golpes').innerHTML='';
   (f.golpes.length?f.golpes:[{prof:1,g1:'',g2:'',g3:''}]).forEach(g=>boAddGolpeRow(g.prof,g.g1,g.g2,g.g3));
 
-  setBoletimTab('ident');
+  setBoletimTipoSondagem(f.tipoSondagem||'SPT');
   document.getElementById('bo-editor-overlay').classList.add('open');
   document.body.style.overflow='hidden';
 }
@@ -2488,6 +2901,8 @@ function saveBoletimEditor(){
   const f = furos.find(x=>x.id===editingFuroId); if(!f) return;
   if(!f._interpolado && !isAdmin()){ alert('Só o Administrador pode editar furos do banco principal. Troque de perfil no botão "👤" no topo se for o caso.'); return; }
   const val = elId=>{ const e=document.getElementById(elId); return e?e.value:''; };
+  const tipo = val('bo-f-tipo-sondagem') || 'SPT';
+  const ehCptu = tipo==='CPTU';
 
   const camadas = Array.from(document.getElementById('bo-tbody-camadas').children).map(tr=>({
     profFinal: parseFloat(tr.querySelector('.c-proffinal').value)||0,
@@ -2501,18 +2916,24 @@ function saveBoletimEditor(){
     g3: tr.querySelector('.c-g3').value||''
   })).sort((a,b)=>a.prof-b.prof);
 
-  if(!camadas.length && !golpes.length){
+  // a exigência de pelo menos uma camada/golpe só faz sentido pra SPT — um CPTu válido pode
+  // perfeitamente não ter nenhuma camada/golpe cadastrado (usa cptuPerfil/cptuEstimativas)
+  if(!ehCptu && !camadas.length && !golpes.length){
     alert('Insira ao menos uma camada de solo ou uma profundidade de golpes antes de salvar.');
     return;
   }
 
+  f.tipoSondagem = tipo;
   f.ident = {
     cliente: val('bo-f-cliente'), obra: val('bo-f-obra'), unidadeOperacional: val('bo-f-uo'), local: val('bo-f-local'),
     sondagemNum: val('bo-f-sondagem-num').trim() || f.ident.sondagemNum,
+    laudo: val('bo-f-laudo'),
     dataInicio: val('bo-f-data-inicio'), dataFim: val('bo-f-data-fim'),
     cota: val('bo-f-cota'), datum: val('bo-f-datum'), zonaUTM: val('bo-f-zona-utm'),
     coordN: val('bo-f-coord-n'), coordE: val('bo-f-coord-e'),
-    responsavel: val('bo-f-responsavel'), sondador: val('bo-f-sondador'), desenhista: val('bo-f-desenhista'),
+    responsavel: val('bo-f-responsavel'), crea: val('bo-f-crea'),
+    sondador: val('bo-f-sondador'), desenhista: val('bo-f-desenhista'),
+    coneTipo: val('bo-f-cone-tipo'),
     amDiamInt: val('bo-f-am-diam-int')||'34.9', amDiamExt: val('bo-f-am-diam-ext')||'50.8',
     amPeso: val('bo-f-am-peso')||'65', amAltura: val('bo-f-am-altura')||'75'
   };
@@ -2520,12 +2941,24 @@ function saveBoletimEditor(){
   f.equipamento = val('bo-f-equip');
   f.revestimento = val('bo-f-revest');
   f.arquivo_ref = val('bo-f-arq');
-  f.agua = Array.from(document.getElementById('bo-tbody-agua').children).map(tr=>({
-    prof: parseFloat(tr.querySelector('.c-prof').value)||0,
-    data: tr.querySelector('.c-data').value||''
-  }));
-  f.camadas = camadas.length? camadas : [{profFinal:1,tipo:'argila',descricao:''}];
-  f.golpes = golpes.length? golpes : [{prof:1,g1:'',g2:'',g3:''}];
+  if(ehCptu){
+    // CPTu usa um único campo de "N.A. estimado" em vez da tabela de leituras do SPT — grava
+    // como a primeira (e única) leitura de f.agua, pra reaproveitar o mesmo campo de dados
+    const naVal = parseFloat(val('bo-f-na-estimado'));
+    f.agua = [{prof: isFinite(naVal)?naVal:'', data:''}];
+    f.cptuKhKvRatio = parseFloat(val('bo-f-khkv')) || 2;
+    // camadas/golpes ficam com o mínimo padrão — não fazem parte do boletim de CPTu, mas
+    // mantém a estrutura de dados consistente (evita checagens de null espalhadas)
+    f.camadas = camadas.length? camadas : [{profFinal:1,tipo:'argila',descricao:''}];
+    f.golpes = golpes.length? golpes : [{prof:1,g1:'',g2:'',g3:''}];
+  } else {
+    f.agua = Array.from(document.getElementById('bo-tbody-agua').children).map(tr=>({
+      prof: parseFloat(tr.querySelector('.c-prof').value)||0,
+      data: tr.querySelector('.c-data').value||''
+    }));
+    f.camadas = camadas.length? camadas : [{profFinal:1,tipo:'argila',descricao:''}];
+    f.golpes = golpes.length? golpes : [{prof:1,g1:'',g2:'',g3:''}];
+  }
 
   // resolve a localização real do furo a partir do modo ativo (Lat/Long ou UTM)
   const locMode = document.querySelector('.loc-mode-btn.active');
@@ -2547,7 +2980,10 @@ function saveBoletimEditor(){
   }
   f.lat = novoLat; f.lng = novoLng;
   f.hash = computeFuroHash(f.ident.sondagemNum, f.ident.obra, f.lat, f.lng, f.ident.cota);
-  if(markers[f.id]){ markers[f.id].setLatLng([f.lat, f.lng]); markers[f.id].setTooltipContent(f.ident.sondagemNum || '(sem nome)'); }
+  // redesenha o marcador do zero (não só reposiciona) — o tipo de sondagem pode ter mudado
+  // nesta edição, e o ícone/cor no mapa (círculo SPT vs quadrado CPTu) precisa refletir isso
+  if(markers[f.id]){ map.removeLayer(markers[f.id]); }
+  drawFuro(f);
 
   const eraFuroNovo = !!f._isNewUnsaved;
   delete f._isNewUnsaved;
@@ -2586,7 +3022,8 @@ function buildBoletimPrintCss(){
 }
 
 function printFuroBoletim(f){
-  const boletimHtml = renderFuroBoletimHtml(prepareBoletimState(f));
+  const ehCptu = f.tipoSondagem==='CPTU';
+  const boletimHtml = ehCptu ? renderCptuBoletimHtml(f) : renderFuroBoletimHtml(prepareBoletimState(f));
   const css = buildBoletimPrintCss();
   const win = window.open('', '_blank');
   win.document.write(`<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8"><title>Boletim ${escXml(f.ident.sondagemNum)}</title>
@@ -2601,8 +3038,8 @@ function printFuroBoletim(f){
   </head><body>
   <div class="print-header no-print">
     <div class="print-tag">GEO·SIG — GEOTECNIA DE CAMPO</div>
-    <div class="print-title">Boletim de Sondagem</div>
-    <div class="print-sub">Sondagem à percussão com SPT — conforme NBR 6484:2020</div>
+    <div class="print-title">Boletim de Sondagem${ehCptu?' — CPTu':''}</div>
+    <div class="print-sub">${ehCptu ? 'Ensaio de piezocone (CPTu)' : 'Sondagem à percussão com SPT — conforme NBR 6484:2020'}</div>
   </div>
   ${boletimHtml}
   <button class="print-btn no-print" onclick="window.print()">🖨 Imprimir / Salvar PDF</button>
@@ -3187,6 +3624,13 @@ function exitInterpSelectMode(){
   renderFuroList();
 }
 function toggleInterpFuroSelect(id){
+  if(!interpSelected.has(id)){
+    const f = furos.find(x=>x.id===id);
+    if(f && f.tipoSondagem==='CPTU'){
+      toast('Furos de CPTu não entram em blocos interpolados — a interpolação usa camadas/golpes de SPT');
+      return;
+    }
+  }
   if(interpSelected.has(id)) interpSelected.delete(id); else interpSelected.add(id);
   const pin = document.getElementById('pin-'+id);
   if(pin) pin.classList.toggle('interpsel', interpSelected.has(id));
@@ -3746,6 +4190,31 @@ function cancelPickInterpPoint(){
 function removePickInterpCross(){
   if(pickingInterpCrossMarker){ map.removeLayer(pickingInterpCrossMarker); pickingInterpCrossMarker = null; }
 }
+
+/* ── seleção de um CPTu pra comparar/incorporar num bloco interpolado — aceita clique no mapa
+   (em cima do pino do furo) ou clique na linha da tabela de furos, igual aos outros modos de
+   seleção já existentes (interpSelectMode, topoSelectMode) ── */
+let pickingCptuForBlock = null; // id do bloco aguardando a seleção de um CPTu
+function startPickCptuForBlock(blockId){
+  pickingCptuForBlock = blockId;
+  closePanel();
+  toast('Clique num furo de CPTu no mapa, ou selecione um na tabela de furos');
+  map.getContainer().style.cursor = 'crosshair';
+}
+function cancelPickCptuForBlock(){
+  pickingCptuForBlock = null;
+  map.getContainer().style.cursor = '';
+}
+function handlePickCptuForBlock(furoId){
+  const blockId = pickingCptuForBlock;
+  const f = furos.find(x=>x.id===furoId);
+  if(!f || f.tipoSondagem!=='CPTU'){ toast('Selecione um furo do tipo CPTu (pino quadrado azul no mapa)'); return; }
+  const block = interpBlocks.find(b=>b.id===blockId);
+  cancelPickCptuForBlock();
+  if(!block) return;
+  abrirComparacaoCptuBloco(block, f);
+}
+
 function handlePickInterpPoint(blockId, latlng){
   cancelPickInterpPoint();
   const block = interpBlocks.find(b=>b.id===blockId); if(!block) return;
@@ -4213,11 +4682,19 @@ function openInterpBlockPanel(id){
       <div class="btn-row">
         <button class="mini-btn" id="pb-open-model3d" type="button">🧊 Modelo 3D</button>
       </div>
+      <div class="sec-title">Comparar com CPTu</div>
+      <p class="hint">Selecione um ensaio de CPTu (no mapa ou na tabela de furos) pra comparar com o furo interpolado deste bloco na mesma posição, ajustar a correlação de camadas, e opcionalmente incorporar o CPTu como fonte desta interpolação.</p>
+      <div class="btn-row">
+        <button class="mini-btn" id="pb-compare-cptu" type="button">🧊 Comparar com CPTu</button>
+      </div>
       <div class="btn-row" style="margin-top:10px">
         <button class="mini-btn primary" id="pb-save">Salvar</button>
         <button class="mini-btn danger" id="pb-del">Excluir bloco</button>
       </div>
     </div>`;
+  document.getElementById('pb-compare-cptu').onclick=()=>{
+    startPickCptuForBlock(b.id);
+  };
   document.getElementById('pb-add-interp-point').onclick=()=>{
     startPickInterpPoint(b.id);
   };
@@ -7132,7 +7609,7 @@ async function importProjectData(proj){
   let modoDuplicata = 'copiar';
   if(totalDuplicatas>0){
     const substituir = confirm(
-      `Este projeto tem ${totalDuplicatas} item(ns) (áreas/linhas, blocos, superfícies, perfis ou rasters) que já existem no que está aberto agora.\n\n`+
+      `Este projeto tem ${totalDuplicatas} item(ns) (áreas/linhas, blocos, superfícies, perfis, rasters ou ensaios de CPTu) que já existem no que está aberto agora.\n\n`+
       `Clique OK para SUBSTITUIR os existentes pelos do arquivo.\n`+
       `Clique Cancelar para manter os existentes e importar os do arquivo como CÓPIAS novas.`);
     modoDuplicata = substituir ? 'substituir' : 'copiar';
@@ -7176,7 +7653,7 @@ async function importProjectData(proj){
     }
   }
 
-  renderFuroList(); renderShapeList(); renderInterpList(); renderTopoList(); renderProfileList(); renderRasterLayersList();
+  renderFuroList(); renderShapeList(); renderInterpList(); renderTopoList(); renderProfileList(); renderRasterLayersList(); renderEnsaioList();
   fitAll(); scheduleSave();
   const partes = [];
   if(rShapes.adicionados+rShapes.substituidos+rShapes.copiados) partes.push(`${rShapes.adicionados+rShapes.substituidos+rShapes.copiados} área(s)/linha(s)`);
@@ -7185,6 +7662,7 @@ async function importProjectData(proj){
   if(rProfiles.adicionados+rProfiles.substituidos+rProfiles.copiados) partes.push(`${rProfiles.adicionados+rProfiles.substituidos+rProfiles.copiados} perfil(is)`);
   if(rRasters.adicionados+rRasters.substituidos+rRasters.copiados) partes.push(`${rRasters.adicionados+rRasters.substituidos+rRasters.copiados} raster(s)`);
   if(rFurosInterp.adicionados+rFurosInterp.substituidos+rFurosInterp.copiados) partes.push(`${rFurosInterp.adicionados+rFurosInterp.substituidos+rFurosInterp.copiados} furo(s) interpolado(s)`);
+  if(rCptu.adicionados+rCptu.substituidos+rCptu.copiados) partes.push(`${rCptu.adicionados+rCptu.substituidos+rCptu.copiados} ensaio(s) de CPTu`);
   toast('Projeto importado: '+(partes.join(', ')||'nada de novo')+furosMestreMsg);
 }
 document.getElementById('file-input').addEventListener('change', async e=>{
@@ -7287,6 +7765,7 @@ function buildFuroFromImportData(fd){
 
   const f = blankFuro(lat, lng);
   if(fd.id) f.id = fd.id;
+  f.tipoSondagem = fd.tipoSondagem || 'SPT';
   f.ident.sondagemNum = fd.sondagemNum || f.ident.sondagemNum;
   f.ident.obra = fd.obra || '';
   f.ident.unidadeOperacional = fd.unidadeOperacional || fd.uo || fd.unidade_operacional || '';
@@ -7302,6 +7781,9 @@ function buildFuroFromImportData(fd){
   f.ident.responsavel = fd.responsavel || '';
   f.ident.sondador = fd.sondador || '';
   f.ident.desenhista = fd.desenhista || '';
+  f.ident.laudo = fd.laudo || '';
+  f.ident.crea = fd.crea || '';
+  f.ident.coneTipo = fd.coneTipo || '';
   if(fd.amostrador){
     f.ident.amDiamInt = fd.amostrador.diamInt!=null ? String(fd.amostrador.diamInt) : f.ident.amDiamInt;
     f.ident.amDiamExt = fd.amostrador.diamExt!=null ? String(fd.amostrador.diamExt) : f.ident.amDiamExt;
@@ -7333,6 +7815,12 @@ function buildFuroFromImportData(fd){
     }));
   }
   f.hash = fd.hash || computeFuroHash(f.ident.sondagemNum, f.ident.obra, f.lat, f.lng, f.ident.cota);
+  // dados específicos de CPTu — precisam ser reconstruídos a partir do formato achatado, do
+  // mesmo jeito que agua/camadas/golpes acima
+  if(Array.isArray(fd.cptuPerfil)) f.cptuPerfil = fd.cptuPerfil;
+  if(Array.isArray(fd.cptuEstimativas)) f.cptuEstimativas = fd.cptuEstimativas;
+  if(Array.isArray(fd.cptuDissipacoes)) f.cptuDissipacoes = fd.cptuDissipacoes;
+  if(fd.cptuKhKvRatio!=null) f.cptuKhKvRatio = fd.cptuKhKvRatio;
   return f;
 }
 
@@ -7671,7 +8159,7 @@ document.getElementById('btn-export-csv').onclick=()=>{
 };
 
 document.getElementById('btn-clear').onclick=async ()=>{
-  if(!confirm('Isso apaga seus dados de estudo (áreas/linhas, blocos interpolados, perfis salvos, rasters no mapa e furos interpolados que você salvou). Os furos do banco principal não são afetados. Continuar?')) return;
+  if(!confirm('Isso apaga seus dados de estudo (áreas/linhas, blocos interpolados, perfis salvos, rasters no mapa, furos interpolados e ensaios de CPTu que você salvou). Os furos do banco principal não são afetados. Continuar?')) return;
   let apagarMestreTambem = false;
   if(isAdmin()){
     apagarMestreTambem = confirm('Você é Administrador — quer apagar também os furos do banco principal? Isso só muda sua visão local; o furos.json publicado só muda se você clicar em "Publicar furos.json" depois.');
@@ -7686,7 +8174,7 @@ document.getElementById('btn-clear').onclick=async ()=>{
   shapes=[]; interpBlocks=[]; topoSurfaces=[]; profiles=[]; rasterLayers=[];
   markers={}; shapeLayers={}; interpLayers={}; topoLayers={}; profileLineLayers={}; rasterLeafletOverlays={};
   furos.forEach(f=>drawFuro(f)); // redesenha os furos mestre que sobraram (marcadores foram removidos acima)
-  closePanel(); renderFuroList(); renderShapeList(); renderInterpList(); renderTopoList(); renderProfileList(); renderRasterLayersList();
+  closePanel(); renderFuroList(); renderShapeList(); renderInterpList(); renderTopoList(); renderProfileList(); renderRasterLayersList(); renderEnsaioList();
   if(apagarMestreTambem) markMasterDirty();
   await saveStudyData();
 };
@@ -7791,6 +8279,1033 @@ async function initApp(){
     document.body.appendChild(el);
   }
 }
+
+
+/* ══════════════════ MÓDULO CPTu — INCORPORADO ══════════════════ */
+/* ══════════════════════════════════════════════════════════════
+   GEO·SIG — MÓDULO CPTu (PIEZOCONE), integrado ao app principal.
+   Reaproveita window.storage, toast(), esc(), escAttr(), download() e a persistência via
+   saveStudyData()/loadStudyData() já existentes — nada disso é redeclarado aqui.
+   ══════════════════════════════════════════════════════════════ */
+let gruposDetectados = []; // resultado da última análise de arquivo importado, aguardando confirmação
+
+/* ── modelo de dados de um ensaio CPTu — agora vive dentro do próprio furo (f.cptuPerfil,
+   f.cptuEstimativas, f.cptuDissipacoes; ver blankFuroCPTU), não mais num objeto separado ──
+   perfil: array denso (1 linha por leitura, tipicamente a cada 1-2cm) com os dados de campo
+     e os índices SBT/SBTn básicos, na mesma resolução do ensaio original.
+   estimativas: array denso alinhado ao perfil por profundidade, com os parâmetros geotécnicos
+     derivados (N60 equivalente, módulos, ângulo de atrito, OCR, etc).
+   dissipacoes: tabela pequena, preenchida manualmente (os ensaios de dissipação são poucos por
+     furo — normalmente não vêm na planilha bruta do CPeT-IT, só no relatório PDF). */
+
+/* ── classificação SBTn (Robertson) — cores representativas de cada classe, usadas na coluna
+   colorida do gráfico e no boletim. Números 1-9 conforme o relatório padrão CPeT-IT. ── */
+const SBTN_CLASSES = {
+  1: {nome:'Sensitive fine grained', cor:'#c0392b'},
+  2: {nome:'Organic material', cor:'#8a5a2b'},
+  3: {nome:'Clay to silty clay', cor:'#2a4d7a'},
+  4: {nome:'Clayey silt to silty clay', cor:'#1a7a6a'},
+  5: {nome:'Silty sand to sandy silt', cor:'#4a9a7a'},
+  6: {nome:'Clean sand to silty sand', cor:'#c8a24a'},
+  7: {nome:'Gravelly sand to sand', cor:'#d97a2a'},
+  8: {nome:'Very stiff sand to clayey sand', cor:'#8a8a8a'},
+  9: {nome:'Very stiff fine grained', cor:'#c9c5bd'},
+};
+/* classificação SBTn modificada (Robertson 2016) — usada como alternativa mais moderna,
+   descrevendo comportamento contrátil/dilatante em vez de só granulometria */
+const SBTN_MOD_CLASSES = {
+  1: {nome:'ClayLike - Contractive, Sensitive', cor:'#c0392b'},
+  2: {nome:'Clay-like - Contractive', cor:'#2a4d7a'},
+  3: {nome:'Clay-Like - Dilative', cor:'#1a3a5a'},
+  4: {nome:'Transitional - Contractive', cor:'#4a9a7a'},
+  5: {nome:'Transitional - Dilative', cor:'#1a7a6a'},
+  6: {nome:'Sand-like - Contractive', cor:'#d9a23a'},
+  7: {nome:'Sand-like - Dilative', cor:'#c8a24a'},
+};
+
+/* ══════════════════════════════════════════════════════════════
+   AJUDA — dicionário central de explicações dos parâmetros, usado pelos ícones "?" espalhados
+   pelas abas. Manter tudo num lugar só evita explicações inconsistentes entre as telas.
+   ══════════════════════════════════════════════════════════════ */
+const PARAM_HELP = {
+  qc: {titulo:'qc — Resistência de ponta', texto:'Medida diretamente pelo cone: a força que o solo oferece à cravação da ponta cônica, dividida pela área da ponta. Solos mais resistentes (areias compactas, argilas rijas) dão qc alto; solos moles dão qc baixo.'},
+  fs: {titulo:'fs — Atrito lateral', texto:'Medido diretamente por uma luva metálica logo acima da ponta do cone. Argilas tendem a gerar mais atrito relativo que areias — por isso fs sozinho já ajuda a diferenciar tipos de solo.'},
+  u2: {titulo:'u2 — Poropressão', texto:'Pressão da água nos poros do solo, medida por um sensor logo atrás da ponta (posição "u2" — daí o nome do ensaio, CPTu). É o parâmetro que mais diferencia o CPTu do CPT comum.'},
+  qt: {titulo:'qt — Resistência corrigida', texto:'qc corrigido pela poropressão atuando na área desigual da geometria do cone. Em argilas moles essa correção pode ser significativa; em areias, quase irrelevante.', formula:'qt = qc + u2 × (1 − a), onde a é a razão de área do cone (~0,8)'},
+  rf: {titulo:'Rf — Razão de atrito', texto:'Percentual do atrito lateral em relação à resistência de ponta corrigida. Areias têm Rf baixo (~0,5–2%); argilas têm Rf mais alto (~3–8%). Um dos principais indicadores de tipo de solo.', formula:'Rf = (fs / qt) × 100'},
+  sbtn: {titulo:'SBTn — Classe de comportamento do solo', texto:'Classifica o solo em 9 categorias (Robertson), da areia com pedregulho (classe 7) ao solo fino muito rijo (classe 9), a partir do índice Ic. Importante: classifica comportamento mecânico, não necessariamente a granulometria real — por isso o nome "soil behaviour type".'},
+  sbtnMod: {titulo:'SBTn Modificado (Robertson 2016)', texto:'Versão mais recente da classificação, focada em se o solo é contrátil ou dilatante em ruptura (ex: "Clay-like – Contractive" vs "Sand-like – Dilative"), mais ligada ao comportamento de ruptura do que à granulometria.'},
+  ic: {titulo:'Ic — Índice de comportamento do solo', texto:'Combina a resistência e o atrito normalizados numa única fórmula. Quanto maior o Ic, mais "argiloso" o comportamento; quanto menor, mais "arenoso". É a base pra definir a classe SBTn.'},
+  n60: {titulo:'N60 — SPT equivalente estimado', texto:'Estima quantos golpes um ensaio SPT teria dado naquele ponto, a partir de uma correlação com o índice Ic. A razão qc/N60 varia por tipo de solo — por isso não é uma conversão de fator único.', formula:'(qc/pa) / N60 = 8,5 × (1 − Ic/4,6)'},
+  constrainedMod: {titulo:'Módulo restringido (M)', texto:'Estimativa de rigidez do solo à compressão confinada (relevante pra cálculo de recalques), obtida por correlação com qt e Ic.'},
+  dr: {titulo:'Dr — Densidade relativa', texto:'Estimativa de quão compacto está um solo arenoso, em percentual entre o estado mais fofo e mais denso possível. Correlação válida principalmente em areias.'},
+  frictionAngle: {titulo:'Ângulo de atrito (φ)', texto:'Estimativa da resistência ao cisalhamento por atrito entre grãos, tipicamente relevante em solos granulares (areias). Estimado por correlação com qt e a tensão efetiva.'},
+  es: {titulo:'Es — Módulo de elasticidade', texto:'Estimativa de rigidez do solo sob carregamento, usada em análises de deformação. Correlação aproximada, sujeita a mais incerteza que ensaios de campo dedicados (ex: pressiômetro).'},
+  go: {titulo:'Go — Módulo cisalhante a pequenas deformações', texto:'Rigidez do solo sob deformações muito pequenas (relevante pra análises dinâmicas/sísmicas). Estimado por correlação com qt e Ic.'},
+  su: {titulo:'Su — Resistência não drenada', texto:'Resistência ao cisalhamento de solos finos saturados (argilas) em condição não drenada — relevante pra estabilidade de curto prazo. Só faz sentido fisicamente em solos predominantemente argilosos.', formula:'Su = (qt − σv) / Nkt'},
+  ocr: {titulo:'OCR — Razão de sobreadensamento', texto:'Indica se o solo já sofreu, no passado, uma tensão maior do que a atual (OCR>1, "sobreadensado") ou não (OCR≈1, "normalmente adensado"). Afeta bastante o comportamento de recalque.'},
+  vs: {titulo:'Vs — Velocidade de onda cisalhante', texto:'Velocidade com que uma onda de cisalhamento se propaga pelo solo — usada em análises sísmicas e de rigidez a pequenas deformações. Estimada por correlação; idealmente medida por um ensaio sísmico dedicado (SCPTu).'},
+  sensitivity: {titulo:'Sensibilidade (St)', texto:'Razão entre a resistência do solo intacto e a resistência do mesmo solo remoldado (amassado). Solos muito sensíveis podem perder grande parte da resistência quando perturbados.'},
+  t50: {titulo:'t50 — Tempo de 50% de dissipação', texto:'Tempo, num ensaio de dissipação, necessário pra poropressão cair pela metade do excesso gerado pela cravação. Quanto mais rápido, mais permeável o solo naquele ponto.'},
+  gSu: {titulo:'G/Su — Índice de rigidez', texto:'Razão entre o módulo cisalhante e a resistência não drenada do solo — um dos parâmetros de entrada pra calcular ch a partir do t50. Normalmente estimado, não medido diretamente.'},
+  ch: {titulo:'ch — Coeficiente de adensamento horizontal', texto:'Obtido de um ensaio de dissipação: mede a velocidade com que o excesso de poropressão se dissipa na direção horizontal/radial ao redor do cone.', formula:'ch = T × r² × √Ir / t50'},
+  m: {titulo:'M — Módulo restringido (na dissipação)', texto:'Rigidez do solo à compressão confinada, usada junto com ch pra estimar a permeabilidade horizontal (kh).'},
+  kh: {titulo:'kh — Permeabilidade horizontal', texto:'Facilidade com que a água flui pelo solo na direção horizontal, calculada a partir de ch e do módulo M.', formula:'kh = ch × γw / M'},
+  cv: {titulo:'cv — Coeficiente de adensamento vertical (estimado)', texto:'O CPTu não mede cv diretamente — só ch (horizontal), porque o fluxo de água durante a dissipação é radial ao redor do cone. cv é estimado dividindo ch por uma razão de anisotropia kh/kv que você define — não é calculado pelo ensaio.', formula:'cv = ch / (kh/kv)'},
+  kv: {titulo:'kv — Permeabilidade vertical (estimada)', texto:'Mesma lógica do cv: kh dividido pela razão kh/kv assumida. Valores típicos dessa razão: ~1–2 em argila homogênea, até 5+ em depósitos estratificados.', formula:'kv = kh / (kh/kv)'},
+  t100: {titulo:'t100 — Tempo estimado de 100% de dissipação', texto:'Estimativa aproximada de quanto tempo o ensaio de dissipação levaria até estabilizar de vez — útil pra planejar o tempo de campo. É uma regra prática, não um valor exato de teoria.', formula:'t100 ≈ 4 × t50'},
+  khKvRatio: {titulo:'Razão kh/kv assumida', texto:'Quanto a permeabilidade horizontal é maior que a vertical nesse depósito — uma premissa de engenharia, não algo que o CPTu mede. Valores típicos: ~1–2 em argila homogênea sem estrutura visível; 2–5 com lentes de silte/areia; 5+ em depósitos muito estratificados.'},
+  n60Cptu: {titulo:'N60 (CPTu, estimado)', texto:'O N-SPT equivalente que o próprio CPTu estima, calculado por correlação com o índice Ic naquela profundidade.'},
+  nSptInterp: {titulo:'N-SPT (furo interpolado)', texto:'Valor obtido do furo interpolado (IDW) do bloco de Interpolação que contém a posição deste CPTu — o mesmo furo que apareceria se você clicasse ali dentro do bloco. Fica mais confiável quanto mais furos de origem o bloco tiver ao redor deste ponto.'},
+  diffSpt: {titulo:'Diferença (N60 CPTu − N-SPT interpolado)', texto:'Diferenças pequenas indicam boa concordância entre os dois ensaios. Diferenças grandes podem indicar heterogeneidade real do terreno entre os pontos, ou que um dos dois ensaios precisa de calibração local pra esse depósito específico.'},
+};
+function helpIcon(key){ return `<button type="button" class="help-ic" data-help="${key}" title="O que é isso?">?</button>`; }
+function abrirAjuda(key, elementoAncora){
+  const info = PARAM_HELP[key];
+  if(!info) return;
+  const pop = document.getElementById('help-popover');
+  document.getElementById('help-title').textContent = info.titulo;
+  document.getElementById('help-body').innerHTML = `<div>${esc(info.texto)}</div>`+
+    (info.formula ? `<div class="hp-formula">${esc(info.formula)}</div>` : '');
+  pop.classList.add('open');
+  // posiciona depois de abrir (precisa medir a altura real do popover pra não estourar a tela)
+  const rect = elementoAncora.getBoundingClientRect();
+  const popRect = pop.getBoundingClientRect();
+  let left = Math.min(window.innerWidth-popRect.width-12, Math.max(8, rect.left));
+  let top = rect.bottom+6;
+  if(top+popRect.height > window.innerHeight-8) top = Math.max(8, rect.top-popRect.height-6);
+  pop.style.left = left+'px';
+  pop.style.top = top+'px';
+}
+function fecharAjuda(){ document.getElementById('help-popover').classList.remove('open'); }
+document.getElementById('help-close').addEventListener('click', fecharAjuda);
+document.addEventListener('click', e=>{
+  const icone = e.target.closest('.help-ic');
+  if(icone){
+    e.stopPropagation();
+    const jaAbertoNesteIcone = document.getElementById('help-popover').classList.contains('open') && document.getElementById('help-popover')._ultimoIcone===icone;
+    fecharAjuda();
+    if(!jaAbertoNesteIcone){ abrirAjuda(icone.dataset.help, icone); document.getElementById('help-popover')._ultimoIcone = icone; }
+    return;
+  }
+  if(!e.target.closest('#help-popover')) fecharAjuda();
+});
+/* ══════════════════ IMPORTAÇÃO DE EXCEL (CPeT-IT) ══════════════════
+   O CPeT-IT (software da Geologismiki usado nos relatórios de piezocone)
+   exporta uma planilha com um PAR de abas por ensaio: "<Nome> - Basic"
+   (dados de campo + classificação SBT básica) e "<Nome> - Estimations"
+   (parâmetros geotécnicos derivados). Cada linha é uma leitura contínua
+   em profundidade — tipicamente uma a cada 1-2cm, centenas por ensaio. */
+
+// normaliza um cabeçalho de coluna pra comparação tolerante a acentos, espaços, símbolos e
+// maiúsculas/minúsculas — assim "γ (kN/m³)" e "Depth (m)" viram chaves estáveis pra mapear
+function normalizeHeader(h){
+  return String(h==null?'':h).toLowerCase().trim()
+    .normalize('NFD').replace(/[\u0300-\u036f]/g,'')
+    .replace(/[^a-z0-9]+/g,'');
+}
+
+// mapeamento coluna normalizada -> chave interna, um mapa por tipo de aba (os nomes exatos
+// batem com o que o CPeT-IT v3.9 exporta; qualquer coluna não mapeada aqui é ignorada,
+// não quebra a importação)
+const BASIC_COL_MAP = {
+  depthm:'depth', qcmpa:'qc', fskpa:'fs', ukpa:'u2m', other:'other', qtmpa:'qt', rf:'rf',
+  sbt:'sbt', icsbt:'icSbt', knm3:'gamma', vkpa:'sigmaV', u0kpa:'u0', vokpa:'sigmaVo',
+  qt1:'qt1', fr:'fr', bq:'bq', sbtn:'sbtn', n:'nExp', cn:'cn', ic:'ic', qtn:'qtn', u2:'u2n',
+  ib:'ib', modsbtn:'sbtnMod', sbtndescription:'sbtnDesc', sbtnmoddescription:'sbtnModDesc',
+};
+const ESTIM_COL_MAP = {
+  depthm:'depth', ksbtms:'ksbt', chm2s:'ch', sptn60blows30cm:'sptN60',
+  constrainedmodmpa:'constrainedMod', dr:'dr', frictionangle:'frictionAngle',
+  esmpa:'es', gompa:'go', nkt:'nkt', sukpa:'su', undstrengthratio:'undStrengthRatio',
+  kocr:'kocr', ocr:'ocr', vsms:'vs', stateparameter:'stateParam', ko:'ko',
+  sensitivity:'sensitivity', peakphi:'peakPhi', shearstrengthkpa:'shearStrength',
+  grainfactor:'grainFactor', qtncs:'qtnCs', residualshearstrength:'residualShearStrength',
+  w:'w', e:'e', dknm3:'gammaD', n:'n',
+};
+
+// converte uma aba (planilha SheetJS) numa lista de objetos, usando o mapa de colunas dado —
+// procura a linha de cabeçalho automaticamente nas primeiras linhas (o CPeT-IT sempre deixa
+// uma linha de título mais acima, tipo "In situ data" mesclada, antes do cabeçalho de verdade)
+function parseSheetToRows(sheet, colMap){
+  const json = XLSX.utils.sheet_to_json(sheet, {header:1, raw:true, defval:null});
+  let headerRowIdx = -1;
+  for(let i=0;i<Math.min(json.length,6);i++){
+    const normalizados = (json[i]||[]).map(normalizeHeader);
+    if(normalizados.includes('depthm')){ headerRowIdx = i; break; }
+  }
+  if(headerRowIdx===-1) return [];
+  const headers = json[headerRowIdx].map(normalizeHeader);
+  const rows = [];
+  for(let i=headerRowIdx+1;i<json.length;i++){
+    const raw = json[i];
+    if(!raw || raw.every(v=>v===null||v==='')) continue;
+    const obj = {};
+    headers.forEach((h,ci)=>{
+      const key = colMap[h];
+      if(key && raw[ci]!=null && raw[ci]!=='') obj[key] = typeof raw[ci]==='number' ? raw[ci] : parseFloat(raw[ci]);
+    });
+    if(obj.depth==null || isNaN(obj.depth)) continue;
+    rows.push(obj);
+  }
+  return rows;
+}
+
+// agrupa os nomes de aba do arquivo em pares "<Nome> - Basic" / "<Nome> - Estimations" — cada
+// grupo detectado vira um ensaio candidato à importação
+function groupSheetNames(sheetNames){
+  const grupos = {};
+  sheetNames.forEach(nome=>{
+    const m = nome.match(/^(.*?)\s*-\s*(Basic|Estimations)\s*$/i);
+    if(!m) return;
+    const prefixo = m[1].trim();
+    const tipo = m[2].toLowerCase();
+    if(!grupos[prefixo]) grupos[prefixo] = {nome:prefixo};
+    grupos[prefixo][tipo] = nome;
+  });
+  return Object.values(grupos);
+}
+
+// lê o arquivo inteiro e monta os grupos candidatos (ainda sem criar os ensaios de fato — só
+// popula gruposDetectados, que o popup de importação usa pra deixar o usuário escolher)
+async function analisarArquivoExcel(file){
+  const buf = await file.arrayBuffer();
+  const wb = XLSX.read(buf, {type:'array'});
+  const grupos = groupSheetNames(wb.SheetNames);
+  gruposDetectados = grupos.map(g=>({
+    nome: g.nome,
+    temBasic: !!g.basic,
+    temEstimations: !!g.estimations,
+    sheetBasic: g.basic ? wb.Sheets[g.basic] : null,
+    sheetEstimations: g.estimations ? wb.Sheets[g.estimations] : null,
+    selecionado: true,
+  }));
+  return gruposDetectados;
+}
+
+// cria furos do tipo CPTu a partir dos grupos marcados — chamado ao confirmar o popup de
+// importação. A planilha bruta do CPeT-IT não traz coordenadas, então cada furo nasce no
+// centro atual do mapa; o usuário ajusta a posição real depois no editor ("Marcar no mapa")
+function importarGruposSelecionados(){
+  const novos = [];
+  const centro = map.getCenter();
+  gruposDetectados.forEach(g=>{
+    if(!g.selecionado) return;
+    const f = blankFuroCPTU(centro.lat, centro.lng);
+    f.ident.sondagemNum = g.nome;
+    f.hash = computeFuroHash(f.ident.sondagemNum, '', f.lat, f.lng, '');
+    if(g.sheetBasic) f.cptuPerfil = parseSheetToRows(g.sheetBasic, BASIC_COL_MAP);
+    if(g.sheetEstimations) f.cptuEstimativas = parseSheetToRows(g.sheetEstimations, ESTIM_COL_MAP);
+    furos.push(f);
+    drawFuro(f);
+    novos.push(f);
+  });
+  return novos;
+}
+/* ══════════════════ LISTA DE ENSAIOS E NAVEGAÇÃO ══════════════════ */
+document.getElementById('cptu-btn-new').addEventListener('click', ()=>{
+  if(!isAdmin()){ alert('Só o Administrador pode cadastrar furos no banco principal.'); return; }
+  const c = map.getCenter ? map.getCenter() : {lat:-15.6, lng:-50.5};
+  const f = blankFuroCPTU(c.lat, c.lng);
+  f._isNewUnsaved = true;
+  furos.push(f); drawFuro(f); renderFuroList();
+  openBoletimEditor(f.id);
+});
+
+/* ══════════════════ ABA 2 · PERFIL GRÁFICO ══════════════════ */
+let cptuScalePxm = 32; // pixels por metro de profundidade — controla o "zoom" vertical do gráfico
+
+// arredonda um número pra um valor "redondo" (1,2,5,10,20,50...) — usado pra escolher o
+// máximo do eixo X de cada gráfico sem ficar com casas decimais estranhas
+// maior profundidade válida do perfil — não assume que o array está ordenado nem que a
+// última linha tem um valor preenchido (pode ser uma linha em branco recém-adicionada no
+// cadastro manual), calcula pelo maior valor de fato entre todas as leituras válidas
+function maiorProfundidadeValida(perfil){
+  const validas = perfil.map(p=>p.depth).filter(d=>d!=null && d!=='' && isFinite(d));
+  return validas.length ? Math.max(...validas) : 0;
+}
+function niceRoundNumberCptu(v){
+  if(v<=0) return 1;
+  const exp = Math.floor(Math.log10(v));
+  const base = Math.pow(10, exp);
+  const frac = v/base;
+  let nice;
+  if(frac<1.5) nice=1; else if(frac<3.5) nice=2; else if(frac<7.5) nice=5; else nice=10;
+  return nice*base;
+}
+
+function buildLineChartPath(perfil, campo, maxVal, width, pxm){
+  const pontos = [];
+  perfil.forEach(p=>{
+    const v = p[campo];
+    if(v==null || v==='' || p.depth==null || p.depth==='' || !isFinite(v) || !isFinite(p.depth)) return;
+    const x = Math.max(0, Math.min(width, (v/maxVal)*width));
+    const y = p.depth*pxm;
+    pontos.push(x.toFixed(1)+','+y.toFixed(1));
+  });
+  if(pontos.length===0) return '';
+  return 'M'+pontos.join(' L');
+}
+
+function renderTrackSVG(titulo, unidade, campo, perfil, maxDepth, pxm, width, cor, helpKey){
+  const vals = perfil.map(p=>p[campo]).filter(v=>v!=null && v!=='' && isFinite(v));
+  const maxVal = vals.length ? niceRoundNumberCptu(Math.max(...vals)) : 1;
+  const height = Math.max(1, maxDepth*pxm);
+  const path = buildLineChartPath(perfil, campo, maxVal, width, pxm);
+  let gridHtml = '';
+  for(let i=1;i<=3;i++){
+    const gx = (width*i/4);
+    gridHtml += `<line x1="${gx.toFixed(1)}" y1="0" x2="${gx.toFixed(1)}" y2="${height}" stroke="#00000018" stroke-width="1"/>`;
+  }
+  for(let d=1; d*pxm<height; d++){
+    const gy = d*pxm;
+    if(d%5===0) gridHtml += `<line x1="0" y1="${gy}" x2="${width}" y2="${gy}" stroke="#00000018" stroke-width="1"/>`;
+  }
+  return `
+    <div class="cptu-track" style="width:${width}px;">
+      <div class="cptu-track-hdr">${esc(titulo)}${helpKey?helpIcon(helpKey):''}<small>0 – ${maxVal} ${esc(unidade)}</small></div>
+      <svg width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">
+        <rect x="0" y="0" width="${width}" height="${height}" fill="#fff" stroke="#d6d0c8"/>
+        ${gridHtml}
+        <path d="${path}" fill="none" stroke="${cor}" stroke-width="1.3"/>
+      </svg>
+    </div>`;
+}
+
+// comprime leituras consecutivas com o mesmo valor de classificação numa única faixa —
+// resultado visual idêntico ao "Soil Behaviour Type" colorido do relatório CPeT-IT, sem
+// desenhar um retângulo por leitura (que seriam centenas)
+function comprimirFaixasClasse(perfil, campo){
+  const faixas = [];
+  let atual = null;
+  perfil.forEach(p=>{
+    const val = p[campo];
+    if(val==null || p.depth==null || p.depth==='' || !isFinite(p.depth)) return;
+    if(!atual || atual.val!==val){
+      if(atual) faixas.push(atual);
+      atual = {val, depthIni:p.depth, depthFim:p.depth};
+    } else {
+      atual.depthFim = p.depth;
+    }
+  });
+  if(atual) faixas.push(atual);
+  return faixas;
+}
+function renderClasseColumnSVG(titulo, perfil, maxDepth, pxm, width, campo, classes, helpKey){
+  const faixas = comprimirFaixasClasse(perfil, campo);
+  const height = Math.max(1, maxDepth*pxm);
+  const rects = faixas.map(f=>{
+    const y1 = f.depthIni*pxm, y2 = f.depthFim*pxm;
+    const h = Math.max(0.6, y2-y1);
+    const cor = (classes[f.val]||{}).cor || '#ccc';
+    return `<rect x="0" y="${y1.toFixed(1)}" width="${width}" height="${h.toFixed(1)}" fill="${cor}"/>`;
+  }).join('');
+  return `
+    <div class="cptu-track" style="width:${width}px;">
+      <div class="cptu-track-hdr">${esc(titulo)}${helpKey?helpIcon(helpKey):''}<small>Robertson</small></div>
+      <svg width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">
+        <rect x="0" y="0" width="${width}" height="${height}" fill="#fff" stroke="#d6d0c8"/>
+        ${rects}
+      </svg>
+    </div>`;
+}
+function renderDepthAxisSVG(maxDepth, pxm){
+  const height = Math.max(1, maxDepth*pxm);
+  let ticks = '';
+  for(let d=0; d<=maxDepth; d++){
+    const y = d*pxm;
+    ticks += `<text x="34" y="${(y+3).toFixed(1)}" font-size="9" text-anchor="end" fill="#8a8680" font-family="monospace">${d}</text>
+      <line x1="36" y1="${y.toFixed(1)}" x2="40" y2="${y.toFixed(1)}" stroke="#8a8680" stroke-width="1"/>`;
+  }
+  return `<div class="cptu-track cptu-depth-axis"><div class="cptu-track-hdr">Prof.<small>(m)</small></div>
+    <svg width="40" height="${height}" viewBox="0 0 40 ${height}">${ticks}</svg></div>`;
+}
+
+/* ══════════════════ ABA · DADOS DO ENSAIO (cadastro manual) ══════════════════
+   Alternativa à importação de Excel — pra quem tem os valores de campo em mãos (planilha
+   própria, caderneta, relatório de terceiros) e quer digitar direto, sem precisar montar uma
+   planilha no formato do CPeT-IT. Cada linha é uma leitura (profundidade + qc/fs/u2 + a classe
+   SBTn observada); os campos derivados (qt, Rf, tensões) são calculados automaticamente a
+   partir desses valores, do mesmo jeito que uma leitura importada seria. Como o cadastro é
+   manual, normalmente vai ter bem menos linhas que uma planilha do CPeT-IT (uma leitura a cada
+   0,5m ou 1m já é razoável) — os gráficos funcionam do mesmo jeito, só com menos pontos. */
+function blankPerfilRow(){
+  return {depth:'', qc:'', fs:'', u2m:'', sbtn:3};
+}
+// recalcula os campos derivados de UMA linha (tensões, qt, Rf) a partir dos valores digitados
+// — mesma lógica usada no gerador de dados de exemplo, pra manter os dois caminhos consistentes
+function recalcDerivedRow(row, gwlEstimado){
+  const d = parseFloat(row.depth);
+  if(isNaN(d)) return row;
+  const gamma = 18;
+  const sigmaV = d*gamma;
+  const gwl = parseFloat(gwlEstimado);
+  const u0 = (!isNaN(gwl) && d>gwl) ? (d-gwl)*9.81 : 0;
+  row.gamma = gamma;
+  row.sigmaV = Math.round(sigmaV*10)/10;
+  row.u0 = Math.round(u0*10)/10;
+  row.sigmaVo = Math.round((sigmaV-u0)*10)/10;
+  const qc = parseFloat(row.qc), fs = parseFloat(row.fs), u2m = parseFloat(row.u2m);
+  if(!isNaN(qc)){
+    const u2Num = isNaN(u2m) ? 0 : u2m;
+    const qt = qc*1000 + u2Num*0.2; // correção de área simplificada (fator ~0.8), em kPa
+    row.qt = Math.round(qt/1000*1000)/1000;
+    row.rf = (!isNaN(fs) && qt>0) ? Math.round((fs/qt)*100*100)/100 : null;
+  } else {
+    row.qt = null; row.rf = null;
+  }
+  const icAprox = {2:3.9, 3:3.1, 4:2.8, 5:2.3, 6:1.7, 7:1.2, 8:1.35, 1:4.5, 9:1.0}[row.sbtn];
+  row.ic = icAprox; row.icSbt = icAprox;
+  row.sbt = row.sbtn;
+  row.sbtnDesc = (SBTN_CLASSES[row.sbtn]||{}).nome||'';
+  return row;
+}
+function ordenarPerfilPorProfundidade(f){
+  f.cptuPerfil.sort((a,b)=> (a.depth-b.depth));
+}
+function renderManualPane(f){
+  const body = document.getElementById('bo-panel-cptu-manual');
+  const linhasHtml = f.cptuPerfil.map((p,i)=>`
+    <tr data-idx="${i}">
+      <td><input class="f-input man-in" data-campo="depth" type="number" step="0.01" value="${escAttr(p.depth)}" style="width:70px;"></td>
+      <td><input class="f-input man-in" data-campo="qc" type="number" step="0.01" value="${escAttr(p.qc)}" style="width:70px;"></td>
+      <td><input class="f-input man-in" data-campo="fs" type="number" step="0.1" value="${escAttr(p.fs)}" style="width:75px;"></td>
+      <td><input class="f-input man-in" data-campo="u2m" type="number" step="0.1" value="${escAttr(p.u2m)}" style="width:75px;"></td>
+      <td>
+        <select class="f-input man-in" data-campo="sbtn" style="width:150px;">
+          ${Object.entries(SBTN_CLASSES).map(([k,v])=>`<option value="${k}" ${String(p.sbtn)===k?'selected':''}>${k}. ${esc(v.nome)}</option>`).join('')}
+        </select>
+      </td>
+      <td style="color:var(--mu);white-space:nowrap;">${p.qt!=null?p.qt+' MPa':'—'}</td>
+      <td style="color:var(--mu);white-space:nowrap;">${p.rf!=null?p.rf+' %':'—'}</td>
+      <td><button class="ens-item-del" data-remove="${i}" title="Remover linha">✕</button></td>
+    </tr>`).join('');
+  body.innerHTML = `
+    <div class="ens-pane" style="max-width:100%;overflow-x:auto;">
+      <div class="fieldset-title">Cadastro manual de leituras</div>
+      <p class="hint">Digite profundidade, qc, fs e u2 medidos em campo, e escolha a classe SBTn observada. qt e Rf são calculados automaticamente. Não precisa preencher em ordem — a lista se reordena sozinha por profundidade.</p>
+      <table class="diss-tbl" style="margin-top:10px;">
+        <thead><tr>
+          <th>Prof. (m)</th><th>qc (MPa)${helpIcon('qc')}</th><th>fs (kPa)${helpIcon('fs')}</th><th>u2 (kPa)${helpIcon('u2')}</th><th>SBTn${helpIcon('sbtn')}</th>
+          <th>qt (calc.)${helpIcon('qt')}</th><th>Rf (calc.)${helpIcon('rf')}</th><th></th>
+        </tr></thead>
+        <tbody id="manual-tbody">${linhasHtml}</tbody>
+      </table>
+      <button class="mini-btn" id="manual-add" style="margin-top:10px;">+ Adicionar leitura</button>
+      ${f.cptuPerfil.length===0 ? '<p class="hint" style="margin-top:10px;">Nenhuma leitura cadastrada ainda — adicione linhas aqui, ou importe uma planilha na barra de cima.</p>' : ''}
+    </div>`;
+
+  const naEstimadoAtual = document.getElementById('bo-f-na-estimado').value;
+  function aplicarMudanca(idx, campo, valor){
+    const row = f.cptuPerfil[idx];
+    row[campo] = (campo==='sbtn') ? parseInt(valor,10) : (valor===''? '' : parseFloat(valor));
+    recalcDerivedRow(row, naEstimadoAtual);
+    ordenarPerfilPorProfundidade(f);
+    renderManualPane(f);
+  }
+  body.querySelectorAll('.man-in').forEach(inp=>{
+    inp.addEventListener('change', ()=>{
+      const idx = parseInt(inp.closest('tr').dataset.idx,10);
+      aplicarMudanca(idx, inp.dataset.campo, inp.value);
+    });
+  });
+  body.querySelectorAll('[data-remove]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      f.cptuPerfil.splice(parseInt(btn.dataset.remove,10),1);
+      renderManualPane(f);
+    });
+  });
+  document.getElementById('manual-add').addEventListener('click', ()=>{
+    f.cptuPerfil.push(blankPerfilRow());
+    renderManualPane(f);
+    const inputs = document.querySelectorAll('#manual-tbody tr:last-child .man-in');
+    if(inputs.length) inputs[0].focus();
+  });
+}
+
+function renderGraficoPane(f){
+  const body = document.getElementById('bo-panel-cptu-grafico');
+  if(f.cptuPerfil.length===0){
+    body.innerHTML = '<div class="ens-pane"><p class="hint">Este ensaio ainda não tem dados de perfil contínuo. Importe uma planilha CPeT-IT (aba "...- Basic") ou cadastre manualmente pra ver os gráficos aqui.</p></div>';
+    return;
+  }
+  const maxDepth = Math.ceil(maiorProfundidadeValida(f.cptuPerfil)) || 1;
+  const pxm = cptuScalePxm;
+  const trackW = 130;
+
+  const axisHtml = renderDepthAxisSVG(maxDepth, pxm);
+  const qcHtml = renderTrackSVG('qc', 'MPa', 'qc', f.cptuPerfil, maxDepth, pxm, trackW, '#2a5a8c', 'qc');
+  const fsHtml = renderTrackSVG('fs', 'kPa', 'fs', f.cptuPerfil, maxDepth, pxm, trackW, '#b85c1a', 'fs');
+  const u2Html = renderTrackSVG('u2', 'kPa', 'u2m', f.cptuPerfil, maxDepth, pxm, trackW, '#1a7a52', 'u2');
+  const rfHtml = renderTrackSVG('Rf', '%', 'rf', f.cptuPerfil, maxDepth, pxm, 100, '#c0392b', 'rf');
+  const sbtnHtml = renderClasseColumnSVG('SBTn', f.cptuPerfil, maxDepth, pxm, 76, 'sbtn', SBTN_CLASSES, 'sbtn');
+
+  const legendaHtml = Object.entries(SBTN_CLASSES).map(([k,v])=>
+    `<div class="sbtn-legend-item"><span class="sbtn-legend-swatch" style="background:${v.cor}"></span>${k}. ${esc(v.nome)}</div>`).join('');
+
+  body.innerHTML = `
+    <div class="chart-toolbar">
+      <label>Ensaio:</label><b>${esc(f.ident.sondagemNum)}</b>
+      <div class="sep"></div>
+      <label>Escala vertical</label>
+      <select class="f-input" id="cg-pxm" style="width:110px;">
+        <option value="16" ${pxm===16?'selected':''}>Compacta</option>
+        <option value="32" ${pxm===32?'selected':''}>Normal</option>
+        <option value="50" ${pxm===50?'selected':''}>Ampliada</option>
+      </select>
+    </div>
+    <div class="chart-scroll">
+      <div class="cptu-chart-wrap">
+        <div class="cptu-track-row">${axisHtml}${qcHtml}${fsHtml}${u2Html}${rfHtml}${sbtnHtml}</div>
+      </div>
+    </div>
+    <div class="sbtn-legend">${legendaHtml}</div>`;
+
+  document.getElementById('cg-pxm').addEventListener('change', e=>{
+    cptuScalePxm = parseInt(e.target.value,10);
+    renderGraficoPane(f);
+  });
+}
+/* ══════════════════ ABA 3 · DISSIPAÇÃO ══════════════════
+   Os ensaios de dissipação de poropressão são poucos por furo (tipicamente 1 a cada poucos
+   metros) e normalmente não vêm na planilha bruta do CPeT-IT — aparecem só no relatório final.
+   Por isso essa tabela é preenchida manualmente, no mesmo espírito das leituras de N.A. do
+   módulo de furos SPT. */
+function blankDissipacao(){
+  return {depth:'', t50sqrt:'', t50s:'', t50years:'', gSu:'', ch:'', chYear:'', m:'', kh:''};
+}
+// cv e kv (vertical) não são medidos pelo CPTu — o ensaio só mede o comportamento horizontal
+// (fluxo radial ao redor do cone). A conversão usa uma razão de anisotropia kh/kv ASSUMIDA
+// pelo usuário (não calculada), então o resultado é uma estimativa de engenharia, não uma
+// medição. t100 também é aproximado — 4×t50 é uma regra prática comum, não um valor exato de
+// teoria (a forma real da curva de dissipação varia caso a caso).
+const T100_SOBRE_T50 = 4;
+function parseNumDiss(v){
+  if(v==null || v==='') return NaN;
+  return parseFloat(String(v).replace(',','.'));
+}
+function formatarCientifico(v){
+  if(v==null || !isFinite(v)) return '—';
+  // formata no mesmo padrão dos relatórios CPeT-IT (expoente com sinal e 3 dígitos, ex:
+  // "4.33E-007"), em vez do "4.33e-7" nativo do JS — mais familiar pra quem já lê esses laudos
+  const [mantissa, expoente] = v.toExponential(2).split('e');
+  const sinalExp = expoente[0]==='-' ? '-' : '+';
+  const numExp = expoente.replace(/^[+-]/,'').padStart(3,'0');
+  return mantissa+'E'+sinalExp+numExp;
+}
+function calcularEstimativasDissipacao(d, khKvRatio){
+  const razao = parseNumDiss(khKvRatio);
+  const razaoValida = isFinite(razao) && razao>0 ? razao : 1;
+  const chNum = parseNumDiss(d.ch);
+  const khNum = parseNumDiss(d.kh);
+  const t50Num = parseNumDiss(d.t50s);
+  return {
+    cv: isFinite(chNum) ? chNum/razaoValida : null,
+    kv: isFinite(khNum) ? khNum/razaoValida : null,
+    t100: isFinite(t50Num) ? t50Num*T100_SOBRE_T50 : null,
+  };
+}
+/* ══════════════════════════════════════════════════════════════
+   ABA · SPT × CPTu — comparação com o furo interpolado (IDW) do bloco de Interpolação que
+   contém a posição deste CPTu. Reaproveita computeInterpolatedFuro(), a mesma função que já
+   gera furos interpolados dentro de um bloco — nenhuma lógica de interpolação própria aqui.
+   ══════════════════════════════════════════════════════════════ */
+
+// interpola o N-SPT (N = soma dos golpes do 2º e 3º trechos de 15cm, padrão NBR 6484) num furo
+// específico, numa profundidade qualquer — interpolação linear entre as duas leituras mais
+// próximas; fora da faixa medida, repete o valor da leitura extrema mais próxima (não extrapola)
+function interpolarNNoFuro(golpes, depthAlvo){
+  const validos = (golpes||[])
+    .filter(g=>g.prof!=null && isFinite(g.prof))
+    .map(g=>({prof:+g.prof, n:(+g.g2||0)+(+g.g3||0)}))
+    .sort((a,b)=>a.prof-b.prof);
+  if(validos.length===0) return null;
+  if(depthAlvo<=validos[0].prof) return validos[0].n;
+  if(depthAlvo>=validos[validos.length-1].prof) return validos[validos.length-1].n;
+  for(let i=0;i<validos.length-1;i++){
+    const a=validos[i], b=validos[i+1];
+    if(depthAlvo>=a.prof && depthAlvo<=b.prof){
+      const frac = (b.prof-a.prof)>0 ? (depthAlvo-a.prof)/(b.prof-a.prof) : 0;
+      return a.n + (b.n-a.n)*frac;
+    }
+  }
+  return null;
+}
+
+// acha, dentro das estimativas do próprio CPTu, o N60 mais próximo de uma profundidade alvo —
+// as estimativas já vêm de leituras contínuas, então "mais próxima" é suficiente sem precisar
+// de outra interpolação
+function n60CptuNaProfundidade(estimativas, depthAlvo){
+  if(!estimativas || estimativas.length===0) return null;
+  let melhor = estimativas[0], menorDist = Math.abs(estimativas[0].depth-depthAlvo);
+  for(const e of estimativas){
+    const d = Math.abs(e.depth-depthAlvo);
+    if(d<menorDist){ menorDist=d; melhor=e; }
+  }
+  return melhor.sptN60!=null ? melhor.sptN60 : null;
+}
+
+// mapeamento aproximado de classe SBTn pra um tipo de solo dos já usados nos furos SPT — só um
+// ponto de partida razoável; o usuário ajusta na tela de correlação antes de incorporar
+function mapSbtnParaTipoSolo(sbtn){
+  const mapa = {1:'argila', 2:'outro', 3:'argila', 4:'silte', 5:'silte', 6:'areia', 7:'areia', 8:'rocha', 9:'rocha'};
+  return TIPOS_SOLO.some(t=>t[0]===mapa[sbtn]) ? mapa[sbtn] : 'outro';
+}
+
+/* ══════════════════════════════════════════════════════════════
+   COMPARAÇÃO SPT × CPTu — agora vive no painel do bloco interpolado, não mais no editor de
+   boletim. Fluxo: usuário clica "Comparar com CPTu" no bloco → seleciona um furo CPTu (mapa ou
+   tabela) → abre este modal com (1) a comparação N60×N-SPT contra o furo interpolado do bloco
+   na posição do CPTu, e (2) uma correlação editável entre as camadas SBTn do CPTu e um tipo de
+   solo/N-SPT equivalente, terminando num botão que grava essa correlação como camadas/golpes
+   de verdade no furo CPTu e o inclui como fonte do bloco.
+   ══════════════════════════════════════════════════════════════ */
+let cptuCompareState = null; // {block, furoCptu, furoInterp, correlacao}
+
+function abrirComparacaoCptuBloco(block, f){
+  if(!f.lat || !f.lng || !isFinite(f.lat) || !isFinite(f.lng)){
+    alert('Este CPTu não tem coordenadas válidas.'); return;
+  }
+  if(f.cptuEstimativas.length===0){
+    alert('Este CPTu ainda não tem parâmetros estimados (aba "Estimations" do Excel, ou cadastro manual) — sem isso não há N60 pra comparar.');
+    return;
+  }
+  const furoInterp = computeInterpolatedFuro(block, f.lat, f.lng);
+  if(!furoInterp){
+    alert('Não foi possível gerar o furo interpolado deste bloco na posição do CPTu (furos de origem insuficientes).');
+    return;
+  }
+  const faixasSbtn = comprimirFaixasClasse(f.cptuPerfil, 'sbtn');
+  const correlacao = faixasSbtn.map(fx=>{
+    const midDepth = (fx.depthIni+fx.depthFim)/2;
+    const n60 = n60CptuNaProfundidade(f.cptuEstimativas, midDepth);
+    return {
+      depthIni: fx.depthIni, depthFim: fx.depthFim, sbtn: fx.val,
+      tipo: mapSbtnParaTipoSolo(fx.val),
+      descricao: (SBTN_CLASSES[fx.val]||{}).nome || '',
+      nspt: n60!=null ? Math.round(n60) : '',
+    };
+  });
+  cptuCompareState = {block, furoCptu:f, furoInterp, correlacao};
+  renderCptuCompareModal();
+  document.getElementById('cptu-compare-overlay').classList.add('open');
+}
+function fecharCptuCompareModal(){
+  document.getElementById('cptu-compare-overlay').classList.remove('open');
+  cptuCompareState = null;
+}
+function renderCptuCompareModal(){
+  const {block, furoCptu, furoInterp, correlacao} = cptuCompareState;
+
+  const maxDepth = Math.max(
+    Math.ceil(maiorProfundidadeValida(furoCptu.cptuPerfil)) || Math.ceil(furoCptu.cptuEstimativas[furoCptu.cptuEstimativas.length-1].depth),
+    Math.ceil(profFinal(furoInterp))
+  );
+  const linhasComp = [];
+  for(let d=1; d<=maxDepth; d++){
+    const n60Cptu = n60CptuNaProfundidade(furoCptu.cptuEstimativas, d);
+    const nSptInterp = interpolarNNoFuro(furoInterp.golpes, d);
+    if(n60Cptu==null && nSptInterp==null) continue;
+    linhasComp.push({depth:d, n60Cptu, nSptInterp});
+  }
+  const fontesHtml = (furoInterp._interpFontes||[]).map(nome=>
+    `<span class="sbtn-legend-item">📍 ${esc(nome)}</span>`).join('');
+
+  const comparacaoHtml = `
+    <div class="fieldset-title">Comparação N-SPT × N60 estimado do CPTu</div>
+    <p class="hint">
+      N60 (CPTu) vem do próprio ensaio, estimado por correlação com Ic (Robertson). N-SPT vem
+      do <b>furo interpolado</b> (IDW) do bloco "${esc(block.nome)}", calculado exatamente na
+      posição deste CPTu.
+    </p>
+    <div class="sbtn-legend" style="margin-top:8px;">${fontesHtml}</div>
+    <table class="diss-tbl" style="margin-top:10px;">
+      <thead><tr><th>Prof. (m)</th><th>N60 (CPTu)${helpIcon('n60Cptu')}</th><th>N-SPT (interpolado)${helpIcon('nSptInterp')}</th><th>Diferença${helpIcon('diffSpt')}</th></tr></thead>
+      <tbody>
+        ${linhasComp.map(l=>{
+          const diff = (l.n60Cptu!=null && l.nSptInterp!=null) ? (l.n60Cptu-l.nSptInterp) : null;
+          const corDiff = diff==null ? 'var(--mu)' : (Math.abs(diff)<=3 ? 'var(--bo-accent2)' : 'var(--bo-accent3)');
+          return `<tr>
+            <td>${l.depth}</td>
+            <td>${l.n60Cptu!=null ? l.n60Cptu.toFixed(1) : '—'}</td>
+            <td>${l.nSptInterp!=null ? l.nSptInterp.toFixed(1) : '—'}</td>
+            <td style="color:${corDiff};font-weight:700;">${diff!=null ? (diff>0?'+':'')+diff.toFixed(1) : '—'}</td>
+          </tr>`;
+        }).join('')}
+      </tbody>
+    </table>`;
+
+  const correlacaoHtml = `
+    <div class="fieldset-title" style="margin-top:18px;">Correlação de camadas — CPTu (editável)</div>
+    <p class="hint">Cada faixa vem das classes SBTn contínuas do perfil do CPTu. Ajuste o tipo de solo, a descrição e o N-SPT equivalente pra corresponder ao que você vê no furo interpolado de referência, logo abaixo.</p>
+    <table class="diss-tbl" style="margin-top:8px;">
+      <thead><tr><th>Prof. (m)</th><th>SBTn</th><th>Tipo de solo</th><th>Descrição</th><th>N-SPT equiv.</th></tr></thead>
+      <tbody id="cptu-corr-tbody">
+        ${correlacao.map((c,i)=>`<tr data-idx="${i}">
+          <td>${c.depthIni.toFixed(2)}–${c.depthFim.toFixed(2)}</td>
+          <td>${c.sbtn}. ${esc((SBTN_CLASSES[c.sbtn]||{}).nome||'')}</td>
+          <td><select class="f-input corr-in" data-campo="tipo" data-idx="${i}">${TIPOS_SOLO.map(t=>`<option value="${t[0]}" ${t[0]===c.tipo?'selected':''}>${esc(t[1])}</option>`).join('')}</select></td>
+          <td><input class="f-input corr-in" data-campo="descricao" data-idx="${i}" value="${escAttr(c.descricao)}"></td>
+          <td><input class="f-input corr-in" data-campo="nspt" type="number" step="1" data-idx="${i}" value="${escAttr(c.nspt)}" style="width:64px;"></td>
+        </tr>`).join('')}
+      </tbody>
+    </table>
+    <div class="fieldset-title" style="margin-top:14px;">Camadas do furo interpolado "${esc(furoInterp.ident.sondagemNum)}" (referência)</div>
+    <table class="diss-tbl" style="margin-top:8px;">
+      <thead><tr><th>Prof. final (m)</th><th>Tipo</th><th>Descrição</th></tr></thead>
+      <tbody>
+        ${furoInterp.camadas.map(c=>{
+          const tipoLabel = (TIPOS_SOLO.find(t=>t[0]===c.tipo)||[,c.tipo])[1];
+          return `<tr><td>${(+c.profFinal).toFixed(2)}</td><td>${esc(tipoLabel)}</td><td>${esc(c.descricao||'')}</td></tr>`;
+        }).join('')}
+      </tbody>
+    </table>`;
+
+  document.getElementById('cptu-compare-title').textContent = 'Comparar CPTu "'+furoCptu.ident.sondagemNum+'" — Bloco "'+block.nome+'"';
+  document.getElementById('cptu-compare-body').innerHTML = comparacaoHtml + correlacaoHtml;
+
+  document.querySelectorAll('#cptu-corr-tbody .corr-in').forEach(el=>{
+    const ev = el.tagName==='SELECT' ? 'change' : 'input';
+    el.addEventListener(ev, ()=>{
+      const idx = parseInt(el.dataset.idx,10);
+      const campo = el.dataset.campo;
+      cptuCompareState.correlacao[idx][campo] = campo==='nspt' ? (el.value===''?'':parseInt(el.value,10)) : el.value;
+    });
+  });
+}
+function incorporarCptuNoBloco(){
+  if(!cptuCompareState) return;
+  const {block, furoCptu, correlacao} = cptuCompareState;
+  if(correlacao.length===0){ alert('Este CPTu não tem faixas de solo classificadas (SBTn) pra virar camadas.'); return; }
+  if(!confirm('Isso substitui as camadas/golpes cadastrados neste furo pela correlação editada, e o adiciona como fonte de interpolação do bloco "'+block.nome+'". Continuar?')) return;
+
+  furoCptu.camadas = correlacao.map(c=>({profFinal: c.depthFim, tipo: c.tipo, descricao: c.descricao||''}));
+  furoCptu.golpes = correlacao.filter(c=>c.nspt!=null && c.nspt!=='').map(c=>{
+    const n = Math.max(0, parseInt(c.nspt,10)||0);
+    const g2 = Math.round(n/2), g3 = n-g2;
+    return {prof: Math.round(((c.depthIni+c.depthFim)/2)*100)/100, g1:0, g2, g3};
+  });
+  if(furoCptu.golpes.length===0) furoCptu.golpes = [{prof:1, g1:'', g2:'', g3:''}];
+
+  if(!block.furoIds.includes(furoCptu.id)) block.furoIds.push(furoCptu.id);
+
+  markMasterDirty(); // camadas/golpes do furo mudaram — é dado do banco principal
+  scheduleSave(); // furoIds do bloco mudou — é dado de estudo
+  if(interpLayers[block.id]){ map.removeLayer(interpLayers[block.id]); delete interpLayers[block.id]; }
+  drawInterpBlock(block);
+  renderInterpList();
+  fecharCptuCompareModal();
+  toast('CPTu incorporado ao bloco "'+block.nome+'"');
+}
+document.getElementById('cptu-compare-close').addEventListener('click', fecharCptuCompareModal);
+document.getElementById('cptu-compare-cancel').addEventListener('click', fecharCptuCompareModal);
+document.getElementById('cptu-compare-incorporar').addEventListener('click', incorporarCptuNoBloco);
+
+function renderDissipacaoPane(f){
+  const body = document.getElementById('bo-panel-cptu-dissipacao');
+  const khKv = f.cptuKhKvRatio!=null && f.cptuKhKvRatio!=='' ? f.cptuKhKvRatio : 2;
+  const linhasHtml = f.cptuDissipacoes.map((d,i)=>{
+    const est = calcularEstimativasDissipacao(d, khKv);
+    return `
+    <tr data-idx="${i}">
+      <td><input class="f-input diss-in" data-campo="depth" type="number" step="0.01" value="${escAttr(d.depth)}"></td>
+      <td><input class="f-input diss-in" data-campo="t50sqrt" type="number" step="0.01" value="${escAttr(d.t50sqrt)}"></td>
+      <td><input class="f-input diss-in" data-campo="t50s" type="number" step="0.1" value="${escAttr(d.t50s)}"></td>
+      <td><input class="f-input diss-in" data-campo="t50years" type="number" step="0.000001" value="${escAttr(d.t50years)}"></td>
+      <td><input class="f-input diss-in" data-campo="gSu" type="number" step="0.01" value="${escAttr(d.gSu)}"></td>
+      <td><input class="f-input diss-in" data-campo="ch" type="text" value="${escAttr(d.ch)}" placeholder="Ex: 8.65E-007"></td>
+      <td><input class="f-input diss-in" data-campo="chYear" type="number" step="1" value="${escAttr(d.chYear)}"></td>
+      <td><input class="f-input diss-in" data-campo="m" type="number" step="0.01" value="${escAttr(d.m)}"></td>
+      <td><input class="f-input diss-in" data-campo="kh" type="text" value="${escAttr(d.kh)}" placeholder="Ex: 9.47E-010"></td>
+      <td style="color:var(--bo-accent2);white-space:nowrap;" title="Estimado: ch ÷ razão kh/kv assumida">${formatarCientifico(est.cv)}</td>
+      <td style="color:var(--bo-accent2);white-space:nowrap;" title="Estimado: kh ÷ razão kh/kv assumida">${formatarCientifico(est.kv)}</td>
+      <td style="color:var(--bo-accent2);white-space:nowrap;" title="Estimado: t50 × ${T100_SOBRE_T50} (regra prática)">${est.t100!=null?Math.round(est.t100)+' s':'—'}</td>
+      <td><button class="ens-item-del" data-remove="${i}" title="Remover">✕</button></td>
+    </tr>`;
+  }).join('');
+  body.innerHTML = `
+    <div class="ens-pane" style="max-width:100%;overflow-x:auto;">
+      <div class="fieldset-title">Ensaios de dissipação de poropressão</div>
+      <p class="hint">Preencha com os valores do relatório (a planilha bruta do CPeT-IT normalmente não inclui essa tabela).</p>
+
+      <div style="display:flex;align-items:center;gap:10px;margin:14px 0;padding:10px 14px;background:var(--surf);border-radius:var(--r-lg);">
+        <label style="font-size:11px;font-weight:600;white-space:nowrap;">Razão kh/kv assumida${helpIcon('khKvRatio')}</label>
+        <input class="f-input" id="diss-khkv" type="number" step="0.1" min="0.1" value="${escAttr(khKv)}" style="width:70px;">
+        <span class="hint" style="margin:0;">Usada só pra estimar cv e kv (colunas em <span style="color:var(--bo-accent2);font-weight:700;">verde</span>) — o CPTu mede o comportamento horizontal, não o vertical. Valores típicos: ~1–2 em argila homogênea, até 5+ em depósitos estratificados.</span>
+      </div>
+
+      <table class="diss-tbl" style="margin-top:10px;">
+        <thead><tr>
+          <th>Prof. (m)</th><th>(t50)^0.5</th><th>t50 (s)${helpIcon('t50')}</th><th>t50 (anos)</th><th>G/Su${helpIcon('gSu')}</th>
+          <th>ch (m²/s)${helpIcon('ch')}</th><th>ch (m²/ano)</th><th>M (MPa)${helpIcon('m')}</th><th>kh (m/s)${helpIcon('kh')}</th>
+          <th style="color:#1a7a52;">cv (m²/s) *${helpIcon('cv')}</th><th style="color:#1a7a52;">kv (m/s) *${helpIcon('kv')}</th><th style="color:#1a7a52;">t100 (s) *${helpIcon('t100')}</th><th></th>
+        </tr></thead>
+        <tbody id="diss-tbody">${linhasHtml}</tbody>
+      </table>
+      <p class="hint" style="margin-top:6px;">* Colunas estimadas (cv e kv a partir da razão kh/kv acima; t100 ≈ ${T100_SOBRE_T50}×t50, aproximação usual) — não são valores medidos diretamente pelo ensaio.</p>
+      <button class="mini-btn" id="diss-add" style="margin-top:10px;">+ Ensaio de dissipação</button>
+    </div>`;
+
+  document.getElementById('diss-khkv').addEventListener('change', e=>{
+    f.cptuKhKvRatio = parseFloat(e.target.value) || 2;
+    renderDissipacaoPane(f);
+  });
+  body.querySelectorAll('.diss-in').forEach(inp=>{
+    inp.addEventListener('change', ()=>{
+      const idx = parseInt(inp.closest('tr').dataset.idx,10);
+      const campo = inp.dataset.campo;
+      const numerico = ['depth','t50sqrt','t50s','t50years','gSu','chYear','m'];
+      f.cptuDissipacoes[idx][campo] = numerico.includes(campo) ? (parseFloat(inp.value)||'') : inp.value;
+      renderDissipacaoPane(f);
+    });
+  });
+  body.querySelectorAll('[data-remove]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      f.cptuDissipacoes.splice(parseInt(btn.dataset.remove,10),1);
+      renderDissipacaoPane(f);
+    });
+  });
+  document.getElementById('diss-add').addEventListener('click', ()=>{
+    f.cptuDissipacoes.push(blankDissipacao());
+    renderDissipacaoPane(f);
+  });
+}
+/* ══════════════════ ABA 4 · BOLETIM (visualização + impressão) ══════════════════ */
+function renderCptuBoletimHtml(f){
+  const i = f.ident;
+  const perfil = f.cptuPerfil, estimativas = f.cptuEstimativas, dissipacoes = f.cptuDissipacoes;
+  const naEstimado = (f.agua && f.agua[0] && f.agua[0].prof!=='' && f.agua[0].prof!=null) ? f.agua[0].prof : null;
+  const maxDepth = perfil.length ? (Math.ceil(maiorProfundidadeValida(perfil))||1) : 1;
+  const pxm = 22; // escala mais compacta no boletim, pra caber a folha inteira
+  const trackW = 105;
+  const axisHtml = perfil.length ? renderDepthAxisSVG(maxDepth, pxm) : '';
+  const qcHtml = perfil.length ? renderTrackSVG('qc', 'MPa', 'qc', perfil, maxDepth, pxm, trackW, '#2a5a8c', 'qc') : '';
+  const fsHtml = perfil.length ? renderTrackSVG('fs', 'kPa', 'fs', perfil, maxDepth, pxm, trackW, '#b85c1a', 'fs') : '';
+  const u2Html = perfil.length ? renderTrackSVG('u2', 'kPa', 'u2m', perfil, maxDepth, pxm, trackW, '#1a7a52', 'u2') : '';
+  const rfHtml = perfil.length ? renderTrackSVG('Rf', '%', 'rf', perfil, maxDepth, pxm, 80, '#c0392b', 'rf') : '';
+  const sbtnHtml = perfil.length ? renderClasseColumnSVG('SBTn', perfil, maxDepth, pxm, 76, 'sbtn', SBTN_CLASSES, 'sbtn') : '';
+
+  const legendaHtml = Object.entries(SBTN_CLASSES).map(([k,v])=>
+    `<div class="sbtn-legend-item"><span class="sbtn-legend-swatch" style="background:${v.cor}"></span>${k}. ${esc(v.nome)}</div>`).join('');
+
+  const khKvBoletim = f.cptuKhKvRatio!=null && f.cptuKhKvRatio!=='' ? f.cptuKhKvRatio : 2;
+  const dissHtml = dissipacoes.length ? `
+    <div class="boletim-section-title">Ensaios de dissipação de poropressão</div>
+    <div class="boletim-body-pad">
+      <table class="diss-tbl">
+        <thead><tr>
+          <th>Prof. (m)</th><th>(t50)^0.5</th><th>t50 (s)${helpIcon('t50')}</th><th>t50 (anos)</th><th>G/Su${helpIcon('gSu')}</th>
+          <th>ch (m²/s)${helpIcon('ch')}</th><th>ch (m²/ano)</th><th>M (MPa)${helpIcon('m')}</th><th>kh (m/s)${helpIcon('kh')}</th>
+          <th style="color:#1a7a52;">cv (m²/s) *${helpIcon('cv')}</th><th style="color:#1a7a52;">kv (m/s) *${helpIcon('kv')}</th><th style="color:#1a7a52;">t100 (s) *${helpIcon('t100')}</th>
+        </tr></thead>
+        <tbody>
+          ${dissipacoes.map(d=>{
+            const est = calcularEstimativasDissipacao(d, khKvBoletim);
+            return `<tr>
+            <td>${d.depth||'—'}</td><td>${d.t50sqrt||'—'}</td><td>${d.t50s||'—'}</td><td>${d.t50years||'—'}</td>
+            <td>${d.gSu||'—'}</td><td>${d.ch||'—'}</td><td>${d.chYear||'—'}</td><td>${d.m||'—'}</td><td>${d.kh||'—'}</td>
+            <td>${formatarCientifico(est.cv)}</td><td>${formatarCientifico(est.kv)}</td><td>${est.t100!=null?Math.round(est.t100):'—'}</td>
+          </tr>`;}).join('')}
+        </tbody>
+      </table>
+      <p class="hint" style="margin-top:6px;">* Estimados a partir de ch/kh e de uma razão de anisotropia kh/kv assumida em ${khKvBoletim} (não medida pelo ensaio) — ver aba de Dissipação. t100 ≈ ${T100_SOBRE_T50}×t50 é uma aproximação prática, não um valor exato de teoria.</p>
+    </div>` : '';
+
+  return `
+    <div class="boletim-view">
+      <div class="boletim-topbar">
+        <h2>Ensaio de Piezocone (CPTu) — ${esc(i.sondagemNum||'Sem nome')}</h2>
+        <span class="lab-num">${i.laudo ? 'Laudo '+esc(i.laudo) : ''}</span>
+      </div>
+      <table class="info-tbl">
+        <tr>
+          <td><span class="lbl">Cliente</span><span class="val">${esc(i.cliente)||'—'}</span></td>
+          <td><span class="lbl">Obra</span><span class="val">${esc(i.obra)||'—'}</span></td>
+          <td><span class="lbl">Data</span><span class="val">${esc(i.dataInicio)||'—'}</span></td>
+        </tr>
+        <tr>
+          <td colspan="3"><span class="lbl">Local</span><span class="val">${esc(i.local)||'—'}</span></td>
+        </tr>
+        <tr>
+          <td><span class="lbl">Cota da boca (m)</span><span class="val">${i.cota!==''&&i.cota!=null?i.cota:'—'}</span></td>
+          <td><span class="lbl">N.A. estimado (m)</span><span class="val">${naEstimado!=null?naEstimado:'—'}</span></td>
+          <td><span class="lbl">Profundidade total</span><span class="val">${maxDepth ? maxDepth+' m' : '—'}</span></td>
+        </tr>
+        <tr>
+          <td><span class="lbl">Responsável técnico</span><span class="val">${esc(i.responsavel)||'—'} ${i.crea?'('+esc(i.crea)+')':''}</span></td>
+          <td><span class="lbl">Operador</span><span class="val">${esc(i.sondador)||'—'}</span></td>
+          <td><span class="lbl">Equipamento</span><span class="val">${esc(f.equipamento)||'—'} ${i.coneTipo?'· '+esc(i.coneTipo):''}</span></td>
+        </tr>
+      </table>
+
+      <div class="boletim-section-title">Perfil contínuo</div>
+      <div class="boletim-body-pad" style="overflow-x:auto;">
+        ${perfil.length
+          ? `<div class="cptu-track-row">${axisHtml}${qcHtml}${fsHtml}${u2Html}${rfHtml}${sbtnHtml}</div>
+             <div class="sbtn-legend" style="border:none;padding:12px 0 0;">${legendaHtml}</div>`
+          : '<p class="hint">Sem dados de perfil contínuo neste ensaio.</p>'}
+      </div>
+
+      ${dissHtml}
+
+      ${f.obs ? `<div class="boletim-section-title">Observações</div><div class="boletim-body-pad"><p class="hint">${esc(f.obs)}</p></div>` : ''}
+    </div>`;
+}
+
+/* ══════════════════ POPUP DE IMPORTAÇÃO DE EXCEL ══════════════════ */
+function renderImportGroups(){
+  const el = document.getElementById('import-groups');
+  if(gruposDetectados.length===0){
+    el.innerHTML = '<p class="hint">Nenhum par de abas "&lt;Nome&gt; - Basic" / "&lt;Nome&gt; - Estimations" foi encontrado neste arquivo. Confira se é uma planilha exportada pelo CPeT-IT.</p>';
+    return;
+  }
+  el.innerHTML = gruposDetectados.map((g,i)=>`
+    <div class="import-group-row">
+      <input type="checkbox" class="import-group-check" data-idx="${i}" ${g.selecionado?'checked':''}>
+      <div style="flex:1;">
+        <div class="import-group-name">${esc(g.nome)}</div>
+        <div class="import-group-sub">${g.temBasic?'✓ dados de campo (Basic)':'✕ sem dados de campo'} · ${g.temEstimations?'✓ parâmetros estimados':'✕ sem parâmetros estimados'}</div>
+      </div>
+    </div>`).join('');
+  el.querySelectorAll('.import-group-check').forEach(chk=>{
+    chk.addEventListener('change', ()=>{ gruposDetectados[parseInt(chk.dataset.idx,10)].selecionado = chk.checked; });
+  });
+}
+function abrirImportOverlay(){ document.getElementById('import-overlay').classList.add('open'); }
+function fecharImportOverlay(){ document.getElementById('import-overlay').classList.remove('open'); gruposDetectados = []; }
+
+document.getElementById('cptu-btn-import').addEventListener('click', ()=> document.getElementById('cptu-file-input').click());
+document.getElementById('cptu-file-input').addEventListener('change', async e=>{
+  const file = e.target.files[0];
+  e.target.value = '';
+  if(!file) return;
+  try{
+    await analisarArquivoExcel(file);
+    renderImportGroups();
+    abrirImportOverlay();
+  }catch(err){
+    console.error(err);
+    alert('Não foi possível ler esse arquivo. Confira se é um .xls/.xlsx válido.\n\n'+err.message);
+  }
+});
+document.getElementById('import-close').addEventListener('click', fecharImportOverlay);
+document.getElementById('import-cancel').addEventListener('click', fecharImportOverlay);
+document.getElementById('import-overlay').addEventListener('click', e=>{
+  if(e.target.id==='import-overlay') fecharImportOverlay();
+});
+document.getElementById('import-confirm').addEventListener('click', ()=>{
+  const novos = importarGruposSelecionados();
+  if(novos.length===0){ toast('Nenhum ensaio selecionado'); return; }
+  markMasterDirty();
+  renderFuroList();
+  fecharImportOverlay();
+  toast(novos.length+' ensaio(s) importado(s) — ajuste a posição de cada um no mapa');
+  openBoletimEditor(novos[0].id);
+});
+
+/* ══════════════════ SALVAR / ABRIR PROJETO ══════════════════
+   Removido daqui de propósito — o app principal já tem "💾 Salvar Projeto" / importação de
+   projeto na barra superior — furos de CPTu ficam de fora igual os demais furos mestre,
+   publicados à parte via furos.json (ver bloco anterior)
+   linhas, blocos interpolados, superfícies topográficas, perfis, rasters). Um único fluxo de
+   salvar/abrir pra tudo, em vez de dois botões concorrentes. */
+
+/* ══════════════════ DADOS DE EXEMPLO ══════════════════
+   Gera um ensaio sintético — não são medições reais, é um perfil coerente com o comportamento
+   típico de um CPTu (argila mole na superfície, ganhando resistência com a profundidade, até
+   uma camada de areia compacta) — útil pra testar/demonstrar o módulo sem precisar de um Excel
+   real em mãos. Os valores de qc/fs/u2 são calculados a partir de faixas plausíveis por
+   camada, com uma variação suave pra imitar a irregularidade natural de um ensaio de campo.
+   Fica claro nos próprios dados (nome, cliente, obra) que é um exemplo, não um levantamento
+   real de nenhuma obra ou empresa. */
+function gerarPerfilExemplo(){
+  // cada camada: profundidade final, classe SBTn representativa, faixa de qc (MPa) do topo
+  // ao fundo da camada, e razão de atrito alvo (%) — números escolhidos pra dar um perfil
+  // plausível, não medidos de campo
+  const camadas = [
+    {profFinal:1.5,  sbtn:2, qcMin:0.25, qcMax:0.55, rf:4.8}, // aterro/solo orgânico superficial
+    {profFinal:4.5,  sbtn:3, qcMin:0.45, qcMax:1.10, rf:4.2}, // argila mole a média
+    {profFinal:7.5,  sbtn:4, qcMin:1.00, qcMax:2.30, rf:3.0}, // argila/silte mais rijo
+    {profFinal:10.0, sbtn:5, qcMin:2.50, qcMax:5.20, rf:1.6}, // silte arenoso/areia siltosa
+    {profFinal:13.0, sbtn:6, qcMin:6.00, qcMax:12.5, rf:0.75},// areia compacta
+    {profFinal:15.0, sbtn:8, qcMin:14.0, qcMax:22.0, rf:0.45},// muito rijo, próximo do impenetrável
+  ];
+  const gwl = 1.8; // nível d'água estimado (m) — só pra dar consistência à poropressão gerada
+  const passo = 0.02;
+  const perfil = [];
+  let profAnt = 0;
+  camadas.forEach(c=>{
+    for(let d=Math.round((profAnt+passo)*1000)/1000; d<=c.profFinal+1e-6; d=Math.round((d+passo)*1000)/1000){
+      const frac = (d-profAnt)/(c.profFinal-profAnt);
+      const ruido = (Math.sin(d*17.3)+Math.sin(d*53.7)*0.5)*0.07 + (Math.random()-0.5)*0.05;
+      const qc = Math.max(0.03, (c.qcMin + (c.qcMax-c.qcMin)*frac) * (1+ruido));
+      const fs = qc*1000*c.rf/100; // kPa
+      const gamma = 17 + (c.sbtn>=5 ? 1.5 : 0); // areia um pouco mais densa que argila
+      const sigmaV = d*gamma;
+      const u0 = d>gwl ? (d-gwl)*9.81 : 0;
+      // argilas geram excesso de poropressão significativo durante a cravação; areias
+      // dissipam quase instantaneamente, ficando perto (ou um pouco abaixo) do hidrostático
+      const excesso = c.sbtn<=4 ? u0*1.5 + 15 : (c.sbtn===5 ? u0*0.2 : -u0*0.15);
+      const u2 = Math.max(-15, u0 + excesso*(1+ruido*0.5));
+      const qt = qc*1000 + u2*0.2; // correção de área simplificada (fator ~0.8), em kPa
+      const rf = qt>0 ? (fs/qt)*100 : 0;
+      const icAprox = {2:3.9, 3:3.1, 4:2.8, 5:2.3, 6:1.7, 7:1.2, 8:1.35}[c.sbtn] || 2.5;
+      perfil.push({
+        depth:d, qc:Math.round(qc*1000)/1000, fs:Math.round(fs*10)/10, u2m:Math.round(u2*10)/10,
+        qt:Math.round(qt/1000*1000)/1000, rf:Math.round(rf*100)/100, sbt:c.sbtn, icSbt:icAprox,
+        gamma, sigmaV:Math.round(sigmaV*10)/10, u0:Math.round(u0*10)/10,
+        sigmaVo:Math.round((sigmaV-u0)*10)/10, sbtn:c.sbtn, ic:icAprox,
+        sbtnDesc:(SBTN_CLASSES[c.sbtn]||{}).nome||'', sbtnMod:c.sbtn<=4?(c.sbtn===2?1:2):(c.sbtn===5?4:6),
+        sbtnModDesc:(SBTN_MOD_CLASSES[c.sbtn<=4?(c.sbtn===2?1:2):(c.sbtn===5?4:6)]||{}).nome||'',
+      });
+    }
+    profAnt = c.profFinal;
+  });
+  return perfil;
+}
+function gerarEstimativasExemplo(perfil){
+  return perfil.filter((_,i)=>i%2===0).map(p=>{ // metade da resolução, como o CPeT-IT costuma exportar as estimativas
+    const sptN60 = Math.max(1, Math.round((p.qc*1000)/(p.sbtn<=4?40:60)));
+    return {
+      depth:p.depth, sptN60, constrainedMod:Math.round(p.qc*3.2*100)/100, dr:Math.min(100,Math.round(20+p.qc*4)),
+      frictionAngle:Math.min(42,Math.round(28+p.qc*0.7)), es:Math.round(p.qc*2.5*100)/100,
+      go:Math.round(p.qc*8*100)/100, nkt:14, su:p.sbtn<=4?Math.round((p.qt-p.sigmaV)/14):0,
+      ocr:Math.max(1,Math.round((3-p.depth*0.15)*10)/10), vs:Math.round(90+p.depth*9),
+      gamma:p.gamma, w:p.sbtn<=4?Math.round(35+p.depth*1.5):Math.round(18+p.depth*0.3), e:p.sbtn<=4?1.1:0.7,
+    };
+  });
+}
+function carregarEnsaioExemplo(){
+  if(!isAdmin()){ alert('Só o Administrador pode cadastrar furos no banco principal.'); return; }
+  const perfil = gerarPerfilExemplo();
+  const f = blankFuroCPTU(-23.550520, -46.633308);
+  f.ident.sondagemNum = 'CPTu-Exemplo-01';
+  f.ident.obra = 'Obra de Demonstração — Galpão Industrial';
+  f.ident.cliente = 'Cliente Exemplo Ltda.';
+  f.ident.local = 'Área fictícia usada só pra teste do módulo';
+  f.ident.laudo = 'EXEMPLO.R00';
+  f.ident.dataInicio = new Date().toLocaleDateString('pt-BR');
+  f.ident.cota = '712.40';
+  f.agua = [{prof:1.80, data:''}]; // N.A. estimado
+  f.ident.responsavel = 'Nome do Responsável Técnico'; f.ident.crea = '000000-0';
+  f.ident.sondador = 'Nome do Operador';
+  f.equipamento = 'Penetrômetro hidráulico (exemplo)'; f.ident.coneTipo = '1378 - 10cm²';
+  f.cptuPerfil = perfil;
+  f.cptuEstimativas = gerarEstimativasExemplo(perfil);
+  f.cptuDissipacoes = [
+    {depth:4.50, t50sqrt:38.2, t50s:1459, t50years:0.0000463, gSu:410, ch:'7.10E-006', chYear:224, m:22, kh:'3.20E-009'},
+    {depth:9.80, t50sqrt:9.6, t50s:92, t50years:0.0000029, gSu:280, ch:'2.85E-005', chYear:899, m:38, kh:'7.10E-009'},
+  ];
+  f.obs = 'Ensaio de exemplo gerado automaticamente para demonstração do módulo CPTu — não representa dados de campo reais.';
+  f.hash = computeFuroHash(f.ident.sondagemNum, f.ident.obra, f.lat, f.lng, f.ident.cota);
+  furos.push(f); drawFuro(f);
+  markMasterDirty();
+  renderFuroList();
+  toast('Ensaio de exemplo carregado');
+  openBoletimEditor(f.id);
+}
+document.getElementById('btn-load-sample').addEventListener('click', carregarEnsaioExemplo);
+
 initApp();
 </script>
 </body>

@@ -2959,30 +2959,34 @@ function renderFuroBoletimHtml(state){
       <div class="boletim-body-pad" style="padding:0 20px 10px;">
         <table class="diss-tbl">
           <thead><tr>
-            <th>Prof. (m)</th><th>Tipo</th><th>N-SPT médio</th><th>Dr</th><th>φ</th><th>φ (alt.)</th>
-            <th>Es (MPa)</th><th>Su (T-P)</th><th>Su (Stroud)</th><th>Eu (MPa)</th>
+            <th>Prof. (m)</th><th>Tipo</th><th>N-SPT médio</th><th>Compacidade / Consistência</th>
+            <th>φ (Godoy)</th><th>φ (Teixeira)</th><th>φ (P-H-T)</th><th>Es (MPa)</th>
+            <th>cu (Teixeira-Godoy)</th><th>cu (Terzaghi-Peck)</th><th>cu (conservador)</th>
           </tr></thead>
           <tbody>
             ${camadas.map(c=>{
               const nMedio = nSptMedioNaFaixa(golpes, c.profInicial, c.profFinal);
               const corr = calcularCorrelacoesSPT((c.tipo||'outro').toLowerCase(), nMedio);
               const tipoLabel = (TIPOS_SOLO.find(t=>t[0]===c.tipo)||[,c.tipo])[1];
+              const classif = corr ? (corr.compacidade || corr.consistencia) : null;
+              const esFaixa = corr&&corr.esMinMPa!=null ? corr.esMinMPa+'–'+corr.esMaxMPa : '—';
               return `<tr>
                 <td>${c.profInicial.toFixed(2)}–${c.profFinal.toFixed(2)}</td>
                 <td>${esc(tipoLabel)}</td>
                 <td>${corr ? corr.n.toFixed(1) : '—'}</td>
-                <td>${corr&&corr.dr ? esc(corr.dr) : '—'}</td>
-                <td>${corr&&corr.phiPHT!=null ? corr.phiPHT+'°' : (corr&&corr.phi!=null ? corr.phi+'°' : '—')}</td>
-                <td>${corr&&corr.phiHU!=null ? corr.phiHU+'°' : '—'}</td>
-                <td>${corr&&corr.esMPa!=null ? corr.esMPa : '—'}</td>
-                <td>${corr&&corr.suTP!=null ? corr.suTP+' kPa' : '—'}</td>
-                <td>${corr&&corr.suStroud!=null ? corr.suStroud+' kPa' : '—'}</td>
-                <td>${corr&&corr.euMinMPa!=null ? corr.euMinMPa+'–'+corr.euMaxMPa : '—'}</td>
+                <td>${classif ? esc(classif) : '—'}</td>
+                <td>${corr&&corr.phiGodoy!=null ? corr.phiGodoy+'°' : '—'}</td>
+                <td>${corr&&corr.phiTeixeira!=null ? corr.phiTeixeira+'°' : (corr&&corr.phi!=null ? corr.phi+'°' : '—')}</td>
+                <td>${corr&&corr.phiPHT!=null ? corr.phiPHT+'°' : '—'}</td>
+                <td>${esFaixa}</td>
+                <td>${corr&&corr.cuTeixeiraGodoy!=null ? corr.cuTeixeiraGodoy+' kPa' : '—'}</td>
+                <td>${corr&&corr.cuTP!=null ? corr.cuTP+' kPa' : '—'}</td>
+                <td>${corr&&corr.cuConservador!=null ? corr.cuConservador+' kPa' : '—'}</td>
               </tr>`;
             }).join('')}
           </tbody>
         </table>
-        <p class="hint" style="margin-top:4px;">Estimativas de apoio técnico (correlações empíricas com N-SPT) — não substituem ensaio de laboratório. φ: Peck-Hanson-Thornburn (areia) ou aproximação intermediária (silte/aterro); alternativa Hatanaka-Uchida só para areia. Es: Kulhawy & Mayne. Su: Terzaghi & Peck / Stroud (só argila).</p>
+        <p class="hint" style="margin-top:4px;">Estimativas de apoio técnico (correlações empíricas com N-SPT, prática brasileira + referências internacionais) — não substituem ensaio de laboratório. φ (areia): Godoy, Teixeira, Peck-Hanson-Thornburn; φ (silte/aterro): só a coluna "Teixeira". cu (só argila): Teixeira & Godoy, Terzaghi & Peck (ver ressalva no app sobre divergência de fontes para esse valor), e um valor conservador. Es varia por tipo de solo.</p>
       </div>
 
       <div class="boletim-footer">
@@ -3147,35 +3151,51 @@ function nSptMedioNaFaixa(golpes, profTopo, profBase){
   if(validos.length===0) return null;
   return validos.reduce((a,b)=>a+b,0)/validos.length;
 }
-function classificarDrPorN(n){
-  if(n<4) return 'muito fofa (Dr<15%)';
-  if(n<10) return 'fofa (Dr 15–35%)';
-  if(n<30) return 'medianamente compacta (Dr 35–65%)';
-  if(n<50) return 'compacta (Dr 65–85%)';
-  return 'muito compacta (Dr>85%)';
-}
 // aplica as correlações clássicas de N-SPT conforme o tipo de solo da camada — usa o N-SPT
 // direto como aproximação de N60 (o app não registra a eficiência de energia do equipamento;
 // se o seu martelo tiver eficiência muito diferente de ~60%, ajuste os resultados manualmente)
+function classificarCompacidadePorN(n){
+  if(n<=4) return {label:'Fofa', phiFaixa:'<30°'};
+  if(n<=8) return {label:'Pouco compacta', phiFaixa:'30–32°'};
+  if(n<=18) return {label:'Medianamente compacta', phiFaixa:'32–35°'};
+  if(n<=40) return {label:'Compacta', phiFaixa:'35–38°'};
+  return {label:'Muito compacta', phiFaixa:'>38°'};
+}
+function classificarConsistenciaPorN(n){
+  if(n<=2) return {label:'Muito mole', cuFaixa:'<12,5 kPa'};
+  if(n<=5) return {label:'Mole', cuFaixa:'12,5–25 kPa'};
+  if(n<=10) return {label:'Média', cuFaixa:'25–50 kPa'};
+  if(n<=19) return {label:'Rija', cuFaixa:'50–100 kPa'};
+  if(n<=30) return {label:'Muito rija', cuFaixa:'100–200 kPa'};
+  return {label:'Dura', cuFaixa:'>200 kPa'};
+}
+// aplica as correlações clássicas de N-SPT conforme o tipo de solo da camada — usa o N-SPT
+// direto como aproximação de N60. No Brasil o martelo manual costuma ter eficiência ~70-72%
+// (vs. 60% da referência internacional), então N60 real tende a ser um pouco maior que o N de
+// campo brasileiro (N60 ≈ N × η/60) — se souber a eficiência do seu equipamento, ajuste os
+// resultados manualmente por esse fator antes de usar em projeto
 function calcularCorrelacoesSPT(tipo, nMedio){
   if(nMedio==null || !isFinite(nMedio)) return null;
   const n = nMedio;
   const r = {n: Math.round(n*10)/10};
   if(tipo==='areia'){
-    r.phiPHT = Math.max(25, Math.min(45, Math.round((27.1+0.3*n-0.00054*n*n)*10)/10));
-    r.phiHU = Math.round((3.5*Math.sqrt(Math.max(0,n))+22.3)*10)/10;
-    r.dr = classificarDrPorN(n);
-    r.esMPa = Math.round(10*0.1*n*10)/10; // Kulhawy&Mayne, Es≈α·Pa·N60, α~10, Pa=100kPa
+    r.compacidade = classificarCompacidadePorN(n).label;
+    r.phiGodoy = Math.round((28+0.4*n)*10)/10; // Godoy (1983) — mais difundida no Brasil
+    r.phiTeixeira = Math.round((20+n)*10)/10; // Teixeira (1996)
+    r.phiPHT = Math.max(25, Math.min(45, Math.round((27.1+0.3*n-0.00054*n*n)*10)/10)); // Peck, Hanson & Thornburn (1974) — referência internacional
+    r.esMinMPa = Math.round(1.0*n*10)/10;
+    r.esMaxMPa = Math.round(1.2*n*10)/10;
   } else if(tipo==='silte' || tipo==='aterro'){
-    r.phi = Math.max(20, Math.min(35, Math.round((22+0.25*n)*10)/10));
-    r.esMPa = Math.round(6*0.1*n*10)/10; // α~6, intermediário
+    r.phi = Math.max(20, Math.min(35, Math.round((22+0.25*n)*10)/10)); // aproximação intermediária
+    r.esMinMPa = Math.round(0.6*n*10)/10;
+    r.esMaxMPa = Math.round(0.8*n*10)/10;
   } else if(tipo==='argila'){
-    r.suTP = Math.round(12.5*n);
-    const k = n<4?3.5 : n<8?4.5 : n<15?5.5 : n<30?6.5 : 8;
-    r.suStroud = Math.round(k*n);
-    const suMedio = (r.suTP+r.suStroud)/2;
-    r.euMinMPa = Math.round(400*suMedio/1000*10)/10;
-    r.euMaxMPa = Math.round(800*suMedio/1000*10)/10;
+    r.consistencia = classificarConsistenciaPorN(n).label;
+    r.cuTeixeiraGodoy = Math.round(10*n); // Teixeira & Godoy (1996) — mais usada no Brasil
+    r.cuTP = Math.round(12.5*n); // Terzaghi & Peck — ver nota de rodapé sobre esse valor
+    r.cuConservador = Math.round(5*n);
+    r.esMinMPa = Math.round(1.5*n*10)/10;
+    r.esMaxMPa = Math.round(3.0*n*10)/10;
   }
   return r;
 }
@@ -8860,14 +8880,16 @@ const SBTN_MOD_CLASSES = {
    pelas abas. Manter tudo num lugar só evita explicações inconsistentes entre as telas.
    ══════════════════════════════════════════════════════════════ */
 const PARAM_HELP = {
-  nSptEst: {titulo:'N-SPT médio da camada', texto:'Média aritmética do N-SPT (N = golpe2 + golpe3) de todas as leituras cuja profundidade cai dentro da faixa da camada. Usado como aproximação de N60 — o app não registra a eficiência de energia do equipamento; se o seu martelo tiver eficiência muito diferente de ~60%, corrija os resultados manualmente.'},
-  drEst: {titulo:'Dr — Densidade relativa (faixa)', texto:'Faixa qualitativa de compacidade para areias, a partir de N-SPT. Correlação clássica de Peck, Hanson & Thornburn (1974) — bastante usada, mas grosseira; não diferencia idade ou cimentação do depósito (Skempton, 1986, propôs refinamentos para isso).'},
-  phiPhtEst: {titulo:'φ — Ângulo de atrito (Peck, Hanson & Thornburn)', texto:'Estimativa do ângulo de atrito interno de areias a partir de N-SPT.', formula:'φ ≈ 27,1 + 0,3·N − 0,00054·N², limitado a [25°,45°] — Peck, Hanson & Thornburn (1974)'},
-  phiHuEst: {titulo:'φ — Ângulo de atrito (Hatanaka & Uchida)', texto:'Correlação mais recente, calibrada para areias médias a grossas. Compare com a de Peck-Hanson-Thornburn — convergem bem para areia limpa, divergem mais para areia siltosa ou muito angular.', formula:'φ ≈ 3,5·√N + 22,3 — Hatanaka & Uchida (1996)'},
-  esEst: {titulo:'Es — Módulo de deformação (estimado)', texto:'Estimativa de rigidez do solo sob carregamento, a partir de N-SPT. Correlação aproximada — a incerteza é maior que a de φ ou Su, sujeita a mais dispersão que ensaios de campo dedicados (pressiômetro, placa).', formula:'Es ≈ α·Pa·N, com α~10 (areia) ou α~6 (silte/aterro), Pa=100kPa — Kulhawy & Mayne (1990)'},
-  suTpEst: {titulo:'Su — Resistência não drenada (Terzaghi & Peck)', texto:'A correlação mais citada para argilas, mas com dispersão considerável (fator ~5 a ~10 dependendo do índice de plasticidade da argila).', formula:'Su ≈ 12,5·N (kPa) — Terzaghi & Peck (1967)'},
-  suStroudEst: {titulo:'Su — Resistência não drenada (Stroud)', texto:'Refinamento que varia o coeficiente conforme a consistência (N mais baixo → coeficiente menor, argila mais mole e mais plástica tende a essa faixa).', formula:'Su ≈ K·N, K entre ~3,5 (mole) e ~8 (rija) — Stroud (1974)'},
-  euEst: {titulo:'Eu — Módulo não drenado (faixa)', texto:'Faixa de referência para argilas normalmente adensadas, a partir da média das duas estimativas de Su. A razão Eu/Su real depende muito do índice de plasticidade e da OCR — trate como ordem de grandeza, não valor de projeto.', formula:'Eu ≈ 400 a 800 × Su (argila NA)'},
+  nSptEst: {titulo:'N-SPT médio da camada', texto:'Média aritmética do N-SPT (N = golpe2 + golpe3) de todas as leituras cuja profundidade cai dentro da faixa da camada. Usado como aproximação de N60 — o app não registra a eficiência de energia do equipamento. No Brasil o martelo manual costuma ter eficiência ~70-72% (vs. 60% da referência internacional), então N60 real tende a ser um pouco maior que o N de campo brasileiro (N60 ≈ N × η/60) — ajuste manualmente se souber a eficiência do seu equipamento.'},
+  compacidadeEst: {titulo:'Compacidade (areia)', texto:'Classificação usual da prática brasileira, direto pela faixa de N-SPT — não depende de correlação com φ.', formula:'Fofa ≤4 · Pouco compacta 5-8 · Medianamente compacta 9-18 · Compacta 19-40 · Muito compacta >40'},
+  phiGodoyEst: {titulo:'φ — Ângulo de atrito (Godoy)', texto:'A correlação mais difundida na prática brasileira para areias.', formula:'φ ≈ 28° + 0,4·N — Godoy (1983)'},
+  phiTeixeiraEst: {titulo:'φ — Ângulo de atrito (Teixeira)', texto:'Segunda forma usual na prática brasileira; existe também a variante φ ≈ √(20·N) + 15°, que dá valores próximos.', formula:'φ ≈ 20° + N — Teixeira (1996)'},
+  phiPhtEst: {titulo:'φ — Ângulo de atrito (Peck, Hanson & Thornburn)', texto:'Referência internacional, incluída para comparação com as correlações brasileiras acima — compare as três; se convergirem, mais confiança no valor.', formula:'φ ≈ 27,1 + 0,3·N − 0,00054·N², limitado a [25°,45°] — Peck, Hanson & Thornburn (1974)'},
+  esEst: {titulo:'Es — Módulo de deformação (estimado)', texto:'Estimativa de rigidez do solo sob carregamento, a partir de N-SPT. Correlação aproximada — a incerteza é maior que a de φ ou Su, sujeita a mais dispersão que ensaios de campo dedicados (pressiômetro, placa). Areia e silte/aterro usam faixas diretas de N; argila também (ver Eu abaixo para uma segunda estimativa via Su, que costuma dar valores bem maiores — as duas abordagens divergem bastante entre si, mantidas as duas de propósito para deixar essa incerteza visível).', formula:'Areia: Es≈1,0-1,2·N · Silte/aterro: Es≈0,6-0,8·N · Argila: Es≈1,5-3,0·N (MPa)'},
+  consistenciaEst: {titulo:'Consistência (argila)', texto:'Classificação usual da prática brasileira, direto pela faixa de N-SPT.', formula:'Muito mole ≤2 · Mole 3-5 · Média 6-10 · Rija 11-19 · Muito rija 20-30 · Dura >30'},
+  cuTeixeiraGodoyEst: {titulo:'cu — Coesão não drenada (Teixeira & Godoy)', texto:'A correlação mais usada na prática brasileira para argilas.', formula:'cu ≈ 10·N (kPa) — Teixeira & Godoy (1996)'},
+  cuTpEst: {titulo:'cu — Coesão não drenada (Terzaghi & Peck)', texto:'Atribuída a Terzaghi & Peck (1967), mas com uma ressalva importante: diferentes fontes citam valores de 6·N a 12,5·N sob o mesmo nome — a diferença provável é entre resistência à compressão não confinada qu (≈12,5·N) e a coesão não drenada cu=qu/2 (≈6·N). O valor aqui usa 12,5·N; confira com cautela antes de adotar em projeto, e compare com Teixeira & Godoy e o valor conservador ao lado.', formula:'cu ≈ 12,5·N (kPa)'},
+  cuConservadorEst: {titulo:'cu — Coesão não drenada (conservador)', texto:'Estimativa deliberadamente mais baixa que as demais, para uso quando se quer margem de segurança adicional numa fase muito preliminar.', formula:'cu ≈ 5·N (kPa)'},
   qc: {titulo:'qc — Resistência de ponta', texto:'Medida diretamente pelo cone: a força que o solo oferece à cravação da ponta cônica, dividida pela área da ponta. Solos mais resistentes (areias compactas, argilas rijas) dão qc alto; solos moles dão qc baixo.'},
   fs: {titulo:'fs — Atrito lateral', texto:'Medido diretamente por uma luva metálica logo acima da ponta do cone. Argilas tendem a gerar mais atrito relativo que areias — por isso fs sozinho já ajuda a diferenciar tipos de solo.'},
   u2: {titulo:'u2 — Poropressão', texto:'Pressão da água nos poros do solo, medida por um sensor logo atrás da ponta (posição "u2" — daí o nome do ensaio, CPTu). É o parâmetro que mais diferencia o CPTu do CPT comum.'},
@@ -9214,42 +9236,48 @@ function renderSptEstimativasPane(f){
     <div class="ens-pane" style="max-width:100%;overflow-x:auto;">
       <div class="fieldset-title">Parâmetros estimados por correlação com N-SPT</div>
       <p class="hint">
-        Estimativas de apoio técnico a partir de correlações empíricas clássicas — não substituem
-        ensaio de laboratório (triaxial, adensamento) quando o projeto exigir. Cada correlação só
-        se aplica ao tipo de solo indicado; camadas sem N-SPT na sua faixa de profundidade, ou de
-        tipo rocha/outro, ficam sem estimativa.
+        Estimativas de apoio técnico a partir de correlações empíricas clássicas (prática
+        brasileira + referências internacionais) — não substituem ensaio de laboratório
+        (triaxial, adensamento) quando o projeto exigir. Cada correlação só se aplica ao tipo
+        de solo indicado; camadas sem N-SPT na sua faixa de profundidade, ou de tipo
+        rocha/outro, ficam sem estimativa. Rode as correlações lado a lado e compare — se
+        convergirem, mais confiança no valor.
       </p>
       <table class="diss-tbl" style="margin-top:10px;">
         <thead><tr>
           <th>Prof. (m)</th><th>Tipo</th><th>N-SPT médio${helpIcon('nSptEst')}</th>
-          <th>Dr${helpIcon('drEst')}</th>
-          <th>φ${helpIcon('phiPhtEst')}</th>
-          <th>φ (correlação alternativa)${helpIcon('phiHuEst')}</th>
+          <th>Compacidade / Consistência${helpIcon('compacidadeEst')}</th>
+          <th>φ (Godoy)${helpIcon('phiGodoyEst')}</th>
+          <th>φ (Teixeira)${helpIcon('phiTeixeiraEst')}</th>
+          <th>φ (Peck-Hanson-Thornburn)${helpIcon('phiPhtEst')}</th>
           <th>Es (MPa)${helpIcon('esEst')}</th>
-          <th>Su (Terzaghi-Peck)${helpIcon('suTpEst')}</th>
-          <th>Su (Stroud)${helpIcon('suStroudEst')}</th>
-          <th>Eu (MPa)${helpIcon('euEst')}</th>
+          <th>cu (Teixeira &amp; Godoy)${helpIcon('cuTeixeiraGodoyEst')}</th>
+          <th>cu (Terzaghi-Peck)${helpIcon('cuTpEst')}</th>
+          <th>cu (conservador)${helpIcon('cuConservadorEst')}</th>
         </tr></thead>
         <tbody>
           ${linhas.map(l=>{
             const c = l.corr;
             const tipoLabel = (TIPOS_SOLO.find(t=>t[0]===l.tipo)||[,l.tipo])[1];
+            const classif = c ? (c.compacidade || c.consistencia) : null;
+            const esFaixa = c&&c.esMinMPa!=null ? c.esMinMPa+'–'+c.esMaxMPa : '—';
             return `<tr>
               <td>${l.topo.toFixed(2)}–${l.base.toFixed(2)}</td>
               <td>${esc(tipoLabel)}</td>
               <td>${c ? c.n.toFixed(1) : '—'}</td>
-              <td>${c&&c.dr ? esc(c.dr) : '—'}</td>
-              <td>${c&&c.phiPHT!=null ? c.phiPHT+'°' : (c&&c.phi!=null ? c.phi+'°' : '—')}</td>
-              <td>${c&&c.phiHU!=null ? c.phiHU+'°' : '—'}</td>
-              <td>${c&&c.esMPa!=null ? c.esMPa : '—'}</td>
-              <td>${c&&c.suTP!=null ? c.suTP+' kPa' : '—'}</td>
-              <td>${c&&c.suStroud!=null ? c.suStroud+' kPa' : '—'}</td>
-              <td>${c&&c.euMinMPa!=null ? c.euMinMPa+'–'+c.euMaxMPa : '—'}</td>
+              <td>${classif ? esc(classif) : '—'}</td>
+              <td>${c&&c.phiGodoy!=null ? c.phiGodoy+'°' : '—'}</td>
+              <td>${c&&c.phiTeixeira!=null ? c.phiTeixeira+'°' : (c&&c.phi!=null ? c.phi+'°' : '—')}</td>
+              <td>${c&&c.phiPHT!=null ? c.phiPHT+'°' : '—'}</td>
+              <td>${esFaixa}</td>
+              <td>${c&&c.cuTeixeiraGodoy!=null ? c.cuTeixeiraGodoy+' kPa' : '—'}</td>
+              <td>${c&&c.cuTP!=null ? c.cuTP+' kPa' : '—'}</td>
+              <td>${c&&c.cuConservador!=null ? c.cuConservador+' kPa' : '—'}</td>
             </tr>`;
           }).join('')}
         </tbody>
       </table>
-      <p class="hint" style="margin-top:10px;">Areia: φ vem de Peck-Hanson-Thornburn, e a coluna "correlação alternativa" traz Hatanaka-Uchida (compare os dois). Silte/aterro: só a primeira coluna de φ é calculada (aproximação intermediária), sem alternativa nem Dr. Dr e Es só valem para areia; Su e Eu só para argila.</p>
+      <p class="hint" style="margin-top:10px;">Areia: φ (Godoy, Teixeira e Peck-Hanson-Thornburn), compacidade e Es. Silte/aterro: só a coluna "Teixeira" traz φ (aproximação intermediária), sem as demais. Argila: consistência, as três estimativas de cu, e Es — veja a nota do ícone de ajuda de "cu (Terzaghi-Peck)" sobre a divergência entre fontes para esse valor específico.</p>
     </div>`;
 }
 

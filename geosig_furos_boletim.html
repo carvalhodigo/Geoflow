@@ -1313,6 +1313,7 @@ label{font-size:9px;letter-spacing:.8px;color:var(--mu)}
         <button class="edit-tab" data-tab="agua" onclick="setBoletimTab('agua')">2 · Nível d'Água</button>
         <button class="edit-tab" data-tab="camadas" onclick="setBoletimTab('camadas')">3 · Camadas de Solo</button>
         <button class="edit-tab" data-tab="golpes" onclick="setBoletimTab('golpes')">4 · Golpes SPT</button>
+        <button class="edit-tab" data-tab="spt-estimativas" onclick="setBoletimTab('spt-estimativas')">5 · Parâmetros Estimados</button>
         <button class="edit-tab" data-tab="cptu-manual" style="display:none" onclick="setBoletimTab('cptu-manual')">2 · Dados do ensaio</button>
         <button class="edit-tab" data-tab="cptu-grafico" style="display:none" onclick="setBoletimTab('cptu-grafico')">3 · Perfil gráfico</button>
         <button class="edit-tab" data-tab="cptu-dissipacao" style="display:none" onclick="setBoletimTab('cptu-dissipacao')">4 · Dissipação</button>
@@ -1437,6 +1438,9 @@ label{font-size:9px;letter-spacing:.8px;color:var(--mu)}
         </table>
         <button class="add-row-btn" type="button" onclick="boAddGolpeRow()">+ Profundidade</button>
       </div>
+
+      <!-- PAINEL 5 — PARÂMETROS ESTIMADOS (SPT) -->
+      <div class="edit-panel" id="bo-panel-spt-estimativas"></div>
     </div>
     <div class="popup-footer">
       <button class="btn-ghost" type="button" onclick="cancelBoletimEditor()">Cancelar</button>
@@ -2951,6 +2955,36 @@ function renderFuroBoletimHtml(state){
         </div>
       </div>
 
+      <div class="boletim-section-title" style="margin:14px 20px 4px;">Parâmetros estimados por correlação com N-SPT</div>
+      <div class="boletim-body-pad" style="padding:0 20px 10px;">
+        <table class="diss-tbl">
+          <thead><tr>
+            <th>Prof. (m)</th><th>Tipo</th><th>N-SPT médio</th><th>Dr</th><th>φ</th><th>φ (alt.)</th>
+            <th>Es (MPa)</th><th>Su (T-P)</th><th>Su (Stroud)</th><th>Eu (MPa)</th>
+          </tr></thead>
+          <tbody>
+            ${camadas.map(c=>{
+              const nMedio = nSptMedioNaFaixa(golpes, c.profInicial, c.profFinal);
+              const corr = calcularCorrelacoesSPT((c.tipo||'outro').toLowerCase(), nMedio);
+              const tipoLabel = (TIPOS_SOLO.find(t=>t[0]===c.tipo)||[,c.tipo])[1];
+              return `<tr>
+                <td>${c.profInicial.toFixed(2)}–${c.profFinal.toFixed(2)}</td>
+                <td>${esc(tipoLabel)}</td>
+                <td>${corr ? corr.n.toFixed(1) : '—'}</td>
+                <td>${corr&&corr.dr ? esc(corr.dr) : '—'}</td>
+                <td>${corr&&corr.phiPHT!=null ? corr.phiPHT+'°' : (corr&&corr.phi!=null ? corr.phi+'°' : '—')}</td>
+                <td>${corr&&corr.phiHU!=null ? corr.phiHU+'°' : '—'}</td>
+                <td>${corr&&corr.esMPa!=null ? corr.esMPa : '—'}</td>
+                <td>${corr&&corr.suTP!=null ? corr.suTP+' kPa' : '—'}</td>
+                <td>${corr&&corr.suStroud!=null ? corr.suStroud+' kPa' : '—'}</td>
+                <td>${corr&&corr.euMinMPa!=null ? corr.euMinMPa+'–'+corr.euMaxMPa : '—'}</td>
+              </tr>`;
+            }).join('')}
+          </tbody>
+        </table>
+        <p class="hint" style="margin-top:4px;">Estimativas de apoio técnico (correlações empíricas com N-SPT) — não substituem ensaio de laboratório. φ: Peck-Hanson-Thornburn (areia) ou aproximação intermediária (silte/aterro); alternativa Hatanaka-Uchida só para areia. Es: Kulhawy & Mayne. Su: Terzaghi & Peck / Stroud (só argila).</p>
+      </div>
+
       <div class="boletim-footer">
         <div class="legend-row">${legendHtml}</div>
         <div class="legend-row" style="font-family:var(--bo-mono);font-size:10px;">
@@ -3013,6 +3047,7 @@ function setBoletimTab(tab){
   if(tab==='cptu-manual') renderManualPane(f);
   else if(tab==='cptu-grafico') renderGraficoPane(f);
   else if(tab==='cptu-dissipacao') renderDissipacaoPane(f);
+  else if(tab==='spt-estimativas') renderSptEstimativasPane(f);
 }
 // alterna quais abas/campos aparecem no editor conforme o tipo de sondagem escolhido — SPT
 // mostra Nível d'Água/Camadas/Golpes (fluxo de sempre); CPTu troca por Dados do
@@ -3022,7 +3057,7 @@ function setBoletimTipoSondagem(tipo){
   const ehCptu = tipo==='CPTU';
   document.getElementById('bo-f-tipo-sondagem').value = tipo;
 
-  document.querySelectorAll('#bo-editor-overlay .edit-tab[data-tab="agua"], #bo-editor-overlay .edit-tab[data-tab="camadas"], #bo-editor-overlay .edit-tab[data-tab="golpes"]')
+  document.querySelectorAll('#bo-editor-overlay .edit-tab[data-tab="agua"], #bo-editor-overlay .edit-tab[data-tab="camadas"], #bo-editor-overlay .edit-tab[data-tab="golpes"], #bo-editor-overlay .edit-tab[data-tab="spt-estimativas"]')
     .forEach(b=> b.style.display = ehCptu ? 'none' : '');
   document.querySelectorAll('#bo-editor-overlay .edit-tab[data-tab^="cptu-"]')
     .forEach(b=> b.style.display = ehCptu ? '' : 'none');
@@ -3095,6 +3130,66 @@ function boAddGolpeRow(prof='', g1='', g2='', g3=''){
   tr.querySelector('.row-remove').addEventListener('click', ()=>tr.remove());
   document.getElementById('bo-tbody-golpes').appendChild(tr);
   upd();
+}
+
+/* ══════════════════════════════════════════════════════════════
+   PARÂMETROS ESTIMADOS — correlações empíricas clássicas de N-SPT por camada. Todas são
+   estimativas de apoio técnico (ver assistente do projeto): ponto de partida para
+   pré-dimensionamento, nunca substituto de ensaio específico (triaxial, adensamento, etc).
+   ══════════════════════════════════════════════════════════════ */
+
+// N-SPT médio (final = g2+g3) dentro da faixa de profundidade de uma camada
+function nSptMedioNaFaixa(golpes, profTopo, profBase){
+  const validos = (golpes||[]).filter(g=>{
+    const p = parseFloat(g.prof);
+    return isFinite(p) && p>=profTopo && p<=profBase && (g.g2!=='' || g.g3!=='');
+  }).map(g=> (parseFloat(g.g2)||0)+(parseFloat(g.g3)||0));
+  if(validos.length===0) return null;
+  return validos.reduce((a,b)=>a+b,0)/validos.length;
+}
+function classificarDrPorN(n){
+  if(n<4) return 'muito fofa (Dr<15%)';
+  if(n<10) return 'fofa (Dr 15–35%)';
+  if(n<30) return 'medianamente compacta (Dr 35–65%)';
+  if(n<50) return 'compacta (Dr 65–85%)';
+  return 'muito compacta (Dr>85%)';
+}
+// aplica as correlações clássicas de N-SPT conforme o tipo de solo da camada — usa o N-SPT
+// direto como aproximação de N60 (o app não registra a eficiência de energia do equipamento;
+// se o seu martelo tiver eficiência muito diferente de ~60%, ajuste os resultados manualmente)
+function calcularCorrelacoesSPT(tipo, nMedio){
+  if(nMedio==null || !isFinite(nMedio)) return null;
+  const n = nMedio;
+  const r = {n: Math.round(n*10)/10};
+  if(tipo==='areia'){
+    r.phiPHT = Math.max(25, Math.min(45, Math.round((27.1+0.3*n-0.00054*n*n)*10)/10));
+    r.phiHU = Math.round((3.5*Math.sqrt(Math.max(0,n))+22.3)*10)/10;
+    r.dr = classificarDrPorN(n);
+    r.esMPa = Math.round(10*0.1*n*10)/10; // Kulhawy&Mayne, Es≈α·Pa·N60, α~10, Pa=100kPa
+  } else if(tipo==='silte' || tipo==='aterro'){
+    r.phi = Math.max(20, Math.min(35, Math.round((22+0.25*n)*10)/10));
+    r.esMPa = Math.round(6*0.1*n*10)/10; // α~6, intermediário
+  } else if(tipo==='argila'){
+    r.suTP = Math.round(12.5*n);
+    const k = n<4?3.5 : n<8?4.5 : n<15?5.5 : n<30?6.5 : 8;
+    r.suStroud = Math.round(k*n);
+    const suMedio = (r.suTP+r.suStroud)/2;
+    r.euMinMPa = Math.round(400*suMedio/1000*10)/10;
+    r.euMaxMPa = Math.round(800*suMedio/1000*10)/10;
+  }
+  return r;
+}
+// monta a lista de linhas (uma por camada) já com as correlações calculadas — reaproveitada
+// tanto pela aba do editor quanto pelo boletim impresso, pra manter os dois sempre iguais
+function listarEstimativasSPT(f){
+  return (f.camadas||[]).map((c,i)=>{
+    const topo = i===0 ? 0 : parseFloat(f.camadas[i-1].profFinal)||0;
+    const base = parseFloat(c.profFinal)||0;
+    const tipo = (c.tipo||'outro').toLowerCase();
+    const nMedio = nSptMedioNaFaixa(f.golpes, topo, base);
+    const corr = calcularCorrelacoesSPT(tipo, nMedio);
+    return {topo, base, tipo, descricao:c.descricao||'', nMedio, corr};
+  });
 }
 
 function openBoletimEditor(id){
@@ -8765,6 +8860,14 @@ const SBTN_MOD_CLASSES = {
    pelas abas. Manter tudo num lugar só evita explicações inconsistentes entre as telas.
    ══════════════════════════════════════════════════════════════ */
 const PARAM_HELP = {
+  nSptEst: {titulo:'N-SPT médio da camada', texto:'Média aritmética do N-SPT (N = golpe2 + golpe3) de todas as leituras cuja profundidade cai dentro da faixa da camada. Usado como aproximação de N60 — o app não registra a eficiência de energia do equipamento; se o seu martelo tiver eficiência muito diferente de ~60%, corrija os resultados manualmente.'},
+  drEst: {titulo:'Dr — Densidade relativa (faixa)', texto:'Faixa qualitativa de compacidade para areias, a partir de N-SPT. Correlação clássica de Peck, Hanson & Thornburn (1974) — bastante usada, mas grosseira; não diferencia idade ou cimentação do depósito (Skempton, 1986, propôs refinamentos para isso).'},
+  phiPhtEst: {titulo:'φ — Ângulo de atrito (Peck, Hanson & Thornburn)', texto:'Estimativa do ângulo de atrito interno de areias a partir de N-SPT.', formula:'φ ≈ 27,1 + 0,3·N − 0,00054·N², limitado a [25°,45°] — Peck, Hanson & Thornburn (1974)'},
+  phiHuEst: {titulo:'φ — Ângulo de atrito (Hatanaka & Uchida)', texto:'Correlação mais recente, calibrada para areias médias a grossas. Compare com a de Peck-Hanson-Thornburn — convergem bem para areia limpa, divergem mais para areia siltosa ou muito angular.', formula:'φ ≈ 3,5·√N + 22,3 — Hatanaka & Uchida (1996)'},
+  esEst: {titulo:'Es — Módulo de deformação (estimado)', texto:'Estimativa de rigidez do solo sob carregamento, a partir de N-SPT. Correlação aproximada — a incerteza é maior que a de φ ou Su, sujeita a mais dispersão que ensaios de campo dedicados (pressiômetro, placa).', formula:'Es ≈ α·Pa·N, com α~10 (areia) ou α~6 (silte/aterro), Pa=100kPa — Kulhawy & Mayne (1990)'},
+  suTpEst: {titulo:'Su — Resistência não drenada (Terzaghi & Peck)', texto:'A correlação mais citada para argilas, mas com dispersão considerável (fator ~5 a ~10 dependendo do índice de plasticidade da argila).', formula:'Su ≈ 12,5·N (kPa) — Terzaghi & Peck (1967)'},
+  suStroudEst: {titulo:'Su — Resistência não drenada (Stroud)', texto:'Refinamento que varia o coeficiente conforme a consistência (N mais baixo → coeficiente menor, argila mais mole e mais plástica tende a essa faixa).', formula:'Su ≈ K·N, K entre ~3,5 (mole) e ~8 (rija) — Stroud (1974)'},
+  euEst: {titulo:'Eu — Módulo não drenado (faixa)', texto:'Faixa de referência para argilas normalmente adensadas, a partir da média das duas estimativas de Su. A razão Eu/Su real depende muito do índice de plasticidade e da OCR — trate como ordem de grandeza, não valor de projeto.', formula:'Eu ≈ 400 a 800 × Su (argila NA)'},
   qc: {titulo:'qc — Resistência de ponta', texto:'Medida diretamente pelo cone: a força que o solo oferece à cravação da ponta cônica, dividida pela área da ponta. Solos mais resistentes (areias compactas, argilas rijas) dão qc alto; solos moles dão qc baixo.'},
   fs: {titulo:'fs — Atrito lateral', texto:'Medido diretamente por uma luva metálica logo acima da ponta do cone. Argilas tendem a gerar mais atrito relativo que areias — por isso fs sozinho já ajuda a diferenciar tipos de solo.'},
   u2: {titulo:'u2 — Poropressão', texto:'Pressão da água nos poros do solo, medida por um sensor logo atrás da ponta (posição "u2" — daí o nome do ensaio, CPTu). É o parâmetro que mais diferencia o CPTu do CPT comum.'},
@@ -9100,6 +9203,56 @@ function recalcDerivedRow(row, gwlEstimado){
 function ordenarPerfilPorProfundidade(f){
   f.cptuPerfil.sort((a,b)=> (a.depth-b.depth));
 }
+function renderSptEstimativasPane(f){
+  const body = document.getElementById('bo-panel-spt-estimativas');
+  const linhas = listarEstimativasSPT(f);
+  if(linhas.length===0){
+    body.innerHTML = `<div class="ens-pane"><p class="hint">Cadastre ao menos uma camada de solo (aba 3) pra ver as correlações estimadas aqui.</p></div>`;
+    return;
+  }
+  body.innerHTML = `
+    <div class="ens-pane" style="max-width:100%;overflow-x:auto;">
+      <div class="fieldset-title">Parâmetros estimados por correlação com N-SPT</div>
+      <p class="hint">
+        Estimativas de apoio técnico a partir de correlações empíricas clássicas — não substituem
+        ensaio de laboratório (triaxial, adensamento) quando o projeto exigir. Cada correlação só
+        se aplica ao tipo de solo indicado; camadas sem N-SPT na sua faixa de profundidade, ou de
+        tipo rocha/outro, ficam sem estimativa.
+      </p>
+      <table class="diss-tbl" style="margin-top:10px;">
+        <thead><tr>
+          <th>Prof. (m)</th><th>Tipo</th><th>N-SPT médio${helpIcon('nSptEst')}</th>
+          <th>Dr${helpIcon('drEst')}</th>
+          <th>φ${helpIcon('phiPhtEst')}</th>
+          <th>φ (correlação alternativa)${helpIcon('phiHuEst')}</th>
+          <th>Es (MPa)${helpIcon('esEst')}</th>
+          <th>Su (Terzaghi-Peck)${helpIcon('suTpEst')}</th>
+          <th>Su (Stroud)${helpIcon('suStroudEst')}</th>
+          <th>Eu (MPa)${helpIcon('euEst')}</th>
+        </tr></thead>
+        <tbody>
+          ${linhas.map(l=>{
+            const c = l.corr;
+            const tipoLabel = (TIPOS_SOLO.find(t=>t[0]===l.tipo)||[,l.tipo])[1];
+            return `<tr>
+              <td>${l.topo.toFixed(2)}–${l.base.toFixed(2)}</td>
+              <td>${esc(tipoLabel)}</td>
+              <td>${c ? c.n.toFixed(1) : '—'}</td>
+              <td>${c&&c.dr ? esc(c.dr) : '—'}</td>
+              <td>${c&&c.phiPHT!=null ? c.phiPHT+'°' : (c&&c.phi!=null ? c.phi+'°' : '—')}</td>
+              <td>${c&&c.phiHU!=null ? c.phiHU+'°' : '—'}</td>
+              <td>${c&&c.esMPa!=null ? c.esMPa : '—'}</td>
+              <td>${c&&c.suTP!=null ? c.suTP+' kPa' : '—'}</td>
+              <td>${c&&c.suStroud!=null ? c.suStroud+' kPa' : '—'}</td>
+              <td>${c&&c.euMinMPa!=null ? c.euMinMPa+'–'+c.euMaxMPa : '—'}</td>
+            </tr>`;
+          }).join('')}
+        </tbody>
+      </table>
+      <p class="hint" style="margin-top:10px;">Areia: φ vem de Peck-Hanson-Thornburn, e a coluna "correlação alternativa" traz Hatanaka-Uchida (compare os dois). Silte/aterro: só a primeira coluna de φ é calculada (aproximação intermediária), sem alternativa nem Dr. Dr e Es só valem para areia; Su e Eu só para argila.</p>
+    </div>`;
+}
+
 function renderManualPane(f){
   const body = document.getElementById('bo-panel-cptu-manual');
   const linhasHtml = f.cptuPerfil.map((p,i)=>`

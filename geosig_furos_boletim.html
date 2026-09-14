@@ -3280,9 +3280,10 @@ function saveBoletimEditor(){
    ══════════════════════════════════════════════════════════════ */
 const BOLETIM_PRINT_CSS = document.getElementById('bo-editor-overlay') ? '' : ''; // placeholder, substituído abaixo
 function buildBoletimPrintCss(){
-  // reaproveita os tokens/estilos já carregados na página (--bo-*) via captura do <style> global
-  const styleEl = document.querySelector('style');
-  const base = styleEl ? styleEl.textContent : '';
+  // reaproveita os tokens/estilos já carregados na página (--bo-*, .cptu-*, etc.) — o
+  // documento tem MAIS DE UM bloco <style> (base + módulo CPTu + sistema visual), então
+  // concatena todos, não só o primeiro (que sozinho não tem o layout flex dos tracks do CPTu)
+  const base = Array.from(document.querySelectorAll('style')).map(el=>el.textContent).join('\n');
   return base + `
   @media print {
     body{ padding:0; }

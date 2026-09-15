@@ -9171,6 +9171,11 @@ function comprimirFaixasClasse(perfil, campo){
 function renderClasseColumnSVG(titulo, perfil, maxDepth, pxm, width, campo, classes, helpKey){
   const faixas = comprimirFaixasClasse(perfil, campo);
   const height = Math.max(1, maxDepth*pxm);
+  // a última faixa real só vai até a última leitura do perfil — mas o eixo de profundidade é
+  // arredondado para cima (ex.: dado até 9,13m, eixo até 10m), deixando um vão sem retângulo
+  // no final (visualmente parece a coluna "cortada" antes da hora). Estende a última faixa até
+  // o fim do eixo, preenchendo esse vão com a mesma cor da classe mais profunda medida.
+  if(faixas.length){ faixas[faixas.length-1] = {...faixas[faixas.length-1], depthFim: maxDepth}; }
   const rects = faixas.map(f=>{
     const y1 = f.depthIni*pxm, y2 = f.depthFim*pxm;
     const h = Math.max(0.6, y2-y1);

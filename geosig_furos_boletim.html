@@ -713,6 +713,15 @@ input,select,textarea{font-family:inherit;font-size:12px}
 
 .diss-tbl td:first-child,.diss-tbl th:first-child{text-align:left}
 
+/* a tabela de parâmetros estimados de SPT tem 12 colunas — larga demais pra caber numa
+   página impressa com o padding/fonte padrão do .diss-tbl. Fonte e padding menores, sempre
+   (não só na impressão), já que mesmo na tela 12 colunas ficam apertadas. */
+.spt-estimativas-tbl{font-size:8.5px;table-layout:fixed}
+
+.spt-estimativas-tbl th,.spt-estimativas-tbl td{padding:3px 4px;white-space:normal;word-break:break-word}
+
+.spt-estimativas-tbl th{font-size:7.5px;line-height:1.25}
+
 .boletim-section-title{font-family:var(--mono);font-size:10px;letter-spacing:.6px;text-transform:uppercase;
   color:var(--bo-accent);padding:16px 20px 8px}
 
@@ -2957,7 +2966,7 @@ function renderFuroBoletimHtml(state){
 
       <div class="boletim-section-title" style="margin:14px 20px 4px;">Parâmetros estimados por correlação com N-SPT</div>
       <div class="boletim-body-pad" style="padding:0 20px 10px;">
-        <table class="diss-tbl">
+        <table class="diss-tbl spt-estimativas-tbl">
           <thead><tr>
             <th>Prof. (m)</th><th>Tipo</th><th>N-SPT médio</th><th>Compacidade / Consistência</th>
             <th>φ (Godoy)</th><th>φ (Teixeira)</th><th>φ (P-H-T)</th><th>Es (MPa)</th>
@@ -9263,7 +9272,7 @@ function renderSptEstimativasPane(f){
         rocha/outro, ficam sem estimativa. Rode as correlações lado a lado e compare — se
         convergirem, mais confiança no valor.
       </p>
-      <table class="diss-tbl" style="margin-top:10px;">
+      <table class="diss-tbl spt-estimativas-tbl" style="margin-top:10px;">
         <thead><tr>
           <th>Prof. (m)</th><th>Tipo</th><th>N-SPT médio${helpIcon('nSptEst')}</th>
           <th>Compacidade / Consistência${helpIcon('compacidadeEst')}${helpIcon('consistenciaEst')}</th>

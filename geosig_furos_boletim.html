@@ -2962,6 +2962,7 @@ function renderFuroBoletimHtml(state){
             <th>Prof. (m)</th><th>Tipo</th><th>N-SPT médio</th><th>Compacidade / Consistência</th>
             <th>φ (Godoy)</th><th>φ (Teixeira)</th><th>φ (P-H-T)</th><th>Es (MPa)</th>
             <th>cu (Teixeira-Godoy)</th><th>cu (Terzaghi-Peck)</th><th>cu (conservador)</th>
+            <th>σadm estimada (kPa)</th>
           </tr></thead>
           <tbody>
             ${camadas.map(c=>{
@@ -2982,11 +2983,12 @@ function renderFuroBoletimHtml(state){
                 <td>${corr&&corr.cuTeixeiraGodoy!=null ? corr.cuTeixeiraGodoy+' kPa' : '—'}</td>
                 <td>${corr&&corr.cuTP!=null ? corr.cuTP+' kPa' : '—'}</td>
                 <td>${corr&&corr.cuConservador!=null ? corr.cuConservador+' kPa' : '—'}</td>
+                <td>${corr&&corr.admissivelKPa!=null ? corr.admissivelKPa : '—'}</td>
               </tr>`;
             }).join('')}
           </tbody>
         </table>
-        <p class="hint" style="margin-top:4px;">Estimativas de apoio técnico (correlações empíricas com N-SPT, prática brasileira + referências internacionais) — não substituem ensaio de laboratório. φ (areia): Godoy, Teixeira, Peck-Hanson-Thornburn; φ (silte/aterro): só a coluna "Teixeira". cu (só argila): Teixeira & Godoy, Terzaghi & Peck (ver ressalva no app sobre divergência de fontes para esse valor), e um valor conservador. Es varia por tipo de solo.</p>
+        <p class="hint" style="margin-top:4px;">Estimativas de apoio técnico (correlações empíricas com N-SPT, prática brasileira + referências internacionais) — não substituem ensaio de laboratório. φ (areia): Godoy, Teixeira, Peck-Hanson-Thornburn; φ (silte/aterro): só a coluna "Teixeira". cu (só argila): Teixeira & Godoy, Terzaghi & Peck (ver ressalva no app sobre divergência de fontes para esse valor), e um valor conservador. Es varia por tipo de solo. σadm estimada: regra prática direta (σadm≈N/5 kgf/cm²≈20·N kPa), sem passar por φ/c nem geometria de sapata — a menos confiável desta tabela, só ordem de grandeza para fase muito preliminar; um dimensionamento de fundação exige método completo (Terzaghi/Meyerhof/Hansen/Vesic).</p>
       </div>
 
       <div class="boletim-footer">
@@ -3196,6 +3198,13 @@ function calcularCorrelacoesSPT(tipo, nMedio){
     r.cuConservador = Math.round(5*n);
     r.esMinMPa = Math.round(1.5*n*10)/10;
     r.esMaxMPa = Math.round(3.0*n*10)/10;
+  }
+  // tensão admissível de fundação rasa — regra prática direta (N para σadm, sem passar por
+  // φ/c nem depender de dimensão/profundidade da sapata), tradicional na prática brasileira
+  // para pré-dimensionamento muito preliminar. Não se aplica a rocha (mecanismo de ruptura
+  // diferente) nem fora da faixa de N onde a regra foi calibrada (~4 a ~40).
+  if(tipo==='areia' || tipo==='silte' || tipo==='argila' || tipo==='aterro'){
+    r.admissivelKPa = Math.round(20*n);
   }
   return r;
 }
@@ -8890,6 +8899,7 @@ const PARAM_HELP = {
   cuTeixeiraGodoyEst: {titulo:'cu — Coesão não drenada (Teixeira & Godoy)', texto:'A correlação mais usada na prática brasileira para argilas.', formula:'cu ≈ 10·N (kPa) — Teixeira & Godoy (1996)'},
   cuTpEst: {titulo:'cu — Coesão não drenada (Terzaghi & Peck)', texto:'Atribuída a Terzaghi & Peck (1967), mas com uma ressalva importante: diferentes fontes citam valores de 6·N a 12,5·N sob o mesmo nome — a diferença provável é entre resistência à compressão não confinada qu (≈12,5·N) e a coesão não drenada cu=qu/2 (≈6·N). O valor aqui usa 12,5·N; confira com cautela antes de adotar em projeto, e compare com Teixeira & Godoy e o valor conservador ao lado.', formula:'cu ≈ 12,5·N (kPa)'},
   cuConservadorEst: {titulo:'cu — Coesão não drenada (conservador)', texto:'Estimativa deliberadamente mais baixa que as demais, para uso quando se quer margem de segurança adicional numa fase muito preliminar.', formula:'cu ≈ 5·N (kPa)'},
+  admissivelEst: {titulo:'σadm — Tensão admissível (estimativa direta)', texto:'Regra prática tradicional que vai direto de N-SPT para a tensão admissível de fundação rasa, sem passar por φ/c e sem considerar dimensão, profundidade ou tipo de sapata — é a estimativa menos confiável desta tabela, válida só como ordem de grandeza numa fase muito preliminar (viabilidade, comparação de alternativas). Calibrada para N entre ~4 e ~40; fora dessa faixa (solo muito mole ou muito compacto/rijo) o resultado perde ainda mais significado. Não considera nível de água, tipo de ruptura (geral/local/puncionamento) nem recalque admissível do projeto específico — um dimensionamento de fundação de verdade precisa do método completo (Terzaghi, Meyerhof, Hansen ou Vesic) com φ/c e geometria da sapata, não desta linha.', formula:'σadm ≈ N/5 (kgf/cm²) ≈ 20·N (kPa) — prática brasileira tradicional'},
   qc: {titulo:'qc — Resistência de ponta', texto:'Medida diretamente pelo cone: a força que o solo oferece à cravação da ponta cônica, dividida pela área da ponta. Solos mais resistentes (areias compactas, argilas rijas) dão qc alto; solos moles dão qc baixo.'},
   fs: {titulo:'fs — Atrito lateral', texto:'Medido diretamente por uma luva metálica logo acima da ponta do cone. Argilas tendem a gerar mais atrito relativo que areias — por isso fs sozinho já ajuda a diferenciar tipos de solo.'},
   u2: {titulo:'u2 — Poropressão', texto:'Pressão da água nos poros do solo, medida por um sensor logo atrás da ponta (posição "u2" — daí o nome do ensaio, CPTu). É o parâmetro que mais diferencia o CPTu do CPT comum.'},
@@ -9254,6 +9264,7 @@ function renderSptEstimativasPane(f){
           <th>cu (Teixeira &amp; Godoy)${helpIcon('cuTeixeiraGodoyEst')}</th>
           <th>cu (Terzaghi-Peck)${helpIcon('cuTpEst')}</th>
           <th>cu (conservador)${helpIcon('cuConservadorEst')}</th>
+          <th>σadm estimada (kPa)${helpIcon('admissivelEst')}</th>
         </tr></thead>
         <tbody>
           ${linhas.map(l=>{
@@ -9273,11 +9284,12 @@ function renderSptEstimativasPane(f){
               <td>${c&&c.cuTeixeiraGodoy!=null ? c.cuTeixeiraGodoy+' kPa' : '—'}</td>
               <td>${c&&c.cuTP!=null ? c.cuTP+' kPa' : '—'}</td>
               <td>${c&&c.cuConservador!=null ? c.cuConservador+' kPa' : '—'}</td>
+              <td>${c&&c.admissivelKPa!=null ? c.admissivelKPa : '—'}</td>
             </tr>`;
           }).join('')}
         </tbody>
       </table>
-      <p class="hint" style="margin-top:10px;">Areia: φ (Godoy, Teixeira e Peck-Hanson-Thornburn), compacidade e Es. Silte/aterro: só a coluna "Teixeira" traz φ (aproximação intermediária), sem as demais. Argila: consistência, as três estimativas de cu, e Es — veja a nota do ícone de ajuda de "cu (Terzaghi-Peck)" sobre a divergência entre fontes para esse valor específico.</p>
+      <p class="hint" style="margin-top:10px;">Areia: φ (Godoy, Teixeira e Peck-Hanson-Thornburn), compacidade e Es. Silte/aterro: só a coluna "Teixeira" traz φ (aproximação intermediária), sem as demais. Argila: consistência, as três estimativas de cu, e Es — veja a nota do ícone de ajuda de "cu (Terzaghi-Peck)" sobre a divergência entre fontes para esse valor específico. σadm estimada: regra prática direta (não passa por φ/c nem geometria de sapata) — é a menos confiável de todas, só para ordem de grandeza numa fase muito preliminar; veja o ícone de ajuda antes de usar.</p>
     </div>`;
 }
 

@@ -3176,8 +3176,13 @@ function classificarConsistenciaPorN(n){
 // (vs. 60% da referência internacional), então N60 real tende a ser um pouco maior que o N de
 // campo brasileiro (N60 ≈ N × η/60) — se souber a eficiência do seu equipamento, ajuste os
 // resultados manualmente por esse fator antes de usar em projeto
-function calcularCorrelacoesSPT(tipo, nMedio){
+function calcularCorrelacoesSPT(tipoBruto, nMedio){
   if(nMedio==null || !isFinite(nMedio)) return null;
+  // resolve tipos de solo customizados (ex.: "Silte argiloso", "Areia argilosa" cadastrados
+  // pelo usuário no gerenciador de tipos) pro padrão básico que definem visualmente (mesma
+  // função usada para escolher a hachura) — sem isso, qualquer tipo que não fosse exatamente
+  // uma das 6 chaves de fábrica ficava sem nenhuma correlação calculada
+  const tipo = soilPatId(tipoBruto);
   const n = nMedio;
   const r = {n: Math.round(n*10)/10};
   if(tipo==='areia'){

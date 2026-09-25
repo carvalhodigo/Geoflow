@@ -836,13 +836,15 @@ const DEFS = {
       {k:'beta2',   l:'β₂ — ângulo talude sup.',    u:'°',     v:45,  s:1},
     ],
     inputs:['q'],
-    outputs:['h','b','n','gat','q','c','phi','berma','wb','hb','beta2','beta','beta_inf','dsv'],
+    outputs:['h','b','n','gat','q','c','phi','berma','wb','hb','beta2','beta','beta_inf','dsv','modoCamada'],
     calc(p,i){
       const beta = +(Math.atan(1/Math.max(p.n,.01))*180/Math.PI).toFixed(2);
       // Accept sobrecarga via connection — accumulate on top of manual q
       const q_total = (p.q||0) + (i.q!=null&&i.q!==p.q ? i.q : 0);
       const dsv = +(p.gat*p.h + q_total).toFixed(3);
+      const _F=(i&&Array.isArray(i._fundacoes))?i._fundacoes:[];
       return{h:p.h,b:p.b,n:p.n,gat:p.gat,q:q_total,
+             modoCamada:_F.length>0,_fundacoes:_F,xRef:_F.length?_F[0].deslocH:0,
              c:p.c,phi:p.phi,
              berma:p.berma,wb:p.wb,hb:p.hb,
              beta2:p.beta2,
@@ -990,11 +992,13 @@ const DEFS = {
     calc(p,i){
       // dsv: from aterro (includes its own q) or entered manually
       const dsv=i.dsv!==null&&i.dsv!==undefined?+i.dsv:+p.dsv;
+      const AC=i._atCamada||null; // aterro-camada com fundações: Δσv = somatório por profundidade
 
       // Multi-layer: when layers array comes from multicamadas
       if(i.layers&&i.layers.length){
         const yw=i._yw!=null?+i._yw:10; // unit weight of water from NA
         let svTop=0; // effective stress at top of current layer (kPa)
+        let zAcc=0,sumW=0,sumAt=0,sumQ=0,sumF=0; // profundidade abaixo da base do aterro / médias ponderadas
         let totalRhoP=0,totalHs=0;
         let sv0_f=null,e1_f=null,Ca_f=null,ocr_f=null,svf_f=null;
         const layerResults=[];
@@ -1007,7 +1011,9 @@ const DEFS = {
           const gPrime_c = (lay.saturated===true) ? Math.max(0.1, garg_c-10) : garg_c;
           console.log('[RP layer]',lay._nome,'sigvm input:',lay.sigvm,'→ sigvm_c:',sigvm_c,'sv0_preview:',+(svTop+gPrime_c*(Hs_c/2)).toFixed(2));
           const sv0_c=Math.max(.1, svTop + gPrime_c*(Hs_c/2));
-          const svf_c=sv0_c+dsv, svm_c=sigvm_c; // use sigvm as-is, no max clamp
+          let dsv_c=dsv,brk=null;
+          if(AC){brk=_atCamadaSimpson(AC,zAcc,zAcc+Hs_c);dsv_c=brk.total;sumW+=dsv_c*Hs_c;sumAt+=brk.at*Hs_c;sumQ+=brk.q*Hs_c;sumF+=brk.fund*Hs_c;}
+          const svf_c=sv0_c+dsv_c, svm_c=sigvm_c; // use sigvm as-is, no max clamp
           let de_c=0;
           if(svf_c<=svm_c)      de_c=Cs_c*Math.log10(Math.max(svf_c/sv0_c,1.000001));
           else if(sv0_c>=svm_c) de_c=Cc_c*Math.log10(svf_c/sv0_c);
@@ -1015,11 +1021,13 @@ const DEFS = {
           const rhoP_c=Math.max(0,Hs_c*de_c/(1+e0_c));
           totalRhoP+=rhoP_c; totalHs+=Hs_c;
           svTop+=gPrime_c*Hs_c; // advance stress to base
+          const _zT=zAcc; zAcc+=Hs_c;
           if(sv0_f===null){sv0_f=sv0_c;svf_f=svf_c;ocr_f=svm_c/sv0_c;
             e1_f=Math.max(.001,e0_c-de_c);Ca_f=+(Cc_c*.04).toFixed(5);}
           layerResults.push({nome:lay._nome||'C'+(layerResults.length+1),
             Hs:Hs_c,garg:garg_c,gPrime:+gPrime_c.toFixed(2),dry:!!lay.dry,saturated:!!lay.saturated,
             e0:e0_c,Cc:Cc_c,Cs:Cs_c,sigvm:sigvm_c,
+            dsv:+dsv_c.toFixed(3),zTop:_zT,zBase:zAcc,brk:brk?{at:brk.at,q:brk.q,fund:brk.fund,total:brk.total,funds:brk.funds,pts:brk.pts,zm:brk.zm}:null,
             svTop:+svTop.toFixed(3), // stress at BASE of layer (for next layer)
             sv0:+sv0_c.toFixed(3),svf:+svf_c.toFixed(3),
             svm:+svm_c.toFixed(3),ocr:+(svm_c/sv0_c).toFixed(3),
@@ -1027,7 +1035,9 @@ const DEFS = {
             rhoP:+rhoP_c.toFixed(5)});
         });
         const c0=i.layers[0];
-        return{sv0:+sv0_f.toFixed(3),dsv:+dsv.toFixed(3),svf:+svf_f.toFixed(3),
+        const _dsvOut=(AC&&totalHs>0)?sumW/totalHs:dsv;
+        return{atCamada:AC?Object.assign({},AC,{dsvAt:sumAt/totalHs,dsvQ:sumQ/totalHs,dsvFund:sumF/totalHs}):null,
+               sv0:+sv0_f.toFixed(3),dsv:+_dsvOut.toFixed(3),svf:+svf_f.toFixed(3),
                ocr:+ocr_f.toFixed(3),rhoP:+totalRhoP.toFixed(5),
                e1:+e1_f.toFixed(5),de:0,Ca:Ca_f,
                Hs:+totalHs.toFixed(2),e0:+c0.e0,Cc:+c0.Cc,Cs:+c0.Cs,sigvm:+c0.sigvm,
@@ -1047,7 +1057,9 @@ const DEFS = {
       const sigvm=i.sigvm!==null&&i.sigvm!==undefined?+i.sigvm:+p.sigvm;
       // σ'v0 at mid-layer; no NA → use full γ (γw=0)
       const sv0=Math.max(.1, garg*(Hs/2));
-      const svf=sv0+dsv;
+      let dsvU=dsv,brk1=null;
+      if(AC){brk1=_atCamadaSimpson(AC,0,Hs);dsvU=brk1.total;}
+      const svf=sv0+dsvU;
       const svm=sigvm; // use sigvm as-is, no max clamp
       const ocr=svm/sv0;
       let de=0;
@@ -1057,7 +1069,7 @@ const DEFS = {
       const rhoP=Math.max(0,Hs*de/(1+e0));
       const e1=Math.max(0.001,e0-de);
       const Ca=+(Cc*0.04).toFixed(5);
-      return{sv0:+sv0.toFixed(3),dsv:+dsv.toFixed(3),svf:+svf.toFixed(3),
+      return{atCamada:AC,atBreak:brk1,sv0:+sv0.toFixed(3),dsv:+dsvU.toFixed(3),svf:+svf.toFixed(3),
              ocr:+ocr.toFixed(3),rhoP:+rhoP.toFixed(5),
              e1:+e1.toFixed(5),de:+de.toFixed(5),Ca,Hs,e0,Cc,Cs,sigvm:svm};
     }
@@ -1733,7 +1745,7 @@ const KLBL={h:'h',b:'b',n:'n',gat:'γat',q:'q',Su:'Su',Hs:'Hs',garg:'γarg',
   c:"c'",phi:"φ'",beta:'β (°)',berma:'berma',wb:'wb',hb:'hb',beta2:'β₂',
   rhoI:'ρi',Ip:'Ip',razaoLB:'L/B',Bmin:'B',Lmax:'L',Es:'Es',nu:'ν',admLimite:'ρadm',
   mu0:'μ0',mu1:'μ1',hOverB:'h/B',HOverB:'H/B',Hfin:'H',forma:'forma',
-  Izmax:'Izmax',C1:'C1',somaIzEs:'ΣIzΔz/Es',sigmaStar:'σ*',gama:'γ',sigma:'σ'};
+  Izmax:'Izmax',C1:'C1',somaIzEs:'ΣIzΔz/Es',sigmaStar:'σ*',gama:'γ',sigma:'σ',_fundacao_link:'Fundação → camada'};
 const KUNIT={h:'m',b:'m',gat:'kN/m³',q:'kPa',Su:'kPa',Hs:'m',garg:'kN/m³',
   sv0:'kPa',dsv:'kPa',svf:'kPa',sigvm:'kPa',rhoP:'m',rhoS:'m',rhoTot:'m',
   rhoTotCm:'cm',rhoScm:'cm',qr:'kPa',hcr:'m',hadm:'m',e1:'',de:'',Ca:'',
@@ -1777,6 +1789,9 @@ function shared(fromId,toId){
     // Accepts soloMole and nivelAgua connections
     return (typ(fromId)==='soloMole'||typ(fromId)==='nivelAgua')?['_mc_link']:[];
   }
+  // Fundação (Sapata/Radier/Máquinas) → Aterro: o aterro passa a se comportar como CAMADA
+  // (as tensões da fundação se propagam pelo aterro e pelo solo; o recalque soma tudo)
+  if(typ(toId)==='aterro'&&_AT_FUND_TYPES.includes(typ(fromId)))return['_fundacao_link'];
   // Sapata → Recalque Primário: só o Δσv (q aplicada, área efetiva de Meyerhof) flui —
   // evita que outras chaves em comum (garg, Su etc.) sejam sobrescritas sem pedir
   if(typ(fromId)==='sapata'&&typ(toId)==='recPrim'){
@@ -1785,6 +1800,115 @@ function shared(fromId,toId){
   const fo=DEFS[typ(fromId)]?.outputs||[];
   const ti=DEFS[typ(toId)]?.inputs||[];
   return ti.filter(k=>fo.includes(k));
+}
+
+// ════════════════════════════════════════════════════════
+//  ATERRO COMO CAMADA — fundação (Sapata/Radier/Máquinas) conectada ao Aterro
+//  • O aterro passa a ser a 1ª camada do perfil: Df da fundação é medido do TOPO do aterro.
+//  • As tensões se propagam pelo aterro e pelo solo: peso do aterro (Osterberg 2D) +
+//    sobrecarga no topo (faixa, Flamant) + cada fundação (Boussinesq 3D, 4 cantos de Newmark).
+//  • Recalque Primário: Δσv por camada = SOMATÓRIO das parcelas, avaliado em z (abaixo da base do aterro).
+// ════════════════════════════════════════════════════════
+const _AT_FUND_TYPES=['sapata','radier','maquinas'];
+
+// Δσz de carga em faixa uniforme q, largura B, centrada em x=0 (Das): (q/π)[α + senα·cos(θ1+θ2)]
+function _atStripSigma(q,B,x,z){
+  if(!(q>0)||!(B>0)||!(z>0))return 0;
+  const t1=Math.atan((x+B/2)/z), t2=Math.atan((x-B/2)/z), a=t1-t2;
+  return (q/Math.PI)*(a+Math.sin(a)*Math.cos(t1+t2));
+}
+// Fundações conectadas ao aterro (na ordem das conexões)
+function _collectFundacoesAterro(atId,V){
+  const out=[];let k=0;
+  S.edges.forEach(e=>{
+    if(e.to!==atId)return;
+    const fn=S.nodes.find(nd=>nd.id===e.from);
+    if(!fn||!_AT_FUND_TYPES.includes(fn.type)||!V[fn.id])return;
+    const v=V[fn.id];
+    const A=(v.L!=null&&+v.L>0)?+v.L:(+v.A||0), B=+v.B||0;
+    k++;
+    out.push({id:fn.id,tipo:fn.type,
+      nome:(fn.params&&fn.params.nome)||((DEFS[fn.type]&&DEFS[fn.type].tag)||fn.type)+(k>1?' #'+k:''),
+      A,B,q:+v.dsv||0,Df:Number.isFinite(+v.Df)?+v.Df:0,
+      deslocH:Number.isFinite(+(fn.params&&fn.params.deslocH))?+fn.params.deslocH:0,
+      sadm:(fn.params&&+fn.params.sadm>0)?+fn.params.sadm:null});
+  });
+  return out;
+}
+// Aterro conectado como camada superior → entradas de solo da fundação passam a enxergar o aterro
+function _applyAterroLayerToFoundationInputs(n,V,inp){
+  const e=S.edges.find(e=>e.from===n.id&&typ(e.to)==='aterro');
+  if(!e)return;
+  const av=V[e.to]||{}, h=+av.h||0;
+  if(!(h>0))return;
+  const depth=(n.type==='maquinas')?(+n.params.Hemb!=null&&isFinite(+n.params.Hemb)?+n.params.Hemb:+n.params.H||0)
+                                   :(Number.isFinite(+n.params.Df)?+n.params.Df:1.5);
+  const atLayer={topo:0,base:h,Hs:h,espessura:h,garg:+av.gat||18,phi:+av.phi||0,coh:+av.c||0,Su:null,
+                 soloType:'aterro',tipo:'aterro',_nome:'Aterro',_aterroCamada:true};
+  if(Array.isArray(inp.layers)&&inp.layers.length){
+    const hasTopo=inp.layers[0]&&inp.layers[0].topo!=null&&!isNaN(+inp.layers[0].topo);
+    inp.layers=[atLayer].concat(inp.layers.map(l=>hasTopo?Object.assign({},l,{topo:+l.topo+h,base:+l.base+h}):l));
+  }else if(depth<=h){
+    inp.layers=[atLayer];
+  }
+  if(inp.waterDepth!=null&&isFinite(+inp.waterDepth))inp.waterDepth=+inp.waterDepth+h; // NA medido do topo do aterro
+}
+// Contexto "aterro-camada" para o Recalque Primário conectado ao aterro
+function _collectAtCamadaForRP(rpId,V){
+  for(const e of S.edges){
+    if(e.to!==rpId)continue;
+    const fn=S.nodes.find(nd=>nd.id===e.from);
+    if(!fn||fn.type!=='aterro')continue;
+    const av=V[fn.id];
+    if(av&&av.modoCamada&&Array.isArray(av._fundacoes)&&av._fundacoes.length){
+      return{atId:fn.id,h:+av.h||0,b:+av.b||0,n:+av.n||1.5,gat:+av.gat||18,q:+av.q||0,
+             xRef:+av.xRef||0,funds:av._fundacoes};
+    }
+  }
+  return null;
+}
+// Distância vertical do topo do aterro (para desenhar a fundação sobre o aterro)
+function _atTopOf(fundId,inScope){
+  const e=S.edges.find(e=>e.from===fundId&&typ(e.to)==='aterro');
+  if(!e)return 0;
+  const an=S.nodes.find(n=>n.id===e.to);
+  if(!an||(inScope&&!inScope(an)))return 0;
+  return +((S.vals[e.to]||{}).h)||0;
+}
+// Δσz total num ponto: x medido do eixo do aterro; zSolo = profundidade abaixo da BASE do aterro (terreno natural)
+// Devolve também o detalhamento (ângulos/fatores de influência) para a memória de cálculo
+function _atCamadaSigma(AC,zSolo){
+  const z=Math.max(zSolo,0.01), h=AC.h, x=AC.xRef||0;
+  let sAt=0,detAt=null;
+  if(h>0&&AC.b>=0){
+    const Bs=+(h*AC.n).toFixed(3);
+    sAt=_tsSigmaAt(AC.b,Bs,h,AC.gat,x,z);
+    const hBc=AC.b/2,q0=AC.gat*h;
+    if(Math.abs(x)<=hBc){
+      const B1=hBc-Math.abs(x),B1p=AC.b-B1,m1=B1/z,m1p=B1p/z,n2=Bs/z;
+      detAt={ramo:'crista',q0,B1,B1p,B2:Bs,m1,m1p,n:n2,I1:_tsOcI2(m1,n2),I2:_tsOcI2(m1p,n2)};
+    }else detAt={ramo:'fora',q0,B2:Bs};
+  }
+  const sQ=(AC.q>0&&AC.b>0)?_atStripSigma(AC.q,AC.b,x,z):0;
+  const funds=(AC.funds||[]).map(f=>{
+    const zl=h+zSolo-f.Df;                    // profundidade abaixo da BASE da fundação
+    const ok=zl>0&&f.q>0&&f.A>0&&f.B>0;
+    const s=ok?_tsSigmaRectAt(f.q,f.A,f.B,x-f.deslocH,0,zl):0;
+    const dx=x-f.deslocH;
+    const det=ok?{zl,dx,m:(f.A/2)/zl,n:(f.B/2)/zl,I:(Math.abs(dx)<1e-9)?_tsIsigmaRect((f.A/2)/zl,(f.B/2)/zl):null}:{zl,dx,m:null,n:null,I:null};
+    return{id:f.id,nome:f.nome,tipo:f.tipo,val:s,det};
+  });
+  const sF=funds.reduce((a,f)=>a+f.val,0);
+  return{z:zSolo,at:sAt,detAt,q:sQ,fund:sF,total:sAt+sQ+sF,funds};
+}
+// Média de Simpson (topo, meio, base) de cada parcela numa camada [z0,z1]
+function _atCamadaSimpson(AC,z0,z1){
+  const zt=Math.max(z0,0), zb=Math.max(z1,zt+1e-6), zm=(zt+zb)/2;
+  const a=_atCamadaSigma(AC,zt), m=_atCamadaSigma(AC,zm), b=_atCamadaSigma(AC,zb);
+  const S6=(f)=>(f(a)+4*f(m)+f(b))/6;
+  return{at:S6(s=>s.at),q:S6(s=>s.q),fund:S6(s=>s.fund),total:S6(s=>s.total),
+         funds:(AC.funds||[]).map((f,k)=>({id:f.id,nome:f.nome,tipo:f.tipo,val:(a.funds[k].val+4*m.funds[k].val+b.funds[k].val)/6})),
+         pts:{top:a,mid:m,bot:b},z0:zt,z1:zb,zm};
 }
 
 // ════════════════════════════════════════════════════════
@@ -1887,10 +2011,15 @@ function calcAll(){
           inp._wtDepth=null;
         }
       }
+      // ── Aterro como CAMADA: fundações conectadas / camada superior da fundação / Δσ total no RP ──
+      if(n.type==='aterro')inp._fundacoes=_collectFundacoesAterro(n.id,V);
+      if(_AT_FUND_TYPES.includes(n.type))_applyAterroLayerToFoundationInputs(n,V,inp);
+      if(n.type==='recPrim')inp._atCamada=_collectAtCamadaForRP(n.id,V);
       const out=def.calc(n.params,inp);
       Object.assign(V[n.id],out);
       // For SAP: preserve layer-specific Su/garg/soloType from calc — don't overwrite with averages
-      const skipKeys=(n.type==='sapata'||n.type==='radier')?new Set(['_layers','_yw','_wtDepth','Su','garg','phi','coh','soloType']):new Set(['_layers','_yw','_wtDepth']);
+      const skipKeys=(n.type==='sapata'||n.type==='radier')?new Set(['_layers','_yw','_wtDepth','Su','garg','phi','coh','soloType','_atCamada','_fundacoes']):new Set(['_layers','_yw','_wtDepth','_atCamada','_fundacoes']);
+      if(n.type==='recPrim'&&inp._atCamada)skipKeys.add('dsv');
       Object.keys(inp).forEach(k=>{if(inp[k]!=null&&!skipKeys.has(k))V[n.id][k]=inp[k];});    });
   }
   S.vals=V;
@@ -2642,6 +2771,21 @@ function mkNode(n){
       } // end if showOuts.length
     }
     inner+=`</div>`;// .nb
+    if(_AT_FUND_TYPES.includes(n.type)){
+      const _hTop=_atTopOf(n.id,null);
+      if(_hTop>0){
+        inner+=`<div style="padding:6px 10px;border-top:1px solid var(--bdr);background:#eef4ee;font-size:10px;line-height:1.45;color:#2d5a3d">
+          <b>🧱 Apoiada no aterro</b> (h = ${(+_hTop).toFixed(2)} m): Df é medido do <b>topo do aterro</b>; γ, φ' e c' em Df vêm do aterro (se Df ≤ h) ou do perfil abaixo.</div>`;
+      }
+    }
+    if(n.type==='aterro'){
+      const _av=S.vals[n.id]||{}, _fl=_av._fundacoes||[];
+      if(_fl.length){
+        inner+=`<div style="padding:6px 10px;border-top:1px solid var(--bdr);background:#eef4ee;font-size:10px;line-height:1.45;color:#2d5a3d">
+          <b>🧱 Aterro = camada</b> — recebe ${_fl.length} fundaç${_fl.length>1?'ões':'ão'}: ${_fl.map(f=>_frEsc(f.nome)+' (Df='+(+f.Df).toFixed(2)+' m · q='+(+f.q).toFixed(0)+' kPa)').join('; ')}.<br>
+          Δσ das fundações + peso do aterro se propagam pelo aterro e pelo solo; o Recalque Primário conectado soma tudo.</div>`;
+      }
+    }
   }
 
   // Rodapé — botões que abrem popups/editores (movidos do header para não estourar o card)
@@ -2671,6 +2815,12 @@ function mkNode(n){
     const _bsCur=_bsHasActive?'not-allowed':'pointer';
     const _bsTip=_bsHasActive?'Camadas já exportadas. Remova alguma das caixas geradas para reativar.':'Gera caixas SM/NA/MC no canvas com base nas camadas do boletim';
     const _bsTxt=_bsHasActive?'✓ Camadas exportadas':'🗻 Exportar Camadas';
+    const _bsFuro=(n.params&&n.params._furoId)||'';
+    inner+=`<div style="padding:6px 10px;border-top:1px solid var(--bdr);background:#faf7f2;display:flex;align-items:center;gap:6px">
+      <span style="font-size:10px;color:#7a6a58;white-space:nowrap">Furo:</span>
+      <span title="${_bsFuro?_frEsc('Furo associado: '+_bsFuro+(n.params._furoFonte?' ('+n.params._furoFonte+')':'')):'Nenhum furo associado — use 📂 Furos para ler o furos.json'}" style="flex:1;min-width:0;font-family:var(--mono);font-size:11px;font-weight:700;color:${_bsFuro?'#8B4513':'#a09a8e'};overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${_bsFuro?_frEsc(_bsFuro):'— nenhum —'}</span>
+      <button class="btn-gfx" style="background:#8B4513;padding:3px 8px;height:auto;font-size:10.5px" onclick="openFuroPicker('${n.id}');event.stopPropagation()" title="Ler furos.json e escolher o furo deste boletim">📂 Furos</button>
+    </div>`;
     inner+=`<div style="padding:8px 10px;border-top:1px solid var(--bdr);background:#faf7f2;border-radius:0 0 var(--r-lg) var(--r-lg)">
       <button class="btn-gfx" ${_bsHasActive?'disabled':''} style="background:${_bsBg};width:100%;padding:6px 10px;font-size:11px;display:flex;align-items:center;justify-content:center;gap:6px;cursor:${_bsCur};opacity:${_bsHasActive?'0.7':'1'}" onclick="exportBoletimCamadasWithConfirm('${n.id}');event.stopPropagation()" title="${_bsTip}">${_bsTxt}</button>
     </div>`;
@@ -2803,6 +2953,8 @@ function addEdge(fromId,toId){
   } else if(typ(toId)==='desenho'){
     // OK — uma caixa Desenho aceita várias conexões (todas as caixas que devem
     // aparecer juntas nessa seção transversal), sem substituir as anteriores
+  } else if(typ(toId)==='aterro'&&keys.includes('_fundacao_link')){
+    // OK — um aterro aceita várias fundações (todas propagam tensões nele e no solo abaixo)
   } else if(typ(toId)==='sensib'){
     S.edges=S.edges.filter(e=>e.to!==toId);
   } else {
@@ -3664,6 +3816,15 @@ function openBoletim(nodeId){
   }
 
   // No iframe yet — create one for this specific node
+  _bsBuildFrame(nodeId,true);
+}
+
+// Cria o iframe do boletim para a caixa (visible=false → carrega "escondido", usado ao associar um furo:
+// o boletim é gerado com os dados e devolve o snapshot ao app via autosave, sem abrir o popup).
+function _bsBuildFrame(nodeId,visible){
+  const container=document.getElementById('bs-frame-container');
+  if(!container)return null;
+  const frameId='bs-frame-'+nodeId;
   const node=inst(nodeId);
   const p=(node&&node.params)||{};
   const savedData={
@@ -3675,19 +3836,19 @@ function openBoletim(nodeId){
   const injection=`<script>window.__BS_INITIAL_DATA__=${JSON.stringify(savedData).replace(/<\//g,'<\\/')};window.__BS_NODE_ID__=${JSON.stringify(nodeId)};<\/script>`;
   const htmlWithData=BS_HTML.replace('</head>',injection+'</head>');
 
-  // Create blob URL and iframe for this node
   const blob=new Blob([htmlWithData],{type:'text/html;charset=utf-8'});
   const blobUrl=URL.createObjectURL(blob);
   if(!window._bsBlobUrls)window._bsBlobUrls={};
   window._bsBlobUrls[nodeId]=blobUrl;
 
-  frm=document.createElement('iframe');
+  const frm=document.createElement('iframe');
   frm.id=frameId;
   frm.src=blobUrl;
   frm.setAttribute('data-node-id',nodeId);
-  frm.style.cssText='flex:1;width:100%;border:none;background:#fff;display:block';
+  frm.style.cssText='flex:1;width:100%;border:none;background:#fff;display:'+(visible?'block':'none');
   container.appendChild(frm);
-  console.log('[BS] Created new iframe for node',nodeId);
+  console.log('[BS] Created new iframe for node',nodeId,visible?'(visível)':'(oculto)');
+  return frm;
 }
 
 function closeBoletim(){
@@ -3759,6 +3920,443 @@ window.addEventListener('message',function(e){
   }catch(err){console.warn('[Parent] refresh failed:',err);}
 });
 
+
+
+// ════════════════════════════════════════════════════════
+//  BS — ASSOCIAR FURO A PARTIR DE furos.json
+//  • Lê o arquivo (seletor de arquivo / arrastar-e-soltar / fetch de 'furos.json' ao lado do app)
+//  • Normaliza vários formatos de JSON para o formato interno do boletim
+//  • Modal para escolher o furo + pré-visualização
+//  • Aplica o furo na caixa BS (ident, N.A., camadas, golpes) e regenera o boletim/snapshot
+// ════════════════════════════════════════════════════════
+window._furosDb=window._furosDb||{fonte:'',furos:[],erro:''};
+let _furoPickNodeId=null,_furoPickSel=null,_furoPickFilter='';
+
+// ── helpers de leitura tolerante ────────────────────────────────────────────
+const _frKey=s=>String(s==null?'':s).normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]/g,'');
+const _frTxt=s=>String(s==null?'':s).normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
+function _frEsc(s){return String(s==null?"":s).replace(/[&<>"']/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c];});}
+function _frGet(o,aliases){
+  if(!o||typeof o!=='object'||Array.isArray(o))return undefined;
+  const map={};Object.keys(o).forEach(k=>{const nk=_frKey(k);if(!(nk in map))map[nk]=k;});
+  for(const a of aliases){
+    const k=map[_frKey(a)];
+    if(k!==undefined&&o[k]!==null&&o[k]!==undefined&&o[k]!=='')return o[k];
+  }
+  return undefined;
+}
+function _frNum(v){
+  if(typeof v==='number')return isFinite(v)?v:NaN;
+  if(v==null)return NaN;
+  const m=String(v).trim().replace(/\s/g,'').replace(',','.').match(/^-?\d+(\.\d+)?/);
+  return m?parseFloat(m[0]):NaN;
+}
+const _FR_CAM=['camadas','layers','estratos','perfil','perfilGeologico','perfil_geologico','solos','litologia','stratigraphy'];
+const _FR_GOL=['golpes','spt','ensaios','nspt','ensaioSPT','ensaios_spt','sptData','penetracao','blows'];
+const _FR_AGUA=['agua','na','nivelDAgua','nivel_agua','nivelAgua','waterDepth','profNA','lencolFreatico','leiturasNA','waterLevel','niveisAgua'];
+
+function _frTipo(tipoRaw,desc){
+  const valid=['argila','areia','silte','aterro','rocha','outro'];
+  const t=_frKey(tipoRaw);
+  if(valid.includes(t))return t;
+  const uscs={cl:'argila',ch:'argila',ml:'silte',mh:'silte',ol:'silte',oh:'silte',sm:'areia',sp:'areia',sw:'areia',sc:'areia',gm:'areia',gp:'areia',gw:'areia',gc:'areia'};
+  if(uscs[t])return uscs[t];
+  // Tipo predominante = 1º substantivo que aparece (ex.: "Argila-arenosa" → argila; "Areia-siltosa" → areia)
+  const pats=[['aterro',/aterro/],['rocha',/rocha|impenetr|granit|gnaiss|basalt/],['argila',/argil/],['areia',/areia/],['silte',/silt/]];
+  for(const txt of [_frTxt(tipoRaw),_frTxt(desc)]){
+    if(!txt)continue;
+    let best=null,bi=1e9;
+    pats.forEach(([k,re])=>{const m=txt.match(re);if(m&&m.index<bi){bi=m.index;best=k;}});
+    if(best)return best;
+  }
+  return 'outro';
+}
+
+function _frCamadas(raw,avisos){
+  if(!Array.isArray(raw))return[];
+  let prev=0,gap=false,semTopo=0;
+  const tmp=[];
+  raw.forEach(c=>{
+    if(!c||typeof c!=='object'||Array.isArray(c))return;
+    let base=_frNum(_frGet(c,['profFinal','prof_final','profundidadeFinal','profBase','base','fim','ate','bottom','to','z2','depthTo','prof','profundidade']));
+    const topo=_frNum(_frGet(c,['profInicial','prof_inicial','profundidadeInicial','profTopo','topo','inicio','de','top','from','z1','depthFrom']));
+    const esp=_frNum(_frGet(c,['espessura','thickness','esp']));
+    if(!isFinite(base)&&isFinite(topo)&&isFinite(esp))base=topo+esp;
+    if(!isFinite(base)&&isFinite(esp))base=prev+esp;
+    if(!isFinite(base))return;
+    const desc=String(_frGet(c,['descricao','description','desc','material','solo','litologia','classificacao','texto'])||'');
+    const tipo=_frTipo(_frGet(c,['tipo','type','classe','class','uscs','simbolo']),desc);
+    tmp.push({base,topo,desc,tipo});
+    prev=base;
+  });
+  tmp.sort((a,b)=>a.base-b.base);
+  let ant=0;
+  const out=tmp.map(c=>{
+    if(isFinite(c.topo)&&Math.abs(c.topo-ant)>0.011)gap=true;
+    const o={profInicial:ant,profFinal:c.base,tipo:c.tipo,descricao:c.desc};
+    ant=c.base;return o;
+  });
+  if(gap)avisos.push('Camadas com lacuna/sobreposição no JSON — o boletim as encadeia de forma contígua (topo = base da camada anterior).');
+  return out;
+}
+
+function _frGolpes(raw,avisos){
+  if(!Array.isArray(raw))return[];
+  const out=[];let onlyN=0;
+  raw.forEach(g=>{
+    let prof,g1,g2,g3,nf;
+    if(Array.isArray(g)){                       // [prof,g1,g2,g3] ou [prof,N]
+      prof=_frNum(g[0]);
+      if(g.length>=4){g1=_frNum(g[1]);g2=_frNum(g[2]);g3=_frNum(g[3]);}
+      else if(g.length===2){nf=_frNum(g[1]);}
+    }else if(g&&typeof g==='object'){
+      prof=_frNum(_frGet(g,['prof','profundidade','depth','z','metro','profFinal','profInicial']));
+      const arr=_frGet(g,['golpes','penetracoes','fracoes','blows']);
+      if(Array.isArray(arr)&&arr.length>=3){g1=_frNum(arr[0]);g2=_frNum(arr[1]);g3=_frNum(arr[2]);}
+      else{
+        g1=_frNum(_frGet(g,['g1','golpe1','golpes1','gol1','p1','primeiros15','golpe_1']));
+        g2=_frNum(_frGet(g,['g2','golpe2','golpes2','gol2','p2','golpe_2']));
+        g3=_frNum(_frGet(g,['g3','golpe3','golpes3','gol3','p3','golpe_3']));
+      }
+      nf=_frNum(_frGet(g,['nspt','n_spt','nf','nfinal','n30','spt','n','resistencia']));
+    }else return;
+    if(!isFinite(prof))return;
+    const temG=[g1,g2,g3].some(isFinite);
+    if(temG){
+      g1=isFinite(g1)?g1:0;g2=isFinite(g2)?g2:0;g3=isFinite(g3)?g3:0;
+    }else if(isFinite(nf)){                     // só N-SPT: mantém N final correto; N inicial fica indisponível
+      g1=0;g2=0;g3=nf;onlyN++;
+    }else return;
+    out.push({prof,g1,g2,g3,ni:g1+g2,nf:g2+g3});
+  });
+  out.sort((a,b)=>a.prof-b.prof);
+  if(onlyN)avisos.push(onlyN+' ensaio(s) com apenas N-SPT (sem golpes por 15 cm): o N-SPT foi preservado (golpe 3 = N), mas N inicial aparecerá como 0 no gráfico.');
+  return out;
+}
+
+function _frAgua(f,avisos){
+  const v=_frGet(f,_FR_AGUA);
+  if(v===undefined)return[];
+  const one=x=>{
+    if(x==null)return null;
+    if(typeof x==='object'&&!Array.isArray(x)){
+      const p=_frNum(_frGet(x,['prof','profundidade','nivel','na','z','depth']));
+      if(!isFinite(p))return null;
+      return{prof:p,data:String(_frGet(x,['data','date','dt'])||'')};
+    }
+    const p=_frNum(x);return isFinite(p)?{prof:p,data:''}:null;
+  };
+  const arr=Array.isArray(v)?v:[v];
+  return arr.map(one).filter(Boolean);
+}
+
+function _frIdent(f,idx,keyName){
+  const cont=[f];
+  ['ident','identificacao','cabecalho','header','info','dados','meta','metadata'].forEach(k=>{
+    const v=_frGet(f,[k]);if(v&&typeof v==='object'&&!Array.isArray(v))cont.push(v);
+  });
+  const pick=al=>{for(const c of cont){const v=_frGet(c,al);if(v!==undefined&&typeof v!=='object')return String(v);}return '';};
+  const id=pick(['sondagemNum','furo','sondagem','nome','name','codigo','tag','numero','num','id'])||keyName||('Furo '+(idx+1));
+  const ident={
+    cliente:pick(['cliente','client']),obra:pick(['obra','projeto','project']),local:pick(['local','localizacao','endereco','location']),
+    sondagemNum:id,
+    dataInicio:pick(['dataInicio','data_inicio','inicio','dataInicial','startDate']),dataFim:pick(['dataFim','data_fim','termino','fim','dataFinal','endDate']),
+    cota:pick(['cota','elevacao','elevation','altitude','rl']),datum:pick(['datum','sistemaCoordenadas','crs']),
+    coordN:pick(['coordN','coord_n','norte','northing','latitude','lat']),coordE:pick(['coordE','coord_e','leste','easting','longitude','lon','lng']),
+    responsavel:pick(['responsavel','responsavelTecnico','engenheiro']),sondador:pick(['sondador','operador']),desenhista:pick(['desenhista'])
+  };
+  // coordenadas aninhadas: { coordenadas:{n,e} } / { coords:{x,y} } / { coordinates:{lat,lon} }
+  if(!ident.coordN&&!ident.coordE){
+    for(const c of cont){
+      const co=_frGet(c,['coordenadas','coords','coordinates','coord','posicao']);
+      if(co&&typeof co==='object'&&!Array.isArray(co)){
+        const n=_frGet(co,['n','norte','y','lat','latitude','northing']),e=_frGet(co,['e','leste','x','lon','lng','longitude','easting']);
+        if(n!==undefined)ident.coordN=String(n);if(e!==undefined)ident.coordE=String(e);break;
+      }
+    }
+  }
+  // amostrador (se informado no JSON; senão o boletim mantém o padrão NBR 6484)
+  const am=pick(['amDiamInt','diametroInterno']);if(am)ident.amDiamInt=am;
+  const ae=pick(['amDiamExt','diametroExterno']);if(ae)ident.amDiamExt=ae;
+  const ap=pick(['amPeso','pesoMartelo']);if(ap)ident.amPeso=ap;
+  const aa=pick(['amAltura','alturaQueda']);if(aa)ident.amAltura=aa;
+  return ident;
+}
+
+function _frLooksFuro(o){
+  return !!o&&typeof o==='object'&&!Array.isArray(o)&&(_frGet(o,_FR_CAM)!==undefined||_frGet(o,_FR_GOL)!==undefined);
+}
+function _frExtract(root){
+  const items=[];
+  if(Array.isArray(root)){root.forEach((o,i)=>{if(o&&typeof o==='object'&&!Array.isArray(o))items.push({key:'',o});});return items;}
+  if(!root||typeof root!=='object')return items;
+  // Projeto Geo·Flow salvo → usa as caixas BS
+  if(Array.isArray(root.nodes)&&Array.isArray(root.edges)){
+    root.nodes.filter(n=>n&&n.type==='boletimSondagem'&&n.params).forEach(n=>{
+      const p=n.params;items.push({key:'',o:{ident:p._ident||{},agua:p._agua||[],camadas:p._camadas||p._layers||[],golpes:p._golpes||[]}});
+    });
+    return items;
+  }
+  if(_frLooksFuro(root))return[{key:'',o:root}];
+  // { "furos":[...] } (qualquer chave cujo valor seja lista de furos)
+  for(const k of Object.keys(root)){
+    const v=root[k];
+    if(Array.isArray(v)&&v.length&&v.every(x=>x&&typeof x==='object'&&_frLooksFuro(x)))return v.map(o=>({key:'',o}));
+  }
+  // { "SPT-01":{...}, "SPT-02":{...} } na raiz ou dentro de um wrapper
+  const keyed=obj=>{
+    const ks=Object.keys(obj).filter(k=>obj[k]&&typeof obj[k]==='object'&&_frLooksFuro(obj[k]));
+    return ks.length&&ks.length===Object.keys(obj).length?ks.map(k=>({key:k,o:obj[k]})):null;
+  };
+  let r=keyed(root);if(r)return r;
+  for(const k of Object.keys(root)){
+    const v=root[k];
+    if(v&&typeof v==='object'&&!Array.isArray(v)){r=keyed(v);if(r)return r;}
+  }
+  // raiz mista: pega os filhos que parecem furos
+  const ks=Object.keys(root).filter(k=>_frLooksFuro(root[k]));
+  return ks.map(k=>({key:k,o:root[k]}));
+}
+
+function furosNormalize(root){
+  const items=_frExtract(root);
+  const furos=items.map((it,idx)=>{
+    const avisos=[];
+    const ident=_frIdent(it.o,idx,it.key);
+    const agua=_frAgua(it.o,avisos);
+    const camadas=_frCamadas(_frGet(it.o,_FR_CAM),avisos);
+    const golpes=_frGolpes(_frGet(it.o,_FR_GOL),avisos);
+    if(!camadas.length)avisos.push('Sem camadas de solo reconhecidas neste furo.');
+    if(!golpes.length)avisos.push('Sem ensaios SPT (golpes / N-SPT) reconhecidos neste furo.');
+    const profTotal=Math.max(0,camadas.length?camadas[camadas.length-1].profFinal:0,golpes.length?golpes[golpes.length-1].prof:0);
+    const nvals=golpes.map(g=>g.nf).filter(isFinite);
+    return{id:ident.sondagemNum,ident,agua,camadas,golpes,avisos,profTotal,
+      avgN:nvals.length?nvals.reduce((a,b)=>a+b,0)/nvals.length:0,
+      utilizavel:camadas.length>0||golpes.length>0};
+  });
+  return furos;
+}
+
+// ── carga do arquivo ────────────────────────────────────────────────────────
+function furosLoadFromText(text,fonte){
+  const db=window._furosDb;
+  try{
+    const root=JSON.parse(String(text).replace(/^\uFEFF/,''));
+    const furos=furosNormalize(root);
+    if(!furos.length){
+      const ks=root&&typeof root==='object'?Object.keys(root).slice(0,12).join(', '):'(não é objeto/lista)';
+      db.furos=[];db.fonte=fonte||'';
+      db.erro='Nenhum furo reconhecido. Um furo precisa ter uma lista de camadas e/ou de ensaios SPT. Chaves no topo do arquivo: '+(ks||'(vazio)')+'.';
+    }else{db.furos=furos;db.fonte=fonte||'furos.json';db.erro='';}
+  }catch(err){db.furos=[];db.fonte=fonte||'';db.erro='JSON inválido: '+err.message;}
+  _furoPickSel=null;
+  if(db.furos.length&&_furoPickNodeId){
+    const n=inst(_furoPickNodeId),alvo=n&&n.params&&(n.params._furoId||(n.params._ident&&n.params._ident.sondagemNum));
+    const i=db.furos.findIndex(f=>f.id===alvo);if(i>=0)_furoPickSel=i;
+  }
+  _furoRender();
+}
+function furosLoadFromFile(file){
+  if(!file)return;
+  file.text().then(t=>furosLoadFromText(t,file.name)).catch(e=>{window._furosDb.erro='Não foi possível ler o arquivo: '+e.message;_furoRender();});
+}
+function furosTryFetch(silent){
+  if(location.protocol==='file:'){          // app aberto direto do disco: o navegador bloqueia fetch() de arquivos locais
+    if(!silent){window._furosDb.erro='App aberto direto do disco: o navegador não permite buscar o arquivo sozinho. Use “Carregar furos.json…” ou arraste o arquivo para esta janela.';_furoRender();}
+    return Promise.resolve();
+  }
+  const st=document.getElementById('furo-status');
+  if(st&&!silent)st.textContent='Procurando furos.json ao lado do app…';
+  return fetch('furos.json',{cache:'no-store'}).then(r=>{if(!r.ok)throw new Error('HTTP '+r.status);return r.text();})
+    .then(t=>furosLoadFromText(t,'furos.json'))
+    .catch(()=>{
+      if(!silent){window._furosDb.erro='Não encontrei "furos.json" ao lado do app (se o app foi aberto direto do disco, o navegador bloqueia essa leitura). Use “Carregar furos.json…” ou arraste o arquivo aqui.';_furoRender();}
+      else _furoRender();
+    });
+}
+
+// ── modal ───────────────────────────────────────────────────────────────────
+function _furoEnsureModal(){
+  if(document.getElementById('furo-overlay'))return;
+  const css=document.createElement('style');
+  css.textContent=`
+  #furo-overlay{display:none;position:fixed;inset:0;background:rgba(20,16,10,.6);z-index:9600;align-items:center;justify-content:center;padding:16px}
+  #furo-box{background:#f5f2ed;border:1px solid #c8c0b0;border-radius:8px;width:100%;max-width:1000px;height:86vh;display:flex;flex-direction:column;box-shadow:0 20px 80px rgba(0,0,0,.5);overflow:hidden;font-family:system-ui,-apple-system,'Segoe UI',sans-serif}
+  #furo-box .fh{display:flex;align-items:center;padding:10px 16px;background:#8B4513;flex-shrink:0}
+  #furo-box .fh b{color:#fff;font-size:12px;flex:1;font-family:monospace;letter-spacing:1px}
+  #furo-box .fh button{background:rgba(255,255,255,.2);border:none;color:#fff;font-size:16px;width:28px;height:28px;border-radius:4px;cursor:pointer}
+  #furo-box .ft{display:flex;align-items:center;gap:8px;padding:10px 14px;border-bottom:1px solid #d6cfc2;background:#efe9de;flex-shrink:0;flex-wrap:wrap}
+  #furo-box .fbtn{font-family:monospace;font-size:11px;font-weight:700;padding:6px 12px;border-radius:5px;border:1px solid #8B4513;background:#8B4513;color:#fff;cursor:pointer}
+  #furo-box .fbtn.ghost{background:transparent;color:#8B4513}
+  #furo-box .fbtn:disabled{opacity:.4;cursor:not-allowed}
+  #furo-status{font-size:11.5px;color:#5a4a38;flex:1;min-width:200px}
+  #furo-status.err{color:#a23a2a}
+  #furo-main{flex:1;display:grid;grid-template-columns:290px 1fr;min-height:0}
+  #furo-left{border-right:1px solid #d6cfc2;display:flex;flex-direction:column;min-height:0;background:#faf7f2}
+  #furo-search{margin:10px;padding:7px 9px;border:1px solid #c8c0b0;border-radius:5px;font-size:12px;background:#fff}
+  #furo-list{overflow-y:auto;flex:1}
+  .furo-item{padding:8px 12px;border-bottom:1px solid #e6dfd2;cursor:pointer}
+  .furo-item:hover{background:#f0e8d8}
+  .furo-item.sel{background:#8B4513;color:#fff}
+  .furo-item .fid{font-family:monospace;font-weight:700;font-size:12.5px}
+  .furo-item .fsub{font-size:10.5px;opacity:.75;margin-top:2px}
+  .furo-item.bad{opacity:.5}
+  #furo-prev{overflow-y:auto;padding:14px 18px;font-size:12px;color:#2a2218}
+  #furo-prev h3{margin:0 0 4px;font-size:15px;color:#8B4513;font-family:monospace}
+  #furo-prev .kv{display:flex;flex-wrap:wrap;gap:4px 18px;margin:6px 0 10px;font-size:11.5px;color:#4a3d2c}
+  #furo-prev .kv span b{color:#2a2218}
+  #furo-prev table{border-collapse:collapse;width:100%;font-size:11px;margin:4px 0 12px}
+  #furo-prev th{background:#f0ebe0;text-align:left;padding:4px 7px;border:1px solid #d6cfc2;font-size:10px;text-transform:uppercase;letter-spacing:.4px}
+  #furo-prev td{padding:3px 7px;border:1px solid #e0d9cb}
+  #furo-prev .warn{background:#fff4e0;border-left:3px solid #d98a1a;padding:6px 10px;margin:6px 0;font-size:11px}
+  #furo-prev h4{margin:12px 0 2px;font-size:11px;text-transform:uppercase;letter-spacing:.6px;color:#7a6a58}
+  #furo-empty{display:flex;align-items:center;justify-content:center;text-align:center;height:100%;color:#7a6a58;font-size:12.5px;padding:24px;line-height:1.6}
+  #furo-box .ff{display:flex;align-items:center;gap:8px;padding:10px 14px;border-top:1px solid #d6cfc2;background:#efe9de;flex-shrink:0}
+  #furo-box .ff .sp{flex:1;font-size:11px;color:#7a6a58}
+  #furo-box.drag{outline:3px dashed #8B4513;outline-offset:-6px}`;
+  document.head.appendChild(css);
+  const ov=document.createElement('div');
+  ov.id='furo-overlay';
+  ov.innerHTML=`<div id="furo-box">
+    <div class="fh"><b>📂 FUROS — ASSOCIAR AO BOLETIM</b><button onclick="closeFuroPicker()" title="Fechar">✕</button></div>
+    <div class="ft">
+      <button class="fbtn" onclick="document.getElementById('furo-file').click()">📂 Carregar furos.json…</button>
+      <button class="fbtn ghost" onclick="furosTryFetch(false)" title="Tenta ler furos.json na mesma pasta/servidor do app">↻ Buscar ao lado do app</button>
+      <span id="furo-status"></span>
+      <input type="file" id="furo-file" accept=".json,application/json" style="display:none">
+    </div>
+    <div id="furo-main">
+      <div id="furo-left"><input id="furo-search" placeholder="Filtrar furos…" autocomplete="off"><div id="furo-list"></div></div>
+      <div id="furo-prev"></div>
+    </div>
+    <div class="ff">
+      <span class="sp" id="furo-foot-hint"></span>
+      <button class="fbtn ghost" id="furo-unlink" onclick="furoUnlink()" style="display:none">Desvincular</button>
+      <button class="fbtn ghost" onclick="closeFuroPicker()">Cancelar</button>
+      <button class="fbtn" id="furo-apply" onclick="furoApplySelected()" disabled>✔ Associar ao boletim</button>
+    </div>
+  </div>`;
+  document.body.appendChild(ov);
+  ov.addEventListener('click',e=>{if(e.target===ov)closeFuroPicker();});
+  document.getElementById('furo-file').addEventListener('change',e=>{furosLoadFromFile(e.target.files[0]);e.target.value='';});
+  document.getElementById('furo-search').addEventListener('input',e=>{_furoPickFilter=e.target.value;_furoRender(true);});
+  const box=document.getElementById('furo-box');
+  ['dragenter','dragover'].forEach(ev=>box.addEventListener(ev,e=>{e.preventDefault();box.classList.add('drag');}));
+  ['dragleave','drop'].forEach(ev=>box.addEventListener(ev,e=>{e.preventDefault();box.classList.remove('drag');}));
+  box.addEventListener('drop',e=>{const f=e.dataTransfer&&e.dataTransfer.files&&e.dataTransfer.files[0];if(f)furosLoadFromFile(f);});
+  document.addEventListener('keydown',e=>{if(e.key==='Escape'&&ov.style.display==='flex'){e.stopImmediatePropagation();closeFuroPicker();}},true);
+}
+
+function openFuroPicker(nodeId){
+  _furoEnsureModal();
+  _furoPickNodeId=nodeId;_furoPickFilter='';
+  const s=document.getElementById('furo-search');if(s)s.value='';
+  const db=window._furosDb,n=inst(nodeId);
+  const alvo=n&&n.params&&(n.params._furoId||(n.params._ident&&n.params._ident.sondagemNum));
+  _furoPickSel=null;
+  if(db.furos.length&&alvo){const i=db.furos.findIndex(f=>f.id===alvo);if(i>=0)_furoPickSel=i;}
+  document.getElementById('furo-overlay').style.display='flex';
+  _furoRender();
+  if(!db.furos.length)furosTryFetch(true);   // tenta ler ./furos.json sem barulho; se falhar, o usuário carrega o arquivo
+}
+function closeFuroPicker(){
+  const ov=document.getElementById('furo-overlay');if(ov)ov.style.display='none';
+}
+
+function _furoRender(listOnly){
+  const ov=document.getElementById('furo-overlay');if(!ov)return;
+  const db=window._furosDb,st=document.getElementById('furo-status');
+  const n=_furoPickNodeId?inst(_furoPickNodeId):null;
+  const linked=n&&n.params&&n.params._furoId;
+  if(st){
+    if(db.erro){st.textContent=db.erro;st.className='err';}
+    else if(db.furos.length){st.textContent=db.fonte+' — '+db.furos.length+' furo'+(db.furos.length>1?'s':'')+' carregado'+(db.furos.length>1?'s':'');st.className='';}
+    else{st.textContent='Nenhum arquivo carregado.';st.className='';}
+  }
+  const ul=document.getElementById('furo-unlink');if(ul)ul.style.display=linked?'inline-block':'none';
+  // lista
+  const q=_frTxt(_furoPickFilter).trim();
+  const list=document.getElementById('furo-list');
+  let html='';
+  db.furos.forEach((f,i)=>{
+    const hay=_frTxt([f.id,f.ident.obra,f.ident.local,f.ident.cliente].join(' '));
+    if(q&&!hay.includes(q))return;
+    const sub=[f.ident.obra||f.ident.local||'',f.profTotal?f.profTotal.toFixed(2)+' m':'',f.camadas.length+' camadas',f.golpes.length+' ensaios'].filter(Boolean).join(' · ');
+    html+=`<div class="furo-item${i===_furoPickSel?' sel':''}${f.utilizavel?'':' bad'}" data-i="${i}"><div class="fid">${_frEsc(f.id)}${(linked&&f.id===n.params._furoId)?' ✓':''}</div><div class="fsub">${_frEsc(sub)}</div></div>`;
+  });
+  if(!html)html=`<div style="padding:16px;font-size:11.5px;color:#7a6a58">${db.furos.length?'Nenhum furo corresponde ao filtro.':'—'}</div>`;
+  list.innerHTML=html;
+  list.querySelectorAll('.furo-item').forEach(el=>{
+    el.addEventListener('click',()=>{_furoPickSel=+el.dataset.i;_furoRender();});
+    el.addEventListener('dblclick',()=>{_furoPickSel=+el.dataset.i;furoApplySelected();});
+  });
+  // pré-visualização
+  const prev=document.getElementById('furo-prev'),btn=document.getElementById('furo-apply'),hint=document.getElementById('furo-foot-hint');
+  const f=_furoPickSel!=null?db.furos[_furoPickSel]:null;
+  if(!f){
+    prev.innerHTML=`<div id="furo-empty">${db.furos.length?'Selecione um furo na lista para pré-visualizar.':'Carregue o arquivo <b>furos.json</b> (botão acima ou arraste-o para esta janela).<br>Depois escolha o furo que será associado a este boletim.'}</div>`;
+    btn.disabled=true;hint.textContent='';return;
+  }
+  const id=f.ident;
+  const kv=[['Obra',id.obra],['Local',id.local],['Cliente',id.cliente],['Cota',id.cota],['Coord. N/E',(id.coordN||id.coordE)?(id.coordN||'—')+' / '+(id.coordE||'—'):''],['Início',id.dataInicio],['Término',id.dataFim],['Responsável',id.responsavel],['Sondador',id.sondador]]
+    .filter(x=>x[1]).map(x=>`<span>${x[0]}: <b>${_frEsc(x[1])}</b></span>`).join('');
+  const na=f.agua.length?f.agua.map(a=>a.prof.toFixed(2)+' m'+(a.data?' ('+_frEsc(a.data)+')':'')).join(' · '):'não informado';
+  prev.innerHTML=`<h3>${_frEsc(f.id)}</h3>
+    <div class="kv">${kv}<span>Prof. total: <b>${f.profTotal.toFixed(2)} m</b></span><span>N.A.: <b>${na}</b></span><span>N-SPT médio: <b>${f.golpes.length?f.avgN.toFixed(1):'—'}</b></span></div>
+    ${f.avisos.map(a=>`<div class="warn">⚠ ${_frEsc(a)}</div>`).join('')}
+    <h4>Camadas (${f.camadas.length})</h4>
+    <table><tr><th>Topo (m)</th><th>Base (m)</th><th>Tipo</th><th>Descrição</th></tr>${f.camadas.map(c=>`<tr><td>${c.profInicial.toFixed(2)}</td><td>${c.profFinal.toFixed(2)}</td><td>${_frEsc(c.tipo)}</td><td>${_frEsc(c.descricao)}</td></tr>`).join('')||'<tr><td colspan="4">—</td></tr>'}</table>
+    <h4>Ensaios SPT (${f.golpes.length})</h4>
+    <table><tr><th>Prof. (m)</th><th>Golpe 1</th><th>Golpe 2</th><th>Golpe 3</th><th>N ini</th><th>N-SPT (fin)</th></tr>${f.golpes.map(g=>`<tr><td>${g.prof.toFixed(2)}</td><td>${g.g1}</td><td>${g.g2}</td><td>${g.g3}</td><td>${g.ni}</td><td><b>${g.nf}</b></td></tr>`).join('')||'<tr><td colspan="6">—</td></tr>'}</table>`;
+  btn.disabled=!f.utilizavel;
+  hint.textContent=f.utilizavel?'Substitui identificação, N.A., camadas e golpes do boletim desta caixa.':'Este furo não tem dados utilizáveis.';
+}
+
+// ── aplicar na caixa BS ─────────────────────────────────────────────────────
+function _bsDisposeFrame(nodeId){
+  const frm=document.getElementById('bs-frame-'+nodeId);if(frm)frm.remove();
+  if(window._bsBlobUrls&&window._bsBlobUrls[nodeId]){try{URL.revokeObjectURL(window._bsBlobUrls[nodeId]);}catch(_){}delete window._bsBlobUrls[nodeId];}
+}
+function furoApplySelected(){
+  const f=window._furosDb.furos[_furoPickSel];
+  if(!f||!f.utilizavel||!_furoPickNodeId)return;
+  if(bsApplyFuro(_furoPickNodeId,f))closeFuroPicker();
+}
+function bsApplyFuro(nodeId,f){
+  const node=inst(nodeId);if(!node)return false;
+  const p=node.params;
+  const kids=(p._exportedChildIds||[]).filter(id=>S.nodes.find(nn=>nn.id===id));
+  const temDados=(p._camadas&&p._camadas.length)||(p._golpes&&p._golpes.length);
+  if(kids.length&&!confirm('Esta caixa BS já exportou camadas (SM/NA/MC) para o canvas.\n\nTrocar o furo NÃO atualiza essas caixas já geradas — elas continuarão com os dados do furo anterior.\n\nAssociar o furo "'+f.id+'" mesmo assim?'))return false;
+  if(!kids.length&&temDados&&p._furoId!==f.id&&!confirm('O boletim desta caixa já tem dados. Substituir pelos dados do furo "'+f.id+'"?'))return false;
+
+  p._ident=Object.assign({},f.ident);
+  p._agua=f.agua.map(a=>Object.assign({},a));
+  p._camadas=f.camadas.map(c=>Object.assign({},c));
+  p._layers=f.camadas.map(c=>({topo:c.profInicial,base:c.profFinal,espessura:c.profFinal-c.profInicial,descricao:c.descricao,tipo:c.tipo}));
+  p._golpes=f.golpes.map(g=>Object.assign({},g,{nspt:g.nf}));
+  p.avgNspt=f.golpes.length?f.avgN:0;
+  const wp=f.agua.map(a=>+a.prof||0).filter(v=>v>0);
+  p.waterDepth=wp.length?Math.max.apply(null,wp):(f.agua.length?f.agua[f.agua.length-1].prof:0);
+  p.nLayers=f.camadas.length;
+  p.totalDepth=f.camadas.length?f.camadas[f.camadas.length-1].profFinal:0;
+  p._furoId=f.id;
+  p._furoFonte=window._furosDb.fonte||'furos.json';
+
+  // Recria o iframe do boletim (oculto) já com os dados do furo → ele regenera o boletim e devolve o snapshot via autosave
+  _bsDisposeFrame(nodeId);
+  if(typeof _bsBuildFrame==='function')_bsBuildFrame(nodeId,false);
+
+  try{calcAll();rebuild(nodeId);updateVals();refreshSVG();if(typeof drawVisual==='function')drawVisual();}catch(err){console.warn('[BS] refresh após associar furo falhou:',err);}
+  flash('✓ Furo '+f.id+' associado — '+f.camadas.length+' camadas, '+f.golpes.length+' ensaios SPT');
+  return true;
+}
+function furoUnlink(){
+  const node=_furoPickNodeId&&inst(_furoPickNodeId);if(!node)return;
+  delete node.params._furoId;delete node.params._furoFonte;
+  rebuild(node.id);_furoRender();
+  flash('Vínculo com o furo removido (os dados do boletim foram mantidos)');
+}
 
 
 // ════════════════════════════════════════════════════════
@@ -4603,6 +5201,21 @@ function _getEstacasSoilLayers(nodeId,Lprof){
 }
 
 function _getSapataSoilParams(sapId,Df){
+  // Fundação conectada a um Aterro → o aterro é a 1ª camada do perfil (Df medido do topo do aterro)
+  const _eAt=S.edges.find(e=>e.from===sapId&&typ(e.to)==='aterro');
+  if(_eAt){
+    const av=S.vals[_eAt.to]||{}, h=+av.h||0;
+    if(h>0){
+      if(Df<=h)return{gama_solo:+av.gat||18,phi_solo:+av.phi||0,c_solo:+av.c||0,NA:null,foundType:'aterro-camada',
+                      _correlacao:"aterro conectado (camada superior): γat, φ' e c' do módulo Aterro"};
+      const r=_getSapataSoilParamsCore(sapId,Df-h);
+      if(r.NA!=null)r.NA=+r.NA+h;
+      return r;
+    }
+  }
+  return _getSapataSoilParamsCore(sapId,Df);
+}
+function _getSapataSoilParamsCore(sapId,Df){
   const result={gama_solo:18,phi_solo:30,c_solo:0,NA:null,foundType:'default'};
   // Find any BS or SM node in the canvas
   const bsNodes=S.nodes.filter(n=>n.type==='boletimSondagem');
@@ -7553,14 +8166,16 @@ function _drawTensoesOverlay(ctx,cvId,tsNodes,W,H){
 
   // ── 1) Monta a lista de fontes válidas (uma por caixa AT conectada) ──
   const sources=[];
+  const _ovFundUsed=new Set(); // evita somar a mesma fundação duas vezes
   (Array.isArray(tsNodes)?tsNodes:[tsNodes]).forEach(tsNode=>{
     const det=_detectTensoesSource(tsNode.id);
     const p=tsNode.params||{};
-    let modo, Bc, Bs, Hat=0, gamma=18, qSap=0, Df=0, deslocH=0, sadm=null;
+    let modo, Bc, Bs, Hat=0, gamma=18, qSap=0, Df=0, deslocH=0, sadm=null, atTopSrc=0;
     if(det.modo==='sapata'){
       modo='sapata';
       const V=S.vals[det.srcId]||{};
       Bc=+V.L||+V.A||0; Bs=+V.B||0; qSap=+V.dsv||0; Df=+V.Df||0;
+      atTopSrc=_atTopOf(det.srcId,null); Df=Df-atTopSrc; // Df medido do topo do aterro → profundidade abaixo do terreno natural
       const srcNode=S.nodes.find(n=>n.id===det.srcId);
       deslocH=srcNode?(Number.isFinite(+srcNode.params.deslocH)?+srcNode.params.deslocH:0):0;
       // σadm do elemento de origem — usada pra sinalizar quando o campo somado
@@ -7584,7 +8199,18 @@ function _drawTensoesOverlay(ctx,cvId,tsNodes,W,H){
     // pico) fechar naturalmente em vez de ser cortada reta na borda do domínio
     // de cálculo — antes ficava raso demais e a isolinha "batia" no fundo.
     const zExtent    = modo==='sapata' ? Math.max(Bc,Bs)*3.2 : 30;
-    sources.push({sigmaAt, Df, deslocH, halfExtent, zExtent, sadm});
+    if(modo==='sapata'&&det.srcId){ if(_ovFundUsed.has(det.srcId))return; _ovFundUsed.add(det.srcId); }
+    sources.push({sigmaAt, Df, deslocH, halfExtent, zExtent, sadm, atTop:atTopSrc});
+    // Aterro com fundações conectadas (aterro = camada): soma também a contribuição de cada fundação
+    if(det.modo==='aterro'){
+      const avv=S.vals[det.srcId]||{}, hAt=+avv.h||0;
+      (avv._fundacoes||[]).forEach(f=>{
+        if(_ovFundUsed.has(f.id)||!(f.q>0&&f.A>0&&f.B>0))return;
+        _ovFundUsed.add(f.id);
+        sources.push({sigmaAt:(x,z)=>_tsSigmaRectAt(f.q,f.A,f.B,x,0,z), Df:f.Df-hAt, deslocH:f.deslocH,
+                      halfExtent:Math.max(f.A,f.B)*2.2, zExtent:Math.max(f.A,f.B)*3.2, sadm:f.sadm, atTop:hAt});
+      });
+    }
   });
   if(!sources.length)return;
   // σadm de referência — a mais restritiva entre as fontes que têm o dado
@@ -7606,6 +8232,9 @@ function _drawTensoesOverlay(ctx,cvId,tsNodes,W,H){
   });
   xMinW=Math.max(xMinW,xMinVis); xMaxW=Math.min(xMaxW,xMaxVis);
   zMaxW=Math.min(zMaxW,zMaxVisGlobal);
+  // fundações sobre um aterro-camada: o campo de tensões também aparece DENTRO do aterro (z<0, acima do terreno natural)
+  let zMinW=-Math.max(0,...sources.map(s=>s.atTop||0));
+  zMinW=Math.max(zMinW,(0-GY0)/scl);
   if(xMaxW<=xMinW||zMaxW<=0)return;
 
   // ── 3) Grade única — em cada ponto, soma a contribuição de cada fonte
@@ -7616,7 +8245,7 @@ function _drawTensoesOverlay(ctx,cvId,tsNodes,W,H){
   const nx=90,nz=56;
   const xs=[],zs=[];
   for(let i=0;i<nx;i++)xs.push(xMinW+(xMaxW-xMinW)*i/(nx-1));
-  for(let j=0;j<nz;j++)zs.push(0.02+(zMaxW-0.02)*j/(nz-1));
+  for(let j=0;j<nz;j++)zs.push(zMinW+0.02+(zMaxW-zMinW-0.02)*j/(nz-1));
   const grid=new Float32Array(nx*nz);
   const overlapCount=new Uint8Array(nx*nz);
   let vMax=0;
@@ -7896,11 +8525,11 @@ function _geoDrawCore(cvId, connectedIds){
       }
       // Collect sapata data (TODAS as caixas SAP no escopo — cada uma com seu próprio deslocH)
       const sapNodes=S.nodes.filter(n=>n.type==='sapata'&&inScope(n));
-      const saps=sapNodes.map(n=>n.params);
+      const saps=sapNodes.map(n=>Object.assign({},n.params,{_atTop:_atTopOf(n.id,inScope)}));
       const sap=saps[0]||null; // mantém compatibilidade com sapLoadWidth (usa a 1ª sapata conectada)
       // Collect radier data (TODAS as caixas RAD no escopo)
       const radierNodes=S.nodes.filter(n=>n.type==='radier'&&inScope(n));
-      const radiers=radierNodes.map(n=>n.params);
+      const radiers=radierNodes.map(n=>Object.assign({},n.params,{_atTop:_atTopOf(n.id,inScope)}));
       // Radier Estaqueado (app completo) também desenha como uma laje de radier na seção —
       // mesmos campos (L, H, Df, deslocH) que o node "radier" simples usa, então basta somar
       // à mesma lista. Os pilares individuais (_state_pilares) não existem neste tipo — quem
@@ -7910,7 +8539,7 @@ function _geoDrawCore(cvId, connectedIds){
       radiers.push(...radierEstaqueados);
       // Collect fundação de máquinas data (TODAS as caixas MF no escopo)
       const mfNodes=S.nodes.filter(n=>n.type==='maquinas'&&inScope(n));
-      const mfs=mfNodes.map(n=>n.params);
+      const mfs=mfNodes.map(n=>Object.assign({},n.params,{_atTop:_atTopOf(n.id,inScope)}));
       const mf=mfs[0]||null;
       // Collect estacas data (TODAS as caixas EST no escopo — cada uma com seu próprio deslocH)
       const estNodes=S.nodes.filter(n=>n.type==='estacas'&&inScope(n));
@@ -8334,6 +8963,112 @@ function calcHtml_recImediato(ri, nodeId){
   return banner+_htmlRecElastica(ri);
 }
 
+// Passo 1 do Recalque Primário quando o Aterro é camada com fundações — memória detalhada do somatório
+function _rpAtCamadaStep(rp,dsvTxt){
+  const AC=rp.atCamada, F=AC.funds||[];
+  const rows=[];
+  if(rp.layerResults&&rp.layerResults.length){
+    rp.layerResults.forEach(l=>{if(l.brk)rows.push({nome:l.nome,Hs:+l.Hs,z0:l.zTop,z1:l.zBase,b:l.brk});});
+  }else if(rp.atBreak){
+    rows.push({nome:'Camada única',Hs:+(rp.Hs||0),z0:rp.atBreak.z0,z1:rp.atBreak.z1,b:rp.atBreak});
+  }
+  const f2=(v)=>_f(v,2), f3=(v)=>_f(v,3), f4=(v)=>_f(v,4);
+  const q0=AC.gat*AC.h, Bs=AC.n*AC.h, hBc=AC.b/2;
+  let h='';
+
+  // ── 1.1 Dados ─────────────────────────────────────────────────────────
+  h+='<div class="cs" style="border-left:4px solid #2a5a8c;background:var(--surf)">';
+  h+='<div class="cs-lbl">1. Acréscimo de Tensão Vertical (Δσv) — somatório: aterro (camada) + fundações</div>';
+  h+='<div class="cs-formula">Δσv(z) = Δσ<sub>aterro</sub>(z) + Δσ<sub>q</sub>(z) + Σ Δσ<sub>fund,i</sub>(z<sub>i</sub>)</div>';
+  h+='<div class="cs-sub"><b>z</b> = profundidade abaixo da <b>base do aterro</b> (topo do solo natural). ';
+  h+='<b>z<sub>i</sub></b> = profundidade abaixo da <b>base da fundação i</b> = h<sub>at</sub> + z − D<sub>f,i</sub> (D<sub>f</sub> medido do <b>topo do aterro</b>; se z<sub>i</sub> ≤ 0 o ponto está acima da base e a fundação não contribui).</div>';
+  h+='<div class="cs-sub" style="margin-top:6px"><b>1.1 Dados</b></div>';
+  h+='<div class="cs-sub" style="columns:2;column-gap:18px">';
+  h+='<div>Aterro: γ<sub>at</sub> = <b>'+f2(AC.gat)+'</b> kN/m³ · h = <b>'+f2(AC.h)+'</b> m · b (crista) = <b>'+f2(AC.b)+'</b> m · n = <b>'+f2(AC.n)+'</b> (H:1V)</div>';
+  h+='<div>q<sub>0</sub> = γ<sub>at</sub>·h = '+f2(AC.gat)+' × '+f2(AC.h)+' = <b>'+f2(q0)+'</b> kPa · projeção do talude B<sub>s</sub> = n·h = <b>'+f2(Bs)+'</b> m · b/2 = <b>'+f2(hBc)+'</b> m'+(AC.q>0?' · sobrecarga q = <b>'+f2(AC.q)+'</b> kPa':'')+'</div>';
+  F.forEach(f=>{
+    const zb=f.Df-AC.h;
+    h+='<div>'+f.nome+' ('+f.tipo+'): A × B = <b>'+f2(f.A)+' × '+f2(f.B)+'</b> m · q = <b>'+f2(f.q)+'</b> kPa · D<sub>f</sub> = <b>'+f2(f.Df)+'</b> m (do topo do aterro) · desloc. = <b>'+f2(f.deslocH)+'</b> m';
+    h+=' → base da fundação '+(zb>=0?'<b>'+f2(zb)+' m abaixo</b> da base do aterro':'<b>'+f2(-zb)+' m acima</b> da base do aterro (dentro do aterro)')+'</div>';
+  });
+  h+='<div>Ponto de avaliação: x = <b>'+f2(AC.xRef||0)+'</b> m (eixo da 1ª fundação conectada, medido do eixo do aterro), plano y = 0</div>';
+  h+='</div>';
+
+  // ── 1.2 Método ───────────────────────────────────────────────────────
+  h+='<div class="cs-sub" style="margin-top:8px"><b>1.2 Formulação</b></div>';
+  h+='<div class="cs-formula"><b>Aterro</b> (Osterberg 2D, ponto sob a crista, |x| ≤ b/2): &nbsp;Δσ<sub>aterro</sub> = q<sub>0</sub>·[ I(m<sub>1</sub>,n) + I(m<sub>1</sub>′,n) ]<br>';
+  h+='&nbsp;&nbsp;I(m,n) = (1/π)·[ ((m+n)/n)·atan(m+n) − (m/n)·atan(m) ] &nbsp;;&nbsp; m<sub>1</sub> = B<sub>1</sub>/z &nbsp;,&nbsp; m<sub>1</sub>′ = B<sub>1</sub>′/z &nbsp;,&nbsp; n = B<sub>s</sub>/z<br>';
+  h+='&nbsp;&nbsp;B<sub>1</sub> = b/2 − |x| &nbsp;,&nbsp; B<sub>1</sub>′ = b − B<sub>1</sub> &nbsp;(metades esquerda e direita do carregamento trapezoidal)</div>';
+  if(AC.q>0)h+='<div class="cs-formula"><b>Sobrecarga q</b> (faixa de largura b, Flamant): &nbsp;Δσ<sub>q</sub> = (q/π)·[ α + sen α·cos(θ<sub>1</sub>+θ<sub>2</sub>) ] &nbsp;,&nbsp; θ<sub>1</sub> = atan((x+b/2)/z) &nbsp;,&nbsp; θ<sub>2</sub> = atan((x−b/2)/z) &nbsp;,&nbsp; α = θ<sub>1</sub> − θ<sub>2</sub></div>';
+  h+='<div class="cs-formula"><b>Fundação</b> (Boussinesq 3D, retângulo A × B, método dos 4 cantos de Newmark, 1935): &nbsp;Δσ<sub>fund</sub> = q·[ I<sub>r</sub>(canto 1) − I<sub>r</sub>(2) − I<sub>r</sub>(3) + I<sub>r</sub>(4) ]; &nbsp;no eixo da fundação: &nbsp;Δσ<sub>fund</sub> = <b>4·q·I<sub>r</sub>(m,n)</b><br>';
+  h+='&nbsp;&nbsp;m = (A/2)/z<sub>i</sub> &nbsp;,&nbsp; n = (B/2)/z<sub>i</sub> &nbsp;;&nbsp; I<sub>r</sub>(m,n) = (1/4π)·[ (2mn√(m²+n²+1)/(m²+n²+m²n²+1))·((m²+n²+2)/(m²+n²+1)) + atan( 2mn√(m²+n²+1)/(m²+n²−m²n²+1) ) ]</div>';
+  h+='<div class="cs-formula"><b>Valor da camada</b> (regra de Simpson, pontos topo · meio · base): &nbsp;Δσ<sub>camada</sub> = ( Δσ<sub>topo</sub> + 4·Δσ<sub>meio</sub> + Δσ<sub>base</sub> ) / 6 &nbsp;— aplicada a cada parcela e ao total.</div>';
+  h+='</div>';
+
+  // ── 1.3 Cálculo por camada ────────────────────────────────────────────
+  rows.forEach((r,ci)=>{
+    const P=r.b.pts; if(!P)return;
+    const pts=[['topo',P.top],['meio',P.mid],['base',P.bot]];
+    h+='<div class="cs" style="border-left:4px solid #a06030">';
+    h+='<div class="cs-lbl"><span style="background:#a06030;color:#fff;font-size:9px;padding:1px 7px;border-radius:10px">'+r.nome+'</span> &nbsp;z = '+f2(r.z0)+' → '+f2(r.z1)+' m &nbsp;(Hs = '+f2(r.Hs)+' m · z<sub>meio</sub> = '+f2(r.b.zm)+' m)</div>';
+
+    // (a) aterro
+    h+='<div class="cs-sub"><b>(a) Aterro — Osterberg</b> &nbsp;(q<sub>0</sub> = '+f2(q0)+' kPa, B<sub>s</sub> = '+f2(Bs)+' m)</div>';
+    h+='<div style="overflow-x:auto"><table class="tbl-fatias"><thead><tr><th>Ponto</th><th>z (m)</th><th>B<sub>1</sub> (m)</th><th>B<sub>1</sub>′ (m)</th><th>m<sub>1</sub></th><th>m<sub>1</sub>′</th><th>n</th><th>I(m<sub>1</sub>,n)</th><th>I(m<sub>1</sub>′,n)</th><th>Δσ<sub>aterro</sub> = q<sub>0</sub>·(I+I′)</th></tr></thead><tbody>';
+    pts.forEach(([nm,pt])=>{
+      const d=pt.detAt;
+      if(d&&d.ramo==='crista'){
+        h+='<tr><td><b>'+nm+'</b></td><td>'+f2(pt.z)+'</td><td>'+f2(d.B1)+'</td><td>'+f2(d.B1p)+'</td><td>'+f3(d.m1)+'</td><td>'+f3(d.m1p)+'</td><td>'+f3(d.n)+'</td><td>'+f4(d.I1)+'</td><td>'+f4(d.I2)+'</td><td><b>'+f2(pt.at)+'</b></td></tr>';
+      }else{
+        h+='<tr><td><b>'+nm+'</b></td><td>'+f2(pt.z)+'</td><td colspan="7" style="color:#7a6a52">ponto fora da crista (|x| &gt; b/2) — 3 parcelas Osterberg/Flamant</td><td><b>'+f2(pt.at)+'</b></td></tr>';
+      }
+    });
+    h+='</tbody></table></div>';
+    if(P.top.z<0.01)h+='<div class="cs-sub" style="font-size:9px">* no topo (z = 0) o aterro é avaliado em z = 0,01 m (limite da carga na superfície, Δσ ≈ q<sub>0</sub>).</div>';
+    h+='<div class="cs-sub">Simpson: Δσ<sub>aterro</sub> = ('+f2(P.top.at)+' + 4·'+f2(P.mid.at)+' + '+f2(P.bot.at)+') / 6 = <b>'+f2(r.b.at)+'</b> kPa</div>';
+
+    // (b) sobrecarga
+    if(AC.q>0){
+      h+='<div class="cs-sub"><b>(b) Sobrecarga q</b> — Flamant: Δσ<sub>q</sub> topo / meio / base = '+f2(P.top.q)+' / '+f2(P.mid.q)+' / '+f2(P.bot.q)+' kPa → Simpson = <b>'+f2(r.b.q)+'</b> kPa</div>';
+    }
+
+    // (c) fundações
+    F.forEach((f,k)=>{
+      h+='<div class="cs-sub"><b>('+(AC.q>0?'c':'b')+') '+f.nome+' — Boussinesq</b> &nbsp;(A × B = '+f2(f.A)+' × '+f2(f.B)+' m, q = '+f2(f.q)+' kPa, D<sub>f</sub> = '+f2(f.Df)+' m)</div>';
+      h+='<div style="overflow-x:auto"><table class="tbl-fatias"><thead><tr><th>Ponto</th><th>z (m)</th><th>z<sub>i</sub> = h<sub>at</sub>+z−D<sub>f</sub> (m)</th><th>m = A/2z<sub>i</sub></th><th>n = B/2z<sub>i</sub></th><th>I<sub>r</sub>(m,n)</th><th>Δσ<sub>fund</sub></th></tr></thead><tbody>';
+      pts.forEach(([nm,pt])=>{
+        const fd=pt.funds[k], d=fd.det;
+        if(d&&d.zl>0&&d.m!=null){
+          h+='<tr><td><b>'+nm+'</b></td><td>'+f2(pt.z)+'</td><td>'+f2(d.zl)+' = '+f2(AC.h)+' + '+f2(pt.z)+' − '+f2(f.Df)+'</td><td>'+f3(d.m)+'</td><td>'+f3(d.n)+'</td><td>'+(d.I!=null?f4(d.I):'4 cantos*')+'</td><td><b>'+f2(fd.val)+'</b> '+(d.I!=null?'= 4 × '+f2(f.q)+' × '+f4(d.I):'')+'</td></tr>';
+        }else{
+          h+='<tr><td><b>'+nm+'</b></td><td>'+f2(pt.z)+'</td><td>'+f2(d?d.zl:0)+'</td><td colspan="3" style="color:#7a6a52">z<sub>i</sub> ≤ 0: ponto acima da base da fundação — não contribui</td><td><b>0,00</b></td></tr>';
+        }
+      });
+      h+='</tbody></table></div>';
+      if(pts.some(([,pt])=>pt.funds[k].det&&pt.funds[k].det.m!=null&&pt.funds[k].det.I==null))h+='<div class="cs-sub" style="font-size:9px">* ponto fora do eixo da fundação (Δx = x − desloc. ≠ 0): os 4 cantos de Newmark são avaliados com as distâncias deslocadas.</div>';
+      h+='<div class="cs-sub">Simpson: Δσ<sub>'+f.nome+'</sub> = ('+f2(P.top.funds[k].val)+' + 4·'+f2(P.mid.funds[k].val)+' + '+f2(P.bot.funds[k].val)+') / 6 = <b>'+f2(r.b.funds[k].val)+'</b> kPa</div>';
+    });
+
+    // (d) soma
+    const parc=[f2(r.b.at)].concat(AC.q>0?[f2(r.b.q)]:[]).concat(F.map((f,k)=>f2(r.b.funds[k].val)));
+    h+='<div class="cs-res">Σ Δσv ('+r.nome+') = Δσ<sub>aterro</sub>'+(AC.q>0?' + Δσ<sub>q</sub>':'')+F.map(f=>' + Δσ<sub>'+f.nome+'</sub>').join('')+' = '+parc.join(' + ')+' = <b style="color:#2a5a8c">'+f2(r.b.total)+' kPa</b></div>';
+    h+='</div>';
+  });
+
+  // ── 1.4 Média ponderada ────────────────────────────────────────────────
+  if(rows.length>1){
+    const soma=rows.reduce((s,r)=>s+r.b.total*r.Hs,0), Ht=rows.reduce((s,r)=>s+r.Hs,0);
+    h+='<div class="cs" style="border-left:4px solid #2a5a8c"><div class="cs-lbl">Resumo — Δσv por camada</div>';
+    h+='<div style="overflow-x:auto"><table class="tbl-fatias"><thead><tr><th>Camada</th><th>Hs (m)</th><th>Δσ aterro</th>'+(AC.q>0?'<th>Δσ q</th>':'')+F.map(f=>'<th>'+f.nome+'</th>').join('')+'<th>Σ Δσv (kPa)</th><th>Δσv·Hs</th></tr></thead><tbody>';
+    rows.forEach(r=>{h+='<tr><td><b>'+r.nome+'</b></td><td>'+f2(r.Hs)+'</td><td>'+f2(r.b.at)+'</td>'+(AC.q>0?'<td>'+f2(r.b.q)+'</td>':'')+F.map((f,k)=>'<td>'+f2(r.b.funds[k].val)+'</td>').join('')+'<td style="color:#2a5a8c;font-weight:700">'+f2(r.b.total)+'</td><td>'+f2(r.b.total*r.Hs)+'</td></tr>';});
+    h+='</tbody></table></div>';
+    h+='<div class="cs-res">Δσv médio (ponderado por espessura) = Σ(Δσv·Hs) / ΣHs = '+f2(soma)+' / '+f2(Ht)+' = <b>'+dsvTxt+'</b> kPa <span style="color:#7a6a52">(indicador — o cálculo usa o Δσv próprio de cada camada em σ\'vf = σ\'v0 + Δσv)</span></div></div>';
+  }else{
+    h+='<div class="cs-res" style="margin:4px 0">Δσv adotado = <b>'+dsvTxt+'</b> kPa</div>';
+  }
+  return h;
+}
+
 function calcHtml_recPrim(rp,at,sm){
   if(!rp)return'<div class="calc-empty">Conecte as caixas ao módulo Recalque Primário.</div>';
 
@@ -8345,6 +9080,9 @@ function calcHtml_recPrim(rp,at,sm){
   let html='';
 
   // ── Load (common to all modes) ────────────────────────────────────────
+  if(rp.atCamada){
+    html+=_rpAtCamadaStep(rp,dsv);
+  } else
   html+=_step('1. Acréscimo de Tensão Vertical (Δσv)',
     at?'Δσv = γat × h + q  [calculado pelo módulo Aterro]':'Δσv — valor manual',
     at?'γat = '+_f(at.gat,1)+' kN/m³  ·  h = '+_f(at.h,1)+' m  ·  q = '+_f(at.q||0,1)+' kPa':'',
@@ -8469,7 +9207,7 @@ function calcHtml_recPrim(rp,at,sm){
 
   // ── Summary ───────────────────────────────────────────────────────────
   html+='<div class="cs-summary">';
-  html+='<div class="cs-sum-row"><span>Δσv — acréscimo de tensão</span><span style="color:#2a5a8c"><b>'+dsv+'</b> kPa</span><span>γat·h + q</span></div>';
+  html+='<div class="cs-sum-row"><span>Δσv — acréscimo de tensão</span><span style="color:#2a5a8c"><b>'+dsv+'</b> kPa</span><span>'+(rp.atCamada?(isMulti?'média ponderada (aterro + fundações)':'aterro + fundações'):'γat·h + q')+'</span></div>';
   if(isMulti){
     html+='<div class="cs-sum-row"><span>N.º de camadas</span><span style="color:#a06030"><b>'+rp.layerResults.length+'</b></span><span>Multicamadas</span></div>';
     html+='<div class="cs-sum-row"><span>Hs total</span><span style="color:#a06030"><b>'+_f(rp.Hs,1)+'</b> m</span><span></span></div>';
@@ -9708,7 +10446,7 @@ function drawSection(ctx,{x,y,w,h,gyFrac,zoom,panX,panY,fitted,onFit,wtDepth,wtL
     // ── Canvas coordinates ─────────────────────────────────────────────
     const deslocH_sap=Number.isFinite(+sap.deslocH)?+sap.deslocH:0; // deslocamento do eixo do desenho (m)
     const cx=CX+deslocH_sap*scl;                       // horizontal center (deslocado do eixo da seção)
-    const surfaceY=GY;                                 // ground surface Y
+    const surfaceY=GY-(+sap._atTop||0)*scl;            // superfície de apoio Y (topo do aterro, se conectada a um aterro; senão o terreno)
     const botSapY=surfaceY+Df*scl;                     // BOTTOM of sapata (Df below surface)
     const topSapY=botSapY-hSap*scl;                    // top of sapata at CENTER (platform)
     const edgeTopY=botSapY-h0*scl;                     // top of sapata at EDGES (thinner)
@@ -9910,7 +10648,7 @@ function drawSection(ctx,{x,y,w,h,gyFrac,zoom,panX,panY,fitted,onFit,wtDepth,wtL
     const h=Math.max(0.15,+radier.H||0.4);             // espessura (m)
     const h_cm=h*100;
     const deslocH_rad=Number.isFinite(+radier.deslocH)?+radier.deslocH:0; // deslocamento do eixo do desenho (m)
-    const cx=CX+deslocH_rad*scl, surfaceY=GY;
+    const cx=CX+deslocH_rad*scl, surfaceY=GY-(+radier._atTop||0)*scl;
     const botY=surfaceY+Df*scl;
     const topY=botY-h*scl;
     const halfA=(A/2)*scl;
@@ -10073,7 +10811,7 @@ function drawSection(ctx,{x,y,w,h,gyFrac,zoom,panX,panY,fitted,onFit,wtDepth,wtL
     const HembMf=Math.max(0,Math.min(Hmf,(mf.Hemb!=null?+mf.Hemb:Hmf))); // altura enterrada (m)
     const Lmf=Math.max(0.5,+mf.L||3.5);     // dimensão do bloco nesta seção (m)
     const deslocH_mf=Number.isFinite(+mf.deslocH)?+mf.deslocH:0; // deslocamento do eixo do desenho (m)
-    const cxM=CX+deslocH_mf*scl, surfaceYM=GY;
+    const cxM=CX+deslocH_mf*scl, surfaceYM=GY-(+mf._atTop||0)*scl;
     // base do bloco fica a HembMf abaixo do terreno; topo fica (Hmf-HembMf) acima do terreno
     // quando HembMf < Hmf (bloco semi-enterrado ou 100% exposto para HembMf=0)
     const botYM=surfaceYM+HembMf*scl;
@@ -10662,6 +11400,7 @@ function calcHtml_curvaOed(){
 <table style="width:100%;border-collapse:collapse;margin:6px 0 12px 0;font-size:11px">
 <tr style="background:#f0ebe0"><th style="padding:5px 8px;text-align:left;border:1px solid #ccc">Botão</th><th style="padding:5px 8px;text-align:left;border:1px solid #ccc">Ação</th></tr>
 <tr><td style="padding:5px 8px;border:1px solid #ccc"><b>📋 Boletim</b></td><td style="padding:5px 8px;border:1px solid #ccc">Abre o editor de boletim</td></tr>
+<tr style="background:#fafafa"><td style="padding:5px 8px;border:1px solid #ccc"><b>📂 Furos</b></td><td style="padding:5px 8px;border:1px solid #ccc">Lê o arquivo <b>furos.json</b> (ou arraste-o para a janela), lista os furos e associa o escolhido ao boletim desta caixa — preenche identificação, N.A., camadas e golpes SPT</td></tr>
 <tr style="background:#fafafa"><td style="padding:5px 8px;border:1px solid #ccc"><b>🗻</b></td><td style="padding:5px 8px;border:1px solid #ccc">Exporta as camadas como caixas SM / NA / MC no canvas</td></tr>
 <tr><td style="padding:5px 8px;border:1px solid #ccc"><b>?</b></td><td style="padding:5px 8px;border:1px solid #ccc">Abre esta ajuda</td></tr>
 </table>

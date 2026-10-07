@@ -1342,9 +1342,6 @@ label{font-size:9px;letter-spacing:.8px;color:var(--mu)}
           <div class="field" id="bo-f-data-fim-wrap"><label>Término</label><input id="bo-f-data-fim" type="text" placeholder="dd/mm/aa"></div>
           <div class="field"><label>Cota (m)</label><input id="bo-f-cota" type="text" placeholder="Ex: 4,50"></div>
           <div class="field" id="bo-f-datum-wrap"><label>Datum</label><input id="bo-f-datum" type="text" placeholder="Ex: SIRGAS2000"></div>
-          <div class="field" id="bo-f-zona-utm-wrap"><label>Zona UTM</label><input id="bo-f-zona-utm" type="text" placeholder="Ex: 23S"></div>
-          <div class="field" id="bo-f-coord-n-wrap"><label>Coord. N</label><input id="bo-f-coord-n" type="text"></div>
-          <div class="field" id="bo-f-coord-e-wrap"><label>Coord. E</label><input id="bo-f-coord-e" type="text"></div>
           <div class="field"><label>Responsável técnico</label><input id="bo-f-responsavel" type="text"></div>
           <div class="field" id="bo-f-crea-wrap" style="display:none"><label>CREA</label><input id="bo-f-crea" type="text"></div>
           <div class="field"><label id="bo-f-sondador-label">Sondador</label><input id="bo-f-sondador" type="text"></div>
@@ -1352,7 +1349,6 @@ label{font-size:9px;letter-spacing:.8px;color:var(--mu)}
           <div class="field" id="bo-f-na-estimado-wrap" style="display:none"><label>N.A. estimado (m)</label><input id="bo-f-na-estimado" type="number" step="0.01"></div>
           <div class="field" id="bo-f-khkv-wrap" style="display:none"><label>Razão kh/kv assumida</label><input id="bo-f-khkv" type="number" step="0.1" value="2"></div>
         </div>
-        <button class="add-row-btn" type="button" id="bo-fill-utm" style="margin-top:8px"><svg class="ic"><use href="#ic-pin"></use></svg> Preencher Coord. N/E e Zona UTM (registro do boletim) com a posição atual do furo</button>
 
         <div class="fieldset-title">Localização do furo (posição real no mapa)</div>
         <div class="loc-toggle">
@@ -1924,11 +1920,14 @@ function inferTipoSolo(desc){
 
 /* ══════════════════ MAPA ══════════════════ */
 const map = L.map('map', {zoomControl:true}).setView([-15.6, -50.5], 4);
+// camada própria para as linhas de perfil: fica ACIMA do polígono do bloco (overlayPane=400) e dos
+// rasters, para a linha continuar clicável; abaixo dos pinos dos furos (markerPane=600)
+map.createPane('profilePane').style.zIndex = 450;
 // mantém a legenda flutuante dos rasters em sincronia conforme o usuário navega o mapa — some
 // quando o raster sai da área visível, aparece de novo se ele voltar a aparecer na tela
 map.on('moveend zoomend', ()=> updateMapLegendPanel());
 const osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
-  maxZoom:19, attribution:'© OpenStreetMap'}).addTo(map);
+  maxZoom:19, attribution:'© OpenStreetMap'});
 const sat = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',{
   maxZoom:19, attribution:'© Esri'});
 // endpoint de tiles do Google — mesmo mecanismo usado por praticamente todo projeto Leaflet
@@ -1940,7 +1939,9 @@ const ghyb = L.tileLayer('https://mt{s}.google.com/vt/lyrs=y&x={x}&y={y}&z={z}',
   maxZoom:20, subdomains:['0','1','2','3'], attribution:'© Google'});
 
 const baseLayers = {osm, sat, gsat, ghyb};
-let currentBase = 'osm';
+let currentBase = 'gsat'; // padrão: satélite Google
+gsat.addTo(map);
+document.getElementById('sel-base').value = 'gsat';
 document.getElementById('sel-base').addEventListener('change', e=>{
   map.removeLayer(baseLayers[currentBase]);
   currentBase = e.target.value;
@@ -2735,6 +2736,20 @@ function selectFuro(id){
    ══════════════════════════════════════════════════════════════ */
 const PXM = 44; // px por metro de profundidade no boletim — deve casar com a lógica de impressão
 
+// Zona UTM e Coord. N/E do registro do boletim: sempre derivadas da posição atual do furo
+// (lat/lng) — não há mais campos para digitar, e furos antigos (salvos sem esses dados) também aparecem
+function identComCoordsUTM(f){
+  const id = {...f.ident};
+  try{
+    if(isFinite(f.lat) && isFinite(f.lng)){
+      const z = utmZoneFromLng(f.lng), u = toUTM(f.lat, f.lng, z);
+      if(isFinite(u.e) && isFinite(u.n)){
+        id.coordE = u.e.toFixed(2); id.coordN = u.n.toFixed(2); id.zonaUTM = z+(f.lat<0?'S':'N');
+      }
+    }
+  }catch(e){}
+  return id;
+}
 function prepareBoletimState(f){
   let profAnterior = 0;
   const camadas = [...f.camadas]
@@ -2745,7 +2760,7 @@ function prepareBoletimState(f){
     .map(g=>{ const g1=+g.g1||0, g2=+g.g2||0, g3=+g.g3||0; return {...g, prof:+g.prof||0, g1, g2, g3, ni:g1+g2, nf:g2+g3}; })
     .sort((a,b)=>a.prof-b.prof);
   const agua = f.agua.filter(a=>a.prof!==''&&a.prof!==undefined&&a.prof!==null).map(a=>({...a, prof:+a.prof||0}));
-  return {ident:f.ident, agua, camadas, golpes, arquivo_ref:f.arquivo_ref||''};
+  return {ident:identComCoordsUTM(f), agua, camadas, golpes, arquivo_ref:f.arquivo_ref||''};
 }
 
 function renderFuroBoletimHtml(state){
@@ -3077,7 +3092,7 @@ function setBoletimTipoSondagem(tipo){
   document.querySelectorAll('#bo-editor-overlay .edit-tab[data-tab^="cptu-"]')
     .forEach(b=> b.style.display = ehCptu ? '' : 'none');
 
-  const soSpt = ['bo-f-uo-wrap','bo-f-data-fim-wrap','bo-f-datum-wrap','bo-f-zona-utm-wrap','bo-f-coord-n-wrap','bo-f-coord-e-wrap','bo-f-desenhista-wrap','bo-f-metodo-wrap','bo-f-revest-wrap'];
+  const soSpt = ['bo-f-uo-wrap','bo-f-data-fim-wrap','bo-f-datum-wrap','bo-f-desenhista-wrap','bo-f-metodo-wrap','bo-f-revest-wrap'];
   const soCptu = ['bo-f-laudo-wrap','bo-f-crea-wrap','bo-f-na-estimado-wrap','bo-f-khkv-wrap','bo-f-cone-tipo-wrap'];
   soSpt.forEach(id=>{ const el=document.getElementById(id); if(el) el.style.display = ehCptu?'none':''; });
   soCptu.forEach(id=>{ const el=document.getElementById(id); if(el) el.style.display = ehCptu?'':'none'; });
@@ -3249,9 +3264,6 @@ function openBoletimEditor(id){
   set('bo-f-data-fim', f.ident.dataFim);
   set('bo-f-cota', f.ident.cota);
   set('bo-f-datum', f.ident.datum);
-  set('bo-f-zona-utm', f.ident.zonaUTM);
-  set('bo-f-coord-n', f.ident.coordN);
-  set('bo-f-coord-e', f.ident.coordE);
   set('bo-f-responsavel', f.ident.responsavel);
   set('bo-f-crea', f.ident.crea);
   set('bo-f-sondador', f.ident.sondador);
@@ -3306,13 +3318,6 @@ function cancelBoletimEditor(){
 // clique no fundo (backdrop) NÃO fecha mais o editor — evita fechar sem querer e perder
 // edição em andamento; só fecha pelos botões (Cancelar/Salvar/Fechar) ou Esc
 document.addEventListener('keydown', e=>{ if(e.key==='Escape' && document.getElementById('bo-editor-overlay').classList.contains('open')) cancelBoletimEditor(); });
-document.getElementById('bo-fill-utm').addEventListener('click', ()=>{
-  const f = furos.find(x=>x.id===editingFuroId); if(!f) return;
-  const u = toUTM(f.lat,f.lng,utmZoneFromLng(f.lng));
-  document.getElementById('bo-f-coord-e').value = u.e.toFixed(2);
-  document.getElementById('bo-f-coord-n').value = u.n.toFixed(2);
-  document.getElementById('bo-f-zona-utm').value = utmZoneFromLng(f.lng)+'S';
-});
 
 function saveBoletimEditor(){
   const f = furos.find(x=>x.id===editingFuroId); if(!f) return;
@@ -3346,8 +3351,8 @@ function saveBoletimEditor(){
     sondagemNum: val('bo-f-sondagem-num').trim() || f.ident.sondagemNum,
     laudo: val('bo-f-laudo'),
     dataInicio: val('bo-f-data-inicio'), dataFim: val('bo-f-data-fim'),
-    cota: val('bo-f-cota'), datum: val('bo-f-datum'), zonaUTM: val('bo-f-zona-utm'),
-    coordN: val('bo-f-coord-n'), coordE: val('bo-f-coord-e'),
+    cota: val('bo-f-cota'), datum: val('bo-f-datum'), zonaUTM: '',
+    coordN: '', coordE: '',
     responsavel: val('bo-f-responsavel'), crea: val('bo-f-crea'),
     sondador: val('bo-f-sondador'), desenhista: val('bo-f-desenhista'),
     coneTipo: val('bo-f-cone-tipo'),
@@ -3396,6 +3401,18 @@ function saveBoletimEditor(){
     if(isFinite(latVal) && isFinite(lngVal)){ novoLat=latVal; novoLng=lngVal; }
   }
   f.lat = novoLat; f.lng = novoLng;
+  // registro do boletim (Zona UTM, Coord. N/E): derivado da localização acima — sem campos duplicados
+  try{
+    if(modo==='utm' && isFinite(parseFloat(val('bo-f-utm-e-in'))) && isFinite(parseFloat(val('bo-f-utm-n-in'))) && isFinite(parseInt(val('bo-f-utm-zone-in')))){
+      f.ident.coordE = parseFloat(val('bo-f-utm-e-in')).toFixed(2);
+      f.ident.coordN = parseFloat(val('bo-f-utm-n-in')).toFixed(2);
+      f.ident.zonaUTM = parseInt(val('bo-f-utm-zone-in'))+(novoLat<0?'S':'N');
+    } else {
+      const z = utmZoneFromLng(novoLng), u = toUTM(novoLat, novoLng, z);
+      f.ident.coordE = u.e.toFixed(2); f.ident.coordN = u.n.toFixed(2);
+      f.ident.zonaUTM = z+(novoLat<0?'S':'N');
+    }
+  }catch(e){}
   f.hash = computeFuroHash(f.ident.sondagemNum, f.ident.obra, f.lat, f.lng, f.ident.cota);
   // redesenha o marcador do zero (não só reposiciona) — o tipo de sondagem pode ter mudado
   // nesta edição, e o ícone/cor no mapa (círculo SPT vs quadrado CPTu) precisa refletir isso
@@ -3792,6 +3809,7 @@ document.getElementById('bo-pick-map').addEventListener('click', ()=>{
   map.getContainer().style.cursor='crosshair';
 });
 map.on('click', e=>{
+  if(pickingCptuForBlock){ cancelPickCptuForBlock(); toast('Seleção de CPTu cancelada'); return; }
   if(pickingInterpPointForBlock){
     toast('Clique dentro da área tracejada roxa do bloco selecionado (ou recomece pelo painel)');
     return;
@@ -4622,6 +4640,7 @@ function openTopoPanel(id){
 // painel lateral do bloco (mesma tela de clicar nele na lista de "Interpolação")
 function handleInterpBlockClick(blockId, latlng){
   if(interpSelectMode || pickingFuroLoc) return;
+  if(pickingCptuForBlock){ cancelPickCptuForBlock(); toast('Seleção de CPTu cancelada'); return; }
   if(pickingInterpPointForBlock){
     if(pickingInterpPointForBlock===blockId) handlePickInterpPoint(blockId, latlng);
     else toast('Clique dentro da área tracejada do bloco selecionado pra criar o ponto');
@@ -4639,10 +4658,12 @@ function startPickInterpPoint(blockId){
   pickingInterpPointForBlock = blockId;
   closePanel();
   toast('Clique dentro da área tracejada roxa para marcar o ponto de sondagem interpolado');
+  showPickBanner('Clique dentro da área tracejada do bloco para marcar o ponto interpolado', ()=>{ cancelPickInterpPoint(); toast('Criação de ponto interpolado cancelada'); });
   map.getContainer().style.cursor = 'crosshair';
 }
 function cancelPickInterpPoint(){
   pickingInterpPointForBlock = null;
+  hidePickBanner();
   map.getContainer().style.cursor = '';
 }
 function removePickInterpCross(){
@@ -4652,15 +4673,38 @@ function removePickInterpCross(){
 /* ── seleção de um CPTu pra comparar/incorporar num bloco interpolado — aceita clique no mapa
    (em cima do pino do furo) ou clique na linha da tabela de furos, igual aos outros modos de
    seleção já existentes (interpSelectMode, topoSelectMode) ── */
+// faixa fixa com botão "Cancelar" enquanto um modo de seleção no mapa está ativo — sem ela
+// não havia como sair do modo (só escolhendo um furo)
+function showPickBanner(msg, onCancel){
+  let b = document.getElementById('pick-banner');
+  if(!b){
+    b = document.createElement('div'); b.id = 'pick-banner';
+    b.style.cssText = 'position:fixed;top:64px;left:50%;transform:translateX(-50%);z-index:1500;background:#1e1a16;color:#fff;border-radius:10px;padding:8px 10px 8px 14px;font-size:12.5px;display:flex;align-items:center;gap:12px;box-shadow:0 6px 20px rgba(0,0,0,.35);max-width:90vw';
+    b.innerHTML = '<span id="pick-banner-msg"></span><button type="button" id="pick-banner-cancel" style="background:#fff;color:#1e1a16;border:0;border-radius:6px;padding:5px 12px;font-weight:700;cursor:pointer">Cancelar (Esc)</button>';
+    document.body.appendChild(b);
+  }
+  document.getElementById('pick-banner-msg').textContent = msg;
+  document.getElementById('pick-banner-cancel').onclick = ()=>{ if(onCancel) onCancel(); };
+  b.style.display = 'flex';
+}
+function hidePickBanner(){ const b = document.getElementById('pick-banner'); if(b) b.style.display = 'none'; }
+document.addEventListener('keydown', e=>{
+  if(e.key!=='Escape') return;
+  if(pickingCptuForBlock){ cancelPickCptuForBlock(); toast('Seleção de CPTu cancelada'); }
+  else if(pickingInterpPointForBlock){ cancelPickInterpPoint(); toast('Criação de ponto interpolado cancelada'); }
+});
+
 let pickingCptuForBlock = null; // id do bloco aguardando a seleção de um CPTu
 function startPickCptuForBlock(blockId){
   pickingCptuForBlock = blockId;
   closePanel();
   toast('Clique num furo de CPTu no mapa, ou selecione um na tabela de furos');
+  showPickBanner('Selecione um furo CPTu no mapa ou na tabela de furos', ()=>{ cancelPickCptuForBlock(); toast('Seleção de CPTu cancelada'); });
   map.getContainer().style.cursor = 'crosshair';
 }
 function cancelPickCptuForBlock(){
   pickingCptuForBlock = null;
+  hidePickBanner();
   map.getContainer().style.cursor = '';
 }
 function handlePickCptuForBlock(furoId){
@@ -5154,6 +5198,10 @@ function openInterpBlockPanel(id){
           <svg class="ic pb-card-ic"><use href="#ic-compare"></use></svg><em>Validação</em><b>Comparar com CPTu</b>
           <span>Confronta N60×N-SPT com o furo interpolado na mesma posição e permite incorporar o CPTu como fonte.</span>
         </button>
+        <button class="pb-card" id="pb-export-report" type="button">
+          <svg class="ic pb-card-ic"><use href="#ic-print"></use></svg><em>Relatório</em><b>Exportar relatório</b>
+          <span>Prévia de impressão com planta de localização, furos, perfis e rasters do bloco — ordene e exclua itens antes de imprimir.</span>
+        </button>
       </div>
     </div>
 
@@ -5188,6 +5236,7 @@ function openInterpBlockPanel(id){
   document.getElementById('pb-compare-cptu').onclick=()=>{
     startPickCptuForBlock(b.id);
   };
+  document.getElementById('pb-export-report').onclick=()=>{ openBlockReport(b.id); };
   document.getElementById('pb-add-interp-point').onclick=()=>{
     startPickInterpPoint(b.id);
   };
@@ -5195,7 +5244,7 @@ function openInterpBlockPanel(id){
     drawingProfileForBlockId = b.id;
     closePanel();
     toast('Clique no mapa para marcar os pontos da linha do perfil; dê duplo-clique (ou Enter) pra terminar');
-    new L.Draw.Polyline(map, {shapeOptions:{color:'#1a4e7a', weight:3}}).enable();
+    new L.Draw.Polyline(map, {shapeOptions:{color:'#1a4e7a', weight:3, dashArray:'10 6'}}).enable();
   };
   document.getElementById('pb-open-raster').onclick=()=>{
     openRasterView(b.id);
@@ -5247,6 +5296,354 @@ function renderInterpList(){
     div.addEventListener('click', ()=> selectInterpBlock(b.id));
     el.appendChild(div);
   });
+}
+
+
+/* ══════════════════════════════════════════════════════════════
+   RELATÓRIO DO BLOCO INTERPOLADO
+   ══════════════════════════════════════════════════════════════
+   Reúne tudo que pertence ao bloco (planta de localização, furos de
+   origem, furos interpolados, perfis geotécnicos e rasters) numa lista
+   de itens. A popup mostra a prévia da impressão; o usuário reordena
+   (setas ou arrastar) e exclui itens antes de imprimir. O HTML de cada
+   item é gerado sob demanda (render()), então a prévia e a impressão
+   usam exatamente o mesmo conteúdo.
+   ══════════════════════════════════════════════════════════════ */
+let reportBlockId = null;
+let reportItems = [];      // itens atualmente na prévia (ordem = ordem do relatório)
+let reportAllItems = [];   // todos os itens possíveis (para "Restaurar itens")
+
+let reportPlanBase = 'auto'; // fundo da planta: auto (mapa atual) | osm | sat | gsat | none
+
+// tiles de mapa (Web Mercator) posicionados na planta em XY local — em áreas pequenas o
+// retângulo do tile em lat/lng vira, com ótima aproximação, um retângulo na planta
+function buildPlanTilesSvg(block, view, px, py){
+  let key = reportPlanBase;
+  if(key==='none') return '';
+  if(key==='auto') key = (typeof currentBase!=='undefined' && currentBase) ? currentBase : 'sat';
+  const layer = (typeof baseLayers!=='undefined') ? baseLayers[key] : null;
+  if(!layer || typeof layer._url!=='string') return '';
+  const [latS,lngW] = xyToLatLng(view.xMin, view.yMin, block.refLat, block.refLng);
+  const [latN,lngE] = xyToLatLng(view.xMax, view.yMax, block.refLat, block.refLng);
+  const tx = (lng,z)=> (lng+180)/360*Math.pow(2,z);
+  const ty = (lat,z)=>{ const r=lat*Math.PI/180; return (1-Math.log(Math.tan(r)+1/Math.cos(r))/Math.PI)/2*Math.pow(2,z); };
+  const lonOf = (x,z)=> x/Math.pow(2,z)*360-180;
+  const latOf = (y,z)=>{ const n=Math.PI-2*Math.PI*y/Math.pow(2,z); return 180/Math.PI*Math.atan(0.5*(Math.exp(n)-Math.exp(-n))); };
+  let z = Math.min(19, layer.options && layer.options.maxZoom ? layer.options.maxZoom : 19);
+  let x0,x1,y0,y1;
+  for(; z>=3; z--){
+    x0=Math.floor(tx(lngW,z)); x1=Math.floor(tx(lngE,z));
+    y0=Math.floor(ty(latN,z)); y1=Math.floor(ty(latS,z));
+    if((x1-x0+1)*(y1-y0+1) <= 20) break;
+  }
+  let out='';
+  for(let X=x0; X<=x1; X++) for(let Y=y0; Y<=y1; Y++){
+    // monta a URL a partir do modelo do layer (getTileUrl do Leaflet depende do zoom atual do mapa)
+    const subs = (layer.options && layer.options.subdomains) || 'abc';
+    const sd = subs.length ? subs[(X+Y)%subs.length] : '';
+    const url = layer._url.replace('{s}',sd).replace('{r}','').replace('{z}',z).replace('{x}',X).replace('{y}',Y);
+    const a = localXY(latOf(Y,z), lonOf(X,z), block.refLat, block.refLng);       // canto NW
+    const b = localXY(latOf(Y+1,z), lonOf(X+1,z), block.refLat, block.refLng);   // canto SE
+    const xL=px(a), yT=py(a), w=px(b)-xL, h=py(b)-yT;
+    out += `<image href="${escAttr(url)}" x="${xL.toFixed(2)}" y="${yT.toFixed(2)}" width="${(w+0.6).toFixed(2)}" height="${(h+0.6).toFixed(2)}" preserveAspectRatio="none"/>`;
+  }
+  const attr = (layer.options && layer.options.attribution) || '';
+  return out + (attr ? `<text x="636" y="436" text-anchor="end" font-size="8" fill="#fff" stroke="#000" stroke-width="2" paint-order="stroke">${escXml(attr)}</text>` : '');
+}
+
+function buildBlockPlanSvg(block){
+  const W=640, H=440, M=40;
+  const srcFuros = block.furoIds.map(fid=>furos.find(x=>x.id===fid)).filter(Boolean);
+  const interp = furos.filter(f=>f._interpolado && f._interpBlockId===block.id);
+  const blkProfiles = profiles.filter(p=>p.blockId===block.id);
+  const toXY = (la,ln)=>localXY(la,ln,block.refLat,block.refLng);
+  const pts = [];
+  (block.hull||[]).forEach(([la,ln])=>pts.push(toXY(la,ln)));
+  srcFuros.concat(interp).forEach(f=>{ if(isFinite(f.lat)&&isFinite(f.lng)) pts.push(toXY(f.lat,f.lng)); });
+  blkProfiles.forEach(p=>(p.line||[]).forEach(([la,ln])=>pts.push(toXY(la,ln))));
+  if(!pts.length) return '<p class="hint">Sem coordenadas para montar a planta.</p>';
+  let minX=Infinity,maxX=-Infinity,minY=Infinity,maxY=-Infinity;
+  pts.forEach(p=>{ minX=Math.min(minX,p.x); maxX=Math.max(maxX,p.x); minY=Math.min(minY,p.y); maxY=Math.max(maxY,p.y); });
+  const spanX=Math.max(maxX-minX,1), spanY=Math.max(maxY-minY,1);
+  const sc = Math.min((W-2*M)/spanX, (H-2*M)/spanY);
+  const offX = M + ((W-2*M)-spanX*sc)/2, offY = M + ((H-2*M)-spanY*sc)/2;
+  const px = p=> offX + (p.x-minX)*sc;
+  const py = p=> H - (offY + (p.y-minY)*sc);
+  let s = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" style="width:100%;max-width:${W}px;height:auto;background:#fff;border:1px solid #cfc8bb;font-family:monospace">`;
+  const view = { xMin:minX-offX/sc, xMax:minX+(W-offX)/sc, yMin:minY-offY/sc, yMax:minY+(H-offY)/sc };
+  const tiles = buildPlanTilesSvg(block, view, px, py);
+  s += tiles;
+  s += `<style>.pl-t{paint-order:stroke;stroke:#fff;stroke-width:3px;stroke-linejoin:round}</style>`;
+  const f1=v=>v.toFixed(1);
+  // rótulo em "etiqueta" (fundo branco, borda colorida) — legível sobre qualquer imagem
+  const tag=(x,y,txt,cor,fs)=>{ const w=txt.length*fs*0.62+10, h=fs+7;
+    return `<g><rect x="${f1(x)}" y="${f1(y-h/2)}" width="${f1(w)}" height="${f1(h)}" rx="3" fill="#fff" fill-opacity="0.94" stroke="${cor}" stroke-width="1.3"/><text x="${f1(x+5)}" y="${f1(y+fs*0.35)}" font-size="${fs}" font-weight="bold" fill="${cor}" style="stroke:none">${txt}</text></g>`; };
+  // área do bloco (contorno duplo: branco por baixo + roxo tracejado)
+  if(block.hull && block.hull.length){
+    const hp = block.hull.map(([la,ln])=>{const p=toXY(la,ln);return f1(px(p))+','+f1(py(p));}).join(' ');
+    s += `<polygon points="${hp}" fill="rgba(122,63,160,0.10)" stroke="#fff" stroke-width="5"/>`;
+    s += `<polygon points="${hp}" fill="none" stroke="#7a3fa0" stroke-width="2.6" stroke-dasharray="9 5"/>`;
+  }
+  // perfis: linha grossa com contorno branco, extremidades A/A' e etiqueta no meio
+  blkProfiles.forEach((p,pi)=>{
+    if(!p.line || p.line.length<2) return;
+    const q = p.line.map(([la,ln])=>toXY(la,ln));
+    const pl = q.map(t=>f1(px(t))+','+f1(py(t))).join(' ');
+    s += `<polyline points="${pl}" fill="none" stroke="#fff" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>`;
+    s += `<polyline points="${pl}" fill="none" stroke="#0b5fa8" stroke-width="4.2" stroke-dasharray="13 8" stroke-linejoin="round"/>`;
+    const ends=[[q[0],String.fromCharCode(65+pi%26)],[q[q.length-1],String.fromCharCode(65+pi%26)+"'"]];
+    ends.forEach(([pt,lb])=>{ const x=px(pt), y=py(pt);
+      s += `<circle cx="${f1(x)}" cy="${f1(y)}" r="9" fill="#0b5fa8" stroke="#fff" stroke-width="2.5"/><text x="${f1(x)}" y="${f1(y+3.6)}" font-size="10.5" font-weight="bold" fill="#fff" text-anchor="middle" style="stroke:none">${lb}</text>`; });
+    const mid=q[Math.floor((q.length-1)/2)], nx=q.length>1? (q[1]) : mid;
+    s += tag(px(mid)+12, py(mid), escXml(p.nome), '#0b5fa8', 12);
+  });
+  // furos interpolados (losango roxo)
+  interp.forEach(f=>{
+    const p=toXY(f.lat,f.lng), x=px(p), y=py(p);
+    s += `<polygon points="${f1(x)},${f1(y-9)} ${f1(x+9)},${f1(y)} ${f1(x)},${f1(y+9)} ${f1(x-9)},${f1(y)}" fill="#c9a3e6" stroke="#fff" stroke-width="3" paint-order="stroke"/><polygon points="${f1(x)},${f1(y-9)} ${f1(x+9)},${f1(y)} ${f1(x)},${f1(y+9)} ${f1(x-9)},${f1(y)}" fill="#c9a3e6" stroke="#5b2b80" stroke-width="2"/>`;
+    s += tag(x+13, y, escXml(f.ident.sondagemNum), '#5b2b80', 11);
+  });
+  // furos de origem: círculo preto (SPT) / triângulo laranja (CPTu), anel branco e etiqueta
+  srcFuros.forEach(f=>{
+    const p=toXY(f.lat,f.lng), x=px(p), y=py(p), cptu=f.tipoSondagem==='CPTU';
+    s += cptu
+      ? `<polygon points="${f1(x)},${f1(y-11)} ${f1(x+10)},${f1(y+8)} ${f1(x-10)},${f1(y+8)}" fill="#e8730c" stroke="#fff" stroke-width="3.5" stroke-linejoin="round"/><polygon points="${f1(x)},${f1(y-11)} ${f1(x+10)},${f1(y+8)} ${f1(x-10)},${f1(y+8)}" fill="#e8730c" stroke="#1e1a16" stroke-width="1.6" stroke-linejoin="round"/>`
+      : `<circle cx="${f1(x)}" cy="${f1(y)}" r="9" fill="#fff"/><circle cx="${f1(x)}" cy="${f1(y)}" r="7" fill="#d62d20" stroke="#1e1a16" stroke-width="2"/><circle cx="${f1(x)}" cy="${f1(y)}" r="2" fill="#fff"/>`;
+    s += tag(x+14, y-1, escXml(f.ident.sondagemNum), '#1e1a16', 12);
+  });
+  // norte + escala
+  s += `<g transform="translate(${W-30},34)"><rect x="-16" y="-30" width="32" height="56" rx="5" fill="#fff" fill-opacity="0.9"/><path d="M0 14L0 -14M0 -14L-5 -4M0 -14L5 -4" stroke="#1e1a16" stroke-width="1.5" fill="none"/><text class="pl-t" x="-4" y="-18" font-size="11" font-weight="bold">N</text></g>`;
+  const nice=[1,2,5,10,20,50,100,200,500,1000,2000,5000]; let barM=nice[0];
+  nice.forEach(n=>{ if(n*sc<=(W-2*M)/3) barM=n; });
+  const barPx=barM*sc;
+  s += `<g transform="translate(${M},${H-14})"><rect x="-6" y="-12" width="${(barPx+52).toFixed(1)}" height="24" rx="5" fill="#fff" fill-opacity="0.9"/><path d="M0 0H${barPx.toFixed(1)}M0 -4V4M${barPx.toFixed(1)} -4V4" stroke="#1e1a16" stroke-width="1.5"/><text class="pl-t" x="${(barPx+6).toFixed(1)}" y="3" font-size="10">${barM} m</text></g>`;
+  s += '</svg>';
+  const legend = `<div class="tag-list" style="display:flex;flex-wrap:wrap;gap:12px;margin-top:8px;font-size:11px">
+    <span><b style="color:#d62d20">◉</b> Furo SPT de origem</span><span><b style="color:#e8730c">▲</b> CPTu de origem</span><span><b style="color:#8a4cb8">◆</b> Furo interpolado</span>
+    <span><b style="color:#0b5fa8">╍╍</b> Perfil geotécnico (A–A')</span><span><b style="color:#7a3fa0">┅</b> Área do bloco</span></div>`;
+  return s + legend;
+}
+
+function buildBlockReportItems(block){
+  const items = [];
+  const add = (id,tipo,titulo,render)=> items.push({id,tipo,titulo,render});
+  add('planta','Planta','Planta de localização dos furos', ()=>buildBlockPlanSvg(block));
+  block.furoIds.map(fid=>furos.find(x=>x.id===fid)).filter(Boolean).forEach(f=>{
+    const cptu = f.tipoSondagem==='CPTU';
+    add('furo:'+f.id, cptu?'CPTu':'Furo', (cptu?'Boletim CPTu — ':'Boletim de sondagem — ')+f.ident.sondagemNum, ()=>
+      cptu ? renderCptuBoletimHtml(f) : renderFuroBoletimHtml(prepareBoletimState(f)));
+  });
+  furos.filter(f=>f._interpolado && f._interpBlockId===block.id).forEach(f=>{
+    add('interp:'+f.id,'Interpolado','Furo interpolado — '+f.ident.sondagemNum, ()=>renderFuroBoletimHtml(prepareBoletimState(f)));
+  });
+  profiles.filter(p=>p.blockId===block.id).forEach(p=>{
+    add('perfil:'+p.id,'Perfil','Perfil geotécnico — '+p.nome, ()=>renderProfileHtml(p));
+  });
+  rasterLayers.filter(r=>r.blockId===block.id).forEach(r=>{
+    add('raster:'+r.id,'Raster','Raster — '+r.paramLabel+(r.elev!=null&&isFinite(r.elev)?' (cota '+r.elev+' m)':''), ()=>{
+      const pd = RASTER_PARAMS.find(p=>p.key===r.paramKey) || {key:r.paramKey,label:r.paramLabel,unidade:''};
+      const ld = r.legendData || {};
+      const leg = ld.type==='material'
+        ? buildRasterLegendHtml(pd,0,0,new Set(ld.tipos||[]))
+        : buildRasterLegendHtml(pd, ld.minV||0, ld.maxV||0, null);
+      return `<img src="${r.dataUrl}" style="max-width:100%;display:block;margin:0 auto;border:1px solid #cfc8bb;image-rendering:pixelated"><div style="margin-top:10px;max-width:520px">${leg}</div>`;
+    });
+  });
+  return items;
+}
+
+function reportItemHtml(it, idx){
+  let body;
+  try{ body = it.render();
+    // ids únicos por item: o perfil usa <pattern id="soilpat-*">, e ids duplicados na página
+    // (o painel do perfil já tem os mesmos) fazem o navegador resolver o url(#...) para o
+    // primeiro, que está dentro de um contêiner oculto — e as camadas somem
+    const uid = 'rp'+idx+'x'+Math.random().toString(36).slice(2,6)+'-';
+    body = body.replace(/id="(soilpat-[^"]*)"/g, 'id="'+uid+'$1"').replace(/url\(#(soilpat-[^)]*)\)/g, 'url(#'+uid+'$1)');
+  }catch(e){ body = '<p class="hint">Não foi possível gerar este item ('+escXml(e.message)+').</p>'; }
+  return `<section class="rep-item" data-rid="${escAttr(it.id)}">
+    <div class="rep-item-h"><span class="rep-item-n">${idx+1}</span><span class="rep-item-t">${escXml(it.titulo)}</span></div>
+    <div class="rep-item-b">${body}</div></section>`;
+}
+
+function reportCoverHtml(block){
+  const srcFuros = block.furoIds.map(fid=>furos.find(x=>x.id===fid)).filter(Boolean);
+  const ob = srcFuros[0] && srcFuros[0].ident ? srcFuros[0].ident : {};
+  const data = new Date().toLocaleDateString('pt-BR');
+  return `<div class="rep-cover">
+    <div class="rep-cover-tag">GEO·SIG · Relatório de bloco interpolado</div>
+    <h1>${escXml(block.nome)}</h1>
+    <div class="rep-cover-sub">${ob.obra?escXml(ob.obra)+' · ':''}${ob.local?escXml(ob.local)+' · ':''}${data}</div>
+    <div class="rep-cover-sub">Interpolação IDW (potência ${block.power||2}) a partir de ${srcFuros.length} furo(s): ${srcFuros.map(f=>escXml(f.ident.sondagemNum)).join(', ')}</div>
+    <p class="rep-warn">Os furos interpolados, perfis e rasters deste relatório são estimativas geradas por interpolação e não representam ensaios de campo. Uso preliminar — não substitui projeto executivo nem responsabilidade técnica registrada (ART/CREA).</p>
+  </div>`;
+}
+
+function reportCss(){
+  return `
+  .rep-cover{padding:8px 0 18px;border-bottom:2px solid #7a3fa0;margin-bottom:16px}
+  .rep-cover-tag{font-family:monospace;font-size:10px;letter-spacing:2px;text-transform:uppercase;color:#7a3fa0}
+  .rep-cover h1{font-size:24px;margin:6px 0 4px}
+  .rep-cover-sub{font-size:12px;color:#5f564c;margin:2px 0}
+  .rep-warn{font-size:11px;background:#f6f0fa;border-left:3px solid #7a3fa0;padding:8px 10px;margin-top:12px;line-height:1.5}
+  .rep-item{margin-bottom:22px}
+  .rep-item-h{display:flex;align-items:center;gap:8px;border-bottom:1px solid #cfc8bb;padding-bottom:5px;margin-bottom:10px}
+  .rep-item-n{background:#1e1a16;color:#fff;border-radius:50%;width:20px;height:20px;display:inline-flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;font-family:monospace}
+  .rep-item-t{font-size:14px;font-weight:800}
+  @media print{
+    .rep-item{break-before:page;page-break-before:always}
+    .rep-cover + .rep-item{break-before:auto;page-break-before:auto}
+    .rep-item img{image-rendering:pixelated;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+    svg,.rep-item-n{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  }`;
+}
+
+function openBlockReport(blockId){
+  const block = interpBlocks.find(b=>b.id===blockId); if(!block) return;
+  reportBlockId = blockId;
+  reportAllItems = buildBlockReportItems(block);
+  reportItems = reportAllItems.slice();
+  let ov = document.getElementById('block-report-overlay');
+  if(!ov){
+    ov = document.createElement('div');
+    ov.className = 'popup-overlay'; ov.id = 'block-report-overlay';
+    ov.innerHTML = `<style id="block-report-css">${reportCss()}
+      #block-report-overlay .editor-box{max-width:1180px;height:90vh;max-height:90vh}
+      .rep-layout{display:flex;gap:16px;height:100%;padding:14px 0}
+      .rep-list{width:290px;flex-shrink:0;overflow-y:auto;border-right:1px solid var(--bo-border);padding-right:12px}
+      .rep-prev{flex:1;overflow-y:auto;background:#fff;color:#1e1a16;border:1px solid var(--bo-border);border-radius:8px;padding:18px 22px}
+      .rep-row{display:flex;align-items:center;gap:6px;border:1px solid var(--bo-border);border-radius:8px;padding:6px 8px;margin-bottom:6px;background:var(--bo-surface);cursor:grab;font-size:12px}
+      .rep-row.drag{opacity:.4}.rep-row.over{outline:2px solid #7a3fa0}
+      .rep-row .rt{flex:1;min-width:0}.rep-row .rt i{display:block;font-style:normal;font-size:9.5px;letter-spacing:1px;text-transform:uppercase;color:var(--bo-muted);font-family:monospace}
+      .rep-row .rt b{display:block;font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+      .rep-row button{border:1px solid var(--bo-border);background:var(--bo-card);border-radius:5px;width:24px;height:24px;cursor:pointer;font-size:12px;padding:0;color:var(--bo-text)}
+      .rep-row button:disabled{opacity:.3;cursor:default}
+      .rep-row button.x{color:#c0392b}
+      .rep-empty{color:var(--bo-muted);font-size:12px;padding:12px 0}
+      @media(max-width:800px){.rep-layout{flex-direction:column}.rep-list{width:auto;max-height:35%;border-right:none}}
+    </style>
+    <div class="editor-box">
+      <div class="popup-header"><h3 id="block-report-title">Relatório do bloco</h3><button class="popup-close" id="block-report-close" type="button">✕</button></div>
+      <div class="popup-body"><div class="rep-layout">
+        <div class="rep-list"><div class="hint" style="margin-bottom:8px;font-size:11px">Arraste ou use ▲▼ para ordenar; ✕ remove do relatório.</div><div id="rep-list-rows"></div></div>
+        <div class="rep-prev" id="rep-prev"></div>
+      </div></div>
+      <div class="popup-footer">
+        <label style="margin-right:auto;font-size:12px;display:flex;align-items:center;gap:6px">Fundo da planta
+          <select id="rep-base" class="f-input" style="width:auto;padding:4px 8px">
+            <option value="auto">Mapa atual</option><option value="sat">Satélite (Esri)</option>
+            <option value="gsat">Satélite (Google)</option><option value="osm">OpenStreetMap</option><option value="none">Sem fundo</option>
+          </select></label>
+        <button class="mini-btn" type="button" id="rep-restore">Restaurar itens</button>
+        <button class="mini-btn" type="button" id="rep-cancel">Fechar</button>
+        <button class="mini-btn" type="button" id="rep-export">⬇ Exportar HTML</button>
+        <button class="mini-btn primary" type="button" id="rep-print">🖨 Imprimir / Salvar PDF</button>
+      </div>
+    </div>`;
+    document.body.appendChild(ov);
+    document.getElementById('block-report-close').onclick = closeBlockReport;
+    document.getElementById('rep-cancel').onclick = closeBlockReport;
+    document.getElementById('rep-restore').onclick = ()=>{ reportItems = reportAllItems.slice(); renderBlockReportPreview(); };
+    document.getElementById('rep-print').onclick = printBlockReport;
+    document.getElementById('rep-export').onclick = exportBlockReportHtml;
+    document.getElementById('rep-base').onchange = e=>{ reportPlanBase = e.target.value; renderBlockReportPreview(); };
+  }
+  document.getElementById('block-report-title').textContent = 'Relatório — '+block.nome;
+  ov.classList.add('open');
+  renderBlockReportPreview();
+}
+function closeBlockReport(){
+  const ov = document.getElementById('block-report-overlay'); if(ov) ov.classList.remove('open');
+}
+function moveReportItem(from,to){
+  if(to<0 || to>=reportItems.length || from===to) return;
+  const [it] = reportItems.splice(from,1);
+  reportItems.splice(to,0,it);
+  renderBlockReportPreview();
+}
+function renderBlockReportPreview(){
+  const block = interpBlocks.find(b=>b.id===reportBlockId); if(!block) return;
+  const rows = document.getElementById('rep-list-rows');
+  rows.innerHTML = reportItems.length ? '' : '<div class="rep-empty">Nenhum item no relatório. Use "Restaurar itens".</div>';
+  reportItems.forEach((it,i)=>{
+    const row = document.createElement('div');
+    row.className='rep-row'; row.draggable=true; row.dataset.idx=i;
+    row.innerHTML = `<div class="rt"><i>${i+1} · ${escXml(it.tipo)}</i><b title="${escAttr(it.titulo)}">${escXml(it.titulo)}</b></div>
+      <button type="button" class="up" title="Subir" ${i===0?'disabled':''}>▲</button>
+      <button type="button" class="dn" title="Descer" ${i===reportItems.length-1?'disabled':''}>▼</button>
+      <button type="button" class="x" title="Remover do relatório">✕</button>`;
+    row.querySelector('.up').onclick = ()=>moveReportItem(i,i-1);
+    row.querySelector('.dn').onclick = ()=>moveReportItem(i,i+1);
+    row.querySelector('.x').onclick = ()=>{ reportItems.splice(i,1); renderBlockReportPreview(); };
+    row.addEventListener('dragstart', e=>{ row.classList.add('drag'); try{ e.dataTransfer.setData('text/plain', String(i)); e.dataTransfer.effectAllowed='move'; }catch(_){} });
+    row.addEventListener('dragend', ()=>row.classList.remove('drag'));
+    row.addEventListener('dragover', e=>{ e.preventDefault(); row.classList.add('over'); });
+    row.addEventListener('dragleave', ()=>row.classList.remove('over'));
+    row.addEventListener('drop', e=>{
+      e.preventDefault(); row.classList.remove('over');
+      let from = NaN; try{ from = parseInt(e.dataTransfer.getData('text/plain'),10); }catch(_){}
+      if(isFinite(from)) moveReportItem(from,i);
+    });
+    rows.appendChild(row);
+  });
+  document.getElementById('rep-prev').innerHTML = reportCoverHtml(block) + reportItems.map((it,i)=>reportItemHtml(it,i)).join('');
+}
+function buildBlockReportDocument(block){
+  const css = buildBoletimPrintCss();
+  const body = reportCoverHtml(block) + reportItems.map((it,i)=>reportItemHtml(it,i)).join('');
+  return `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Relatório ${escXml(block.nome)}</title>
+  <style>${css}
+    html,body{height:auto !important;min-height:100%;overflow:visible !important;overflow-x:hidden}
+    html{overflow-y:auto !important}
+    body{background:#fff;color:#1e1a16;padding:26px 20px 60px;max-width:1100px;margin:0 auto;font-family:system-ui,sans-serif;}
+    .tag-list{display:flex;flex-wrap:wrap;gap:6px}
+    .tag-chip{border:1px solid rgba(0,0,0,.15);border-radius:12px;padding:3px 9px;font-size:10.5px;font-family:monospace}
+    .hint{font-size:11px;color:#7a7168}
+    .rep-toolbar{position:sticky;top:0;z-index:5;background:#fff;border-bottom:1px solid #cfc8bb;padding:8px 0;margin-bottom:14px;display:flex;justify-content:flex-end}
+    .print-btn{padding:9px 18px;border-radius:8px;border:1.5px solid #7a3fa0;background:#7a3fa0;color:#fff;font-weight:700;cursor:pointer}
+    ${reportCss()}
+  </style></head><body>
+  <div class="rep-toolbar no-print"><button class="print-btn" onclick="window.print()">🖨 Imprimir / Salvar PDF</button></div>
+  ${body}
+  </body></html>`;
+}
+function printBlockReport(){
+  const block = interpBlocks.find(b=>b.id===reportBlockId); if(!block) return;
+  if(!reportItems.length){ toast('O relatório está vazio'); return; }
+  const win = window.open('', '_blank');
+  if(!win){ toast('Permita pop-ups para imprimir o relatório'); return; }
+  win.document.write(buildBlockReportDocument(block));
+  win.document.close();
+}
+// baixa o relatório como arquivo .html independente (com botão de imprimir/PDF dentro).
+// Tenta embutir os tiles do mapa como imagens para o arquivo funcionar sem internet;
+// se o servidor de mapa não permitir, mantém o link original do tile.
+async function exportBlockReportHtml(){
+  const block = interpBlocks.find(b=>b.id===reportBlockId); if(!block) return;
+  if(!reportItems.length){ toast('O relatório está vazio'); return; }
+  let html = buildBlockReportDocument(block);
+  const urls = Array.from(new Set((html.match(/<image href="(https?:[^"]+)"/g)||[]).map(m=>m.slice(13,-1))));
+  if(urls.length){
+    toast('Preparando o relatório…');
+    const map1 = {};
+    await Promise.all(urls.map(async u=>{
+      try{
+        const ctl = new AbortController(); const tm = setTimeout(()=>ctl.abort(), 8000);
+        const r = await fetch(u.replace(/&amp;/g,'&'), {signal:ctl.signal}); clearTimeout(tm);
+        if(!r.ok) return;
+        const blob = await r.blob();
+        map1[u] = await new Promise((res,rej)=>{ const fr=new FileReader(); fr.onload=()=>res(fr.result); fr.onerror=rej; fr.readAsDataURL(blob); });
+      }catch(e){}
+    }));
+    Object.keys(map1).forEach(u=>{ html = html.split('href="'+u+'"').join('href="'+map1[u]+'"'); });
+  }
+  const blob = new Blob([html], {type:'text/html;charset=utf-8'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'Relatorio_'+String(block.nome).replace(/[^\w\-]+/g,'_')+'.html';
+  document.body.appendChild(a); a.click();
+  setTimeout(()=>{ URL.revokeObjectURL(a.href); a.remove(); }, 1000);
+  toast('Relatório HTML exportado');
 }
 
 /* ══════════════════════════════════════════════════════════════
@@ -5371,7 +5768,7 @@ function generateGeotechProfile(blockId, latlngs){
 }
 
 function drawProfileLine(profile){
-  const layer = L.polyline(profile.line, {color:'#1a4e7a', weight:3, opacity:0.85});
+  const layer = L.polyline(profile.line, {color:'#1a4e7a', weight:4, opacity:0.95, dashArray:'10 6', pane:'profilePane'});
   if(profile.visible!==false) layer.addTo(map);
   layer.on('click', e=>{
     if(e && L.DomEvent && L.DomEvent.stopPropagation) L.DomEvent.stopPropagation(e);
@@ -6045,7 +6442,7 @@ function renderProfileHtml(profile){
         tiposPresentes.add(c.tipo);
         const y = elevToY(cota-profAnt);
         const h = Math.max(0.6, elevToY(cota-c.profFinal)-y);
-        rects += `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${Math.max(1,colW+0.6).toFixed(1)}" height="${h.toFixed(1)}" fill="url(#soilpat-${soilPatId(c.tipo)})"><title>Cota ${(cota-profAnt).toFixed(1)}–${(cota-c.profFinal).toFixed(1)} m (prof. ${profAnt.toFixed(1)}–${c.profFinal.toFixed(1)} m): ${esc(c.descricao)}</title></rect>`;
+        rects += `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${Math.max(1,colW+0.6).toFixed(1)}" height="${h.toFixed(1)}" fill="${soilColorHex(c.tipo)}"><title>Cota ${(cota-profAnt).toFixed(1)}–${(cota-c.profFinal).toFixed(1)} m (prof. ${profAnt.toFixed(1)}–${c.profFinal.toFixed(1)} m): ${esc(c.descricao)}</title></rect>`;
         profAnt = c.profFinal;
       });
     });
@@ -8524,8 +8921,8 @@ function buildGeoJSON(furoIds, shapeIds){
     const naTxt = f.agua.map(r=>`${r.data||'-'}: ${r.prof}m`).join(' | ');
     features.push({type:'Feature', geometry:{type:'Point', coordinates:[f.lng,f.lat]},
       properties:{id:f.id, nome:f.ident.sondagemNum, obra:f.ident.obra, uo:f.ident.unidadeOperacional||'', cliente:f.ident.cliente, local:f.ident.local,
-        data_inicio:f.ident.dataInicio, data_fim:f.ident.dataFim, cota:f.ident.cota, datum:f.ident.datum, zona_utm:f.ident.zonaUTM,
-        coord_n:f.ident.coordN, coord_e:f.ident.coordE, responsavel:f.ident.responsavel,
+        data_inicio:f.ident.dataInicio, data_fim:f.ident.dataFim, cota:f.ident.cota, datum:f.ident.datum, zona_utm:identComCoordsUTM(f).zonaUTM,
+        coord_n:identComCoordsUTM(f).coordN, coord_e:identComCoordsUTM(f).coordE, responsavel:f.ident.responsavel,
         sondador:f.ident.sondador, desenhista:f.ident.desenhista,
         amostrador_diam_int:f.ident.amDiamInt, amostrador_diam_ext:f.ident.amDiamExt,
         amostrador_peso:f.ident.amPeso, amostrador_altura:f.ident.amAltura,

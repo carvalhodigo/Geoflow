@@ -1150,7 +1150,7 @@ label{font-size:9px;letter-spacing:.8px;color:var(--mu)}
   <div class="editor-box" style="max-width:460px;">
     <div class="popup-header"><h3><svg class="ic"><use href="#ic-storage"></use></svg> Armazenamento do navegador</h3></div>
     <div class="p-body">
-      <p class="hint">Os dados desta aba (furos, áreas/linhas, blocos interpolados, superfícies topográficas, perfis, rasters) ficam salvos no armazenamento local deste navegador — não em nenhum servidor. Eles se acumulam com o tempo, o que pode deixar o carregamento mais pesado.</p>
+      <p class="hint">Os dados desta aba (furos, áreas/linhas, blocos interpolados, superfícies topográficas, perfis, rasters) ficam salvos no IndexedDB deste navegador — não em nenhum servidor. Eles se acumulam com o tempo, o que pode deixar o carregamento mais pesado.</p>
 
       <label style="display:flex;align-items:flex-start;gap:8px;cursor:pointer;font-size:12.5px;margin-top:14px;">
         <input type="checkbox" id="storage-clear-on-close" style="margin-top:2px;">
@@ -1615,21 +1615,77 @@ label{font-size:9px;letter-spacing:.8px;color:var(--mu)}
 /* ══════════════════ ARMAZENAMENTO ══════════════════
    window.storage só existe dentro do preview de artefatos do Claude.ai. Quando este arquivo
    é aberto direto num navegador comum (o jeito real de usar o app, fora do Claude), essa API
-   não existe — nada seria salvo. Se ela não estiver disponível, criamos uma versão equivalente
-   apoiada em localStorage, com a mesma assinatura (get/set assíncronos), pra todo o resto do
-   código continuar funcionando sem precisar saber a diferença. */
+   não existe — então criamos uma equivalente apoiada em IndexedDB (banco "geosig", tabela "kv"),
+   com a mesma assinatura assíncrona (get/set/delete/list) usada pelo resto do código.
+   IndexedDB não tem o limite de ~5 MB do localStorage (que estourava com rasters em PNG) e não
+   bloqueia a interface. Na primeira abertura, as chaves "geosig:*" que estavam no localStorage
+   são copiadas para o IndexedDB e só então removidas de lá (migração única, sem perda).
+   Se o IndexedDB estiver indisponível (ex.: algumas janelas anônimas), cai no localStorage.
+   Limpeza ao fechar a aba: como operações assíncronas não terminam de forma confiável num
+   "beforeunload", grava-se um marcador no localStorage que é honrado na próxima abertura. */
 if(!window.storage){
-  window.storage = {
-    async get(key){
-      const v = localStorage.getItem(key);
-      if(v===null) throw new Error('chave não encontrada: '+key);
-      return {key, value:v};
-    },
-    async set(key, value){
-      localStorage.setItem(key, value);
-      return {key, value};
-    }
-  };
+  (function(){
+    const DB_NAME='geosig', STORE='kv', PREFIX='geosig:', PENDING='geosig_clear_pending';
+    let backend = null;            // {get,set,del,keys,clear}
+    const idbBackend = db => {
+      const run = (mode, fn)=> new Promise((res,rej)=>{
+        const t = db.transaction(STORE, mode), st = t.objectStore(STORE); let out;
+        const r = fn(st); if(r) r.onsuccess = ()=>{ out = r.result; };
+        t.oncomplete = ()=>res(out); t.onerror = t.onabort = ()=>rej(t.error||new Error('falha no IndexedDB'));
+      });
+      return {
+        kind:'indexeddb',
+        get:  k=>run('readonly', st=>st.get(k)),
+        set:  (k,v)=>run('readwrite', st=>st.put(v,k)),
+        del:  k=>run('readwrite', st=>st.delete(k)),
+        keys: ()=>run('readonly', st=>st.getAllKeys()).then(r=>r||[])
+      };
+    };
+    const lsBackend = {
+      kind:'localstorage',
+      get: async k=>{ const v=localStorage.getItem(k); return v===null?undefined:v; },
+      set: async (k,v)=>{ localStorage.setItem(k,v); },
+      del: async k=>{ localStorage.removeItem(k); },
+      keys: async ()=>{ const r=[]; for(let i=0;i<localStorage.length;i++){ const k=localStorage.key(i); if(k&&k.startsWith(PREFIX)) r.push(k); } return r; }
+    };
+    const openIdb = ()=> new Promise((res,rej)=>{
+      if(!window.indexedDB) return rej(new Error('sem IndexedDB'));
+      let rq; try{ rq = indexedDB.open(DB_NAME, 1); }catch(e){ return rej(e); }
+      rq.onupgradeneeded = ()=>{ if(!rq.result.objectStoreNames.contains(STORE)) rq.result.createObjectStore(STORE); };
+      rq.onsuccess = ()=>res(rq.result); rq.onerror = ()=>rej(rq.error); rq.onblocked = ()=>rej(new Error('IndexedDB bloqueado'));
+    });
+    const ready = (async ()=>{
+      try{ backend = idbBackend(await openIdb()); }catch(e){ backend = lsBackend; }
+      // limpeza pendente (pedida num fechamento de aba): apaga tudo, ou tudo menos as preferências de UI
+      let pend = null; try{ pend = localStorage.getItem(PENDING); }catch(e){}
+      if(pend){
+        const keep = pend==='keepui';
+        try{ for(const k of await backend.keys()) if(!(keep && k==='geosig:ui')) await backend.del(k); }catch(e){}
+        try{ const r=[]; for(let i=0;i<localStorage.length;i++){ const k=localStorage.key(i); if(k&&k.startsWith(PREFIX)) r.push(k); } r.forEach(k=>{ if(!(keep&&k==='geosig:ui')) localStorage.removeItem(k); }); localStorage.removeItem(PENDING); }catch(e){}
+      }
+      // migração única localStorage -> IndexedDB (não sobrescreve o que já existe no IndexedDB)
+      if(backend.kind==='indexeddb'){
+        try{
+          const ls=[]; for(let i=0;i<localStorage.length;i++){ const k=localStorage.key(i); if(k&&k.startsWith(PREFIX)) ls.push(k); }
+          if(ls.length){
+            const ja = new Set(await backend.keys()); let ok = true;
+            for(const k of ls){ if(ja.has(k)) continue; try{ await backend.set(k, localStorage.getItem(k)); }catch(e){ ok=false; } }
+            if(ok) ls.forEach(k=>localStorage.removeItem(k));   // só remove do localStorage se tudo foi copiado
+          }
+        }catch(e){}
+        try{ if(navigator.storage && navigator.storage.persist) navigator.storage.persist(); }catch(e){}
+      }
+    })();
+    window.storage = {
+      __kind: ()=>backend && backend.kind,
+      __ready: ready,
+      async get(key){ await ready; const v = await backend.get(key); if(v===undefined || v===null) throw new Error('chave não encontrada: '+key); return {key, value:v}; },
+      async set(key, value){ await ready; await backend.set(key, value); return {key, value}; },
+      async delete(key){ await ready; await backend.del(key); return {key, deleted:true}; },
+      async list(prefix){ await ready; const all = await backend.keys(); return {keys: all.filter(k=>!prefix || String(k).startsWith(prefix))}; },
+      __markClearPending(keepUi){ try{ localStorage.setItem(PENDING, keepUi?'keepui':'all'); }catch(e){} }
+    };
+  })();
 }
 
 /* ══════════════════ USUÁRIO / PERFIL ══════════════════
@@ -2200,6 +2256,9 @@ async function loadUiPrefs(){
 // algo). Preserva a chave de preferências de UI (geosig:ui) quando pedido, pra não desligar o
 // próprio toggle de "limpar ao fechar" sozinho na próxima abertura.
 function clearAppStorage(preservarPrefsUi){
+  // marcador honrado na próxima abertura (cobre o caso de a aba fechar antes do apagamento assíncrono terminar)
+  try{ if(window.storage && window.storage.__markClearPending) window.storage.__markClearPending(!!preservarPrefsUi); }catch(e){}
+  // chaves legadas que ainda estejam no localStorage
   try{
     const chaves = [];
     for(let i=0;i<localStorage.length;i++){
@@ -2208,14 +2267,15 @@ function clearAppStorage(preservarPrefsUi){
     }
     chaves.forEach(k=>localStorage.removeItem(k));
   }catch(e){}
-  // também tenta pelo window.storage (API do Claude.ai, quando disponível) — assíncrono, então
-  // não é garantido completar a tempo num fechamento de aba, mas ajuda no caso de "limpar agora"
+  // apaga tudo que estiver em window.storage (IndexedDB, ou a API do Claude.ai) — devolve a Promise
   if(window.storage && window.storage.list){
-    window.storage.list('geosig:').then(r=>{
+    return window.storage.list('geosig:').then(r=>{
       if(!r || !r.keys) return;
-      r.keys.forEach(k=>{ if(!(preservarPrefsUi && k==='geosig:ui')) window.storage.delete(k).catch(()=>{}); });
+      return Promise.all(r.keys.filter(k=>!(preservarPrefsUi && k==='geosig:ui')).map(k=>window.storage.delete(k).catch(()=>{})))
+        .then(()=>{ try{ if(window.storage.__markClearPending) localStorage.removeItem('geosig_clear_pending'); }catch(e){} });
     }).catch(()=>{});
   }
+  return Promise.resolve();
 }
 document.getElementById('btn-storage').addEventListener('click', ()=>{
   document.getElementById('storage-settings-overlay').classList.add('open');
@@ -2229,8 +2289,7 @@ document.getElementById('storage-clear-on-close').addEventListener('change', e=>
 });
 document.getElementById('storage-clear-now-btn').addEventListener('click', ()=>{
   if(!confirm('Isso apaga AGORA tudo que está salvo neste navegador (furos, áreas/linhas, blocos interpolados, superfícies topográficas, perfis, rasters). Não afeta o furos.json já publicado. A página será recarregada em seguida. Continuar?')) return;
-  clearAppStorage(false);
-  location.reload();
+  clearAppStorage(false).then(()=>location.reload());
 });
 window.addEventListener('beforeunload', ()=>{
   if(uiPrefs.clearStorageOnClose) clearAppStorage(false);
@@ -2246,7 +2305,7 @@ function scheduleSave(){ clearTimeout(saveTimer); saveTimer=setTimeout(saveStudy
      Administrador edita localmente e usa "Publicar furos.json" pra baixar a versão atualizada
      e substituir no servidor/repositório — o app não escreve nele sozinho.
    - Dados de ESTUDO (furos interpolados salvos, áreas/linhas, blocos de interpolação, perfis,
-     rasters no mapa): ficam em localStorage, sob uma chave própria por usuário (userKey()), e
+     rasters no mapa): ficam no IndexedDB (via window.storage), sob uma chave própria por usuário (userKey()), e
      são o que scheduleSave()/saveStudyData() persistem a cada mudança. */
 
 // monta o objeto "achatado" (mesmo formato de furos.json / importação) a partir de um furo

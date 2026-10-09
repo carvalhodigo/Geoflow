@@ -1092,6 +1092,7 @@ label{font-size:9px;letter-spacing:.8px;color:var(--mu)}
     <span class="tglabel">Desenhar</span>
     <button class="tbtn" id="btn-add-poly"><svg class="ic"><use href="#ic-poly"></use></svg> Polígono</button>
     <button class="tbtn" id="btn-add-line"><svg class="ic"><use href="#ic-line"></use></svg> Linha</button>
+    <button class="tbtn" id="btn-add-topo-point" title="Insere um ponto topográfico (com cota) digitando as coordenadas ou clicando no mapa"><svg class="ic"><use href="#ic-topo"></use></svg> Ponto topográfico</button>
   </div>
 
   <div class="tgroup">
@@ -3670,6 +3671,7 @@ function drawShape(s){
   }
   if(s.visible!==false) layer.addTo(map);
   layer.on('click', ()=>{
+    if(pickingTopoPointMap) return;
     if(exportSelectMode){ toggleExportShapeSelect(s.id); return; }
     selectShape(s.id);
   });
@@ -3727,7 +3729,8 @@ function openShapePanel(id){
         <select class="f-input" id="ps-symbol">
           ${POINT_SYMBOLS.map(([v,l])=>`<option value="${v}" ${s.symbol===v?'selected':''}>${l}</option>`).join('')}
         </select></div>
-      <p class="hint">${(s.points||[]).length} ponto(s) nesta camada — importados de um shapefile/GeoJSON, não são furos de sondagem.</p>` : ''}
+      <p class="hint">${(s.points||[]).length} ponto(s) nesta camada — importados de um shapefile/GeoJSON ou inseridos manualmente; não são furos de sondagem.</p>
+      <div class="btn-row"><button class="mini-btn" type="button" id="ps-add-point">＋ Adicionar ponto topográfico</button></div>` : ''}
       <div class="f-row"><label>Rótulo no mapa</label>
         <select class="f-input" id="ps-labelfield">
           ${labelOpts.map(([v,l])=>`<option value="${escAttr(v)}" ${labelFieldAtual===v?'selected':''}>${esc(l)}</option>`).join('')}
@@ -3737,6 +3740,7 @@ function openShapePanel(id){
         <button class="mini-btn danger" id="ps-del">Excluir</button>
       </div>
     </div>`;
+  if(isPoint) document.getElementById('ps-add-point').onclick=()=>openTopoPointDialog(s.id);
   document.getElementById('ps-save').onclick=()=>{
     s.name=document.getElementById('ps-name').value.trim()||s.name;
     if(!isPoint) s.type=document.getElementById('ps-type').value;
@@ -3800,7 +3804,8 @@ function renderShapeList(){
         const checkboxHtml = topoSelectMode
           ? `<input type="checkbox" class="topo-pt-checkbox" data-selkey="${escAttr(selKey)}" ${topoSelected.has(selKey)?'checked':''}>`
           : '';
-        return `<div class="point-subitem" data-idx="${i}">${checkboxHtml}<span class="point-subitem-icon"><svg class="ic"><use href="#ic-pin"></use></svg></span>${esc(label)}</div>`;
+        const delBtn = (pt.props && pt.props.origem==='manual') ? `<button type="button" class="pt-del" data-idx="${i}" title="Excluir este ponto" style="margin-left:auto;border:0;background:transparent;color:#c0392b;cursor:pointer;font-size:12px">✕</button>` : '';
+        return `<div class="point-subitem" data-idx="${i}" style="display:flex;align-items:center">${checkboxHtml}<span class="point-subitem-icon"><svg class="ic"><use href="#ic-pin"></use></svg></span>${esc(label)}${delBtn}</div>`;
       }).join('')}</div>`;
     }
     div.innerHTML=`<div style="display:flex;align-items:flex-start;gap:6px;">
@@ -3814,6 +3819,17 @@ function renderShapeList(){
       div.querySelector('.expand-btn').addEventListener('click', e=>{ e.stopPropagation(); toggleShapeExpand(s.id); });
     }
     div.querySelector('.eye-btn').addEventListener('click', e=>{ e.stopPropagation(); toggleShapeVisible(s.id); });
+    div.querySelectorAll('.pt-del').forEach(btn=>{
+      btn.addEventListener('click', e=>{
+        e.stopPropagation();
+        const idx = parseInt(btn.dataset.idx,10), pt = s.points[idx]; if(!pt) return;
+        if(!confirm('Excluir o ponto "'+(getPointLabelText(s,pt)||('Ponto '+(idx+1)))+'"?')) return;
+        s.points.splice(idx,1);
+        Array.from(topoSelected).forEach(k=>{ if(k.startsWith('pt:'+s.id+':')) topoSelected.delete(k); });   // índices mudam
+        if(shapeLayers[s.id]) map.removeLayer(shapeLayers[s.id]);
+        drawShape(s); renderShapeList(); scheduleSave();
+      });
+    });
     div.querySelectorAll('.point-subitem').forEach(sub=>{
       sub.addEventListener('click', e=>{
         e.stopPropagation();
@@ -3888,6 +3904,163 @@ map.on('click', e=>{
   document.getElementById('bo-editor-overlay').classList.add('open');
   document.body.style.overflow='hidden';
 });
+
+
+/* ══════════════════ PONTO TOPOGRÁFICO MANUAL ══════════════════
+   Insere um ponto (com cota) numa camada de pontos — nova ou já existente — informando a posição
+   por Lat/Long, por UTM, ou clicando no mapa. O ponto fica com props.cota e props.origem='manual',
+   então já vale como ponto de cota conhecida na seleção de "Topografia" (extractPointElevation). */
+let pickingTopoPointMap = false;
+function ensureTopoPointDialog(){
+  let ov = document.getElementById('topo-point-overlay'); if(ov) return ov;
+  ov = document.createElement('div'); ov.className='popup-overlay'; ov.id='topo-point-overlay';
+  ov.innerHTML = `<div class="editor-box" style="max-width:560px">
+    <div class="popup-header"><h3><svg class="ic"><use href="#ic-topo"></use></svg> Ponto topográfico</h3><button class="popup-close" type="button" id="tp-close">✕</button></div>
+    <div class="popup-body" style="padding-bottom:14px">
+      <div class="input-grid" style="margin-top:14px">
+        <div class="field"><label>Camada de pontos</label><select id="tp-layer"></select></div>
+        <div class="field" id="tp-newname-wrap"><label>Nome da nova camada</label><input id="tp-newname" type="text" placeholder="Ex: Levantamento topográfico"></div>
+        <div class="field"><label>Nome do ponto</label><input id="tp-label" type="text" placeholder="Ex: P-01"></div>
+        <div class="field"><label>Cota (m)</label><input id="tp-cota" type="text" inputmode="decimal" placeholder="Ex: 745,32"></div>
+      </div>
+      <div class="fieldset-title">Posição</div>
+      <div class="loc-toggle">
+        <button type="button" class="loc-mode-btn tp-mode active" data-tpmode="latlng">Lat / Long</button>
+        <button type="button" class="loc-mode-btn tp-mode" data-tpmode="utm">UTM</button>
+        <button type="button" class="loc-pick-btn" id="tp-pick-map"><svg class="ic"><use href="#ic-target"></use></svg> Clicar no mapa</button>
+      </div>
+      <div class="input-grid" id="tp-latlng">
+        <div class="field"><label>Latitude (graus decimais)</label><input id="tp-lat" type="text" inputmode="decimal" placeholder="Ex: -23,550520"></div>
+        <div class="field"><label>Longitude (graus decimais)</label><input id="tp-lng" type="text" inputmode="decimal" placeholder="Ex: -46,633308"></div>
+      </div>
+      <div class="input-grid" id="tp-utm" style="display:none">
+        <div class="field"><label>E (m)</label><input id="tp-e" type="text" inputmode="decimal"></div>
+        <div class="field"><label>N (m)</label><input id="tp-n" type="text" inputmode="decimal"></div>
+        <div class="field"><label>Zona UTM</label><select id="tp-zone"></select></div>
+        <div class="field"><label>Datum</label><select id="tp-datum"><option value="SIRGAS2000">SIRGAS2000</option><option value="WGS84">WGS84</option><option value="SAD69">SAD69</option><option value="CORREGO_ALEGRE">Córrego Alegre</option></select></div>
+      </div>
+      <p class="hint" id="tp-msg" style="min-height:16px"></p>
+    </div>
+    <div class="popup-footer">
+      <button class="mini-btn" type="button" id="tp-cancel">Fechar</button>
+      <button class="mini-btn" type="button" id="tp-add-more">Adicionar e inserir outro</button>
+      <button class="mini-btn primary" type="button" id="tp-add">Adicionar</button>
+    </div></div>`;
+  document.body.appendChild(ov);
+  const zs = ov.querySelector('#tp-zone');
+  for(let z=17; z<=25; z++){ const o=document.createElement('option'); o.value=z; o.textContent='UTM '+z+'S'; if(z===23) o.selected=true; zs.appendChild(o); }
+  ov.querySelector('#tp-close').onclick = ov.querySelector('#tp-cancel').onclick = ()=>ov.classList.remove('open');
+  ov.querySelector('#tp-layer').onchange = tpSyncLayerUi;
+  ov.querySelectorAll('.tp-mode').forEach(b=> b.onclick = ()=>tpSetMode(b.dataset.tpmode));
+  ov.querySelector('#tp-pick-map').onclick = startPickTopoPointOnMap;
+  ov.querySelector('#tp-add').onclick = ()=>{ if(addTopoPointFromDialog()) ov.classList.remove('open'); };
+  ov.querySelector('#tp-add-more').onclick = ()=>{
+    if(addTopoPointFromDialog()){
+      ['tp-label','tp-cota','tp-lat','tp-lng','tp-e','tp-n'].forEach(i=>ov.querySelector('#'+i).value='');
+      ov.querySelector('#tp-label').focus();
+    }
+  };
+  return ov;
+}
+function tpSetMode(m){
+  const ov = document.getElementById('topo-point-overlay');
+  ov.querySelectorAll('.tp-mode').forEach(b=>b.classList.toggle('active', b.dataset.tpmode===m));
+  ov.querySelector('#tp-latlng').style.display = m==='latlng' ? '' : 'none';
+  ov.querySelector('#tp-utm').style.display = m==='utm' ? '' : 'none';
+}
+function tpSyncLayerUi(){
+  const ov = document.getElementById('topo-point-overlay');
+  ov.querySelector('#tp-newname-wrap').style.display = ov.querySelector('#tp-layer').value==='__new__' ? '' : 'none';
+}
+function openTopoPointDialog(shapeId){
+  const ov = ensureTopoPointDialog();
+  const sel = ov.querySelector('#tp-layer');
+  const camadas = shapes.filter(x=>x.geomType==='MultiPoint');
+  sel.innerHTML = camadas.map(c=>`<option value="${escAttr(c.id)}">${esc(c.name)} (${(c.points||[]).length} pts)</option>`).join('') + '<option value="__new__">＋ Nova camada de pontos…</option>';
+  const alvo = shapeId && camadas.some(c=>c.id===shapeId) ? shapeId : (camadas.length ? camadas[camadas.length-1].id : '__new__');
+  sel.value = alvo; tpSyncLayerUi();
+  if(!ov.querySelector('#tp-newname').value) ov.querySelector('#tp-newname').value = 'Pontos topográficos';
+  ['tp-label','tp-cota','tp-lat','tp-lng','tp-e','tp-n'].forEach(i=>ov.querySelector('#'+i).value='');
+  ov.querySelector('#tp-msg').textContent = '';
+  ov.classList.add('open');
+  setTimeout(()=>{ try{ ov.querySelector('#tp-label').focus(); }catch(e){} }, 30);
+}
+function tpNum(str){ const v = parseFloat(String(str).trim().replace(',','.')); return v; }
+function addTopoPointFromDialog(){
+  const ov = document.getElementById('topo-point-overlay');
+  const msg = t=>{ ov.querySelector('#tp-msg').textContent = t; ov.querySelector('#tp-msg').style.color = '#c0392b'; return false; };
+  const cota = tpNum(ov.querySelector('#tp-cota').value);
+  if(!isFinite(cota)) return msg('Informe a cota (m) do ponto.');
+  const modo = ov.querySelector('.tp-mode.active').dataset.tpmode;
+  let lat, lng;
+  if(modo==='utm'){
+    const e = tpNum(ov.querySelector('#tp-e').value), n = tpNum(ov.querySelector('#tp-n').value);
+    const zone = parseInt(ov.querySelector('#tp-zone').value);
+    if(!isFinite(e) || !isFinite(n)) return msg('Informe E e N em metros.');
+    try{ const c = utmToLatLng(e, n, zone, ov.querySelector('#tp-datum').value || 'SIRGAS2000'); lat=c.lat; lng=c.lng; }catch(err){ return msg('Não foi possível converter o UTM informado.'); }
+  } else {
+    lat = tpNum(ov.querySelector('#tp-lat').value); lng = tpNum(ov.querySelector('#tp-lng').value);
+  }
+  if(!isFinite(lat) || !isFinite(lng) || Math.abs(lat)>90 || Math.abs(lng)>180) return msg('Coordenadas inválidas — confira latitude (−90 a 90) e longitude (−180 a 180), ou clique no mapa.');
+  let alvoId = ov.querySelector('#tp-layer').value, s;
+  if(alvoId==='__new__'){
+    const nome = ov.querySelector('#tp-newname').value.trim() || 'Pontos topográficos';
+    s = { id:newShapeId(), name:nome, type:'Pontos', color:'#c2410c', symbol:'circle', geomType:'MultiPoint', points:[], labelField:'__name__' };
+    shapes.push(s);
+  } else {
+    s = shapes.find(x=>x.id===alvoId); if(!s) return msg('Camada não encontrada.');
+  }
+  const label = ov.querySelector('#tp-label').value.trim() || ('P'+((s.points||[]).length+1));
+  const props = { cota: cota, origem:'manual' };
+  props.nome = label;
+  if(s.labelField && s.labelField!=='__name__') props[s.labelField] = label;   // mantém o rótulo coerente com o campo escolhido na camada
+  (s.points = s.points||[]).push({lat, lng, label, props});
+  if(shapeLayers[s.id]) map.removeLayer(shapeLayers[s.id]);
+  drawShape(s);
+  expandedPointShapes.add(s.id);
+  renderShapeList(); scheduleSave();
+  ov.querySelector('#tp-msg').textContent = ''; 
+  // atualiza a lista de camadas (contagem) e fixa a camada de destino
+  openTopoPointDialogRefreshLayers(s.id);
+  toast('Ponto "'+label+'" adicionado à camada "'+s.name+'" (cota '+cota+' m)');
+  return true;
+}
+function openTopoPointDialogRefreshLayers(keepId){
+  const ov = document.getElementById('topo-point-overlay'); if(!ov) return;
+  const sel = ov.querySelector('#tp-layer');
+  const camadas = shapes.filter(x=>x.geomType==='MultiPoint');
+  sel.innerHTML = camadas.map(c=>`<option value="${escAttr(c.id)}">${esc(c.name)} (${(c.points||[]).length} pts)</option>`).join('') + '<option value="__new__">＋ Nova camada de pontos…</option>';
+  sel.value = keepId; tpSyncLayerUi();
+}
+function startPickTopoPointOnMap(){
+  const ov = document.getElementById('topo-point-overlay');
+  ov.classList.remove('open');
+  pickingTopoPointMap = true;
+  map.getContainer().style.cursor = 'crosshair';
+  showPickBanner('Clique no mapa para definir a posição do ponto topográfico', ()=>cancelPickTopoPoint(true));
+}
+function cancelPickTopoPoint(reabrir){
+  pickingTopoPointMap = false;
+  hidePickBanner();
+  map.getContainer().style.cursor = '';
+  if(reabrir){ const ov = document.getElementById('topo-point-overlay'); if(ov) ov.classList.add('open'); }
+}
+map.on('click', e=>{
+  if(!pickingTopoPointMap) return;
+  const ov = document.getElementById('topo-point-overlay');
+  const lat = e.latlng.lat, lng = e.latlng.lng;
+  ov.querySelector('#tp-lat').value = lat.toFixed(6);
+  ov.querySelector('#tp-lng').value = lng.toFixed(6);
+  const z = utmZoneFromLng(lng);
+  try{ const u = toUTM(lat, lng, z); ov.querySelector('#tp-e').value = u.e.toFixed(2); ov.querySelector('#tp-n').value = u.n.toFixed(2); ov.querySelector('#tp-zone').value = z; ov.querySelector('#tp-datum').value = 'SIRGAS2000'; }catch(err){}
+  tpSetMode('latlng');
+  cancelPickTopoPoint(true);
+  ov.querySelector('#tp-msg').style.color = '';
+  ov.querySelector('#tp-msg').textContent = 'Posição capturada no mapa — informe a cota e clique em Adicionar.';
+  setTimeout(()=>{ try{ ov.querySelector('#tp-cota').focus(); }catch(err){} }, 30);
+});
+document.getElementById('btn-add-topo-point').onclick = ()=>openTopoPointDialog();
+document.addEventListener('keydown', e=>{ if(e.key==='Escape' && pickingTopoPointMap) cancelPickTopoPoint(true); });
 
 /* ══════════════════ MODOS DE DESENHO (áreas/linhas) ══════════════════ */
 document.getElementById('btn-add-poly').onclick=()=>{ new L.Draw.Polygon(map,{shapeOptions:{color:'#2a5a8c'}}).enable(); };

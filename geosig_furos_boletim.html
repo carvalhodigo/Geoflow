@@ -2542,6 +2542,7 @@ function drawFuro(f){
   m.bindTooltip(f.ident.sondagemNum || '(sem nome)', {permanent:true, direction:'right', offset:[6,0], className:'furo-label'});
   m.on('click', ()=>{
     if(pickingCptuForBlock){ handlePickCptuForBlock(f.id); return; }
+    if(pickingAddFuroForBlock){ handlePickAddFuroToBlock(f.id); return; }
     if(interpSelectMode){ toggleInterpFuroSelect(f.id); return; }
     if(topoSelectMode){ toggleTopoSelect('furo:'+f.id); return; }
     if(exportSelectMode){ toggleExportFuroSelect(f.id); return; }
@@ -2760,6 +2761,7 @@ function renderFuroTable(){
       const id = row.dataset.furo;
       const f = furos.find(x=>x.id===id); if(!f) return;
       if(pickingCptuForBlock){ handlePickCptuForBlock(id); return; }
+      if(pickingAddFuroForBlock){ handlePickAddFuroToBlock(id); return; }
       if(interpSelectMode){ toggleInterpFuroSelect(id); renderFuroTable(); return; }
       if(exportSelectMode){ toggleExportFuroSelect(id); renderFuroTable(); return; }
       selectFuro(id);
@@ -3885,6 +3887,7 @@ document.getElementById('bo-pick-map').addEventListener('click', ()=>{
 });
 map.on('click', e=>{
   if(pickingCptuForBlock){ cancelPickCptuForBlock(); toast('Seleção de CPTu cancelada'); return; }
+  if(pickingAddFuroForBlock){ cancelPickAddFuro(); toast('Inclusão de furo cancelada'); return; }
   if(pickingInterpPointForBlock){
     toast('Clique dentro da área tracejada roxa do bloco selecionado (ou recomece pelo painel)');
     return;
@@ -4380,6 +4383,240 @@ function selectFurosInBounds(bounds){
 
 const DEFAULT_EXTRAP_M = 10; // distância padrão de extrapolação além do retângulo envolvente dos furos
 
+/* ══════════════════════════════════════════════════════════════
+   CORRELAÇÃO DE CAMADAS DO BLOCO (solos equivalentes entre furos)
+   ══════════════════════════════════════════════════════════════
+   Furos de campanhas/empresas diferentes costumam caracterizar o mesmo solo de jeitos diferentes
+   (nomes, tipos e número de camadas). Esta janela mostra as camadas de cada furo lado a lado e
+   deixa o usuário dizer quais são equivalentes: cada LINHA é uma "unidade" de solo ao longo do
+   bloco, e cada coluna escolhe qual camada daquele furo pertence à unidade (ou nenhuma). O tipo
+   da unidade define cor/hachura no perfil, raster e modelo 3D. Resultado em block.correlacao —
+   buildUnionTemplate() passa a usá-lo no lugar do alinhamento automático por tipo.
+   ══════════════════════════════════════════════════════════════ */
+let lcState = null; // {blockId, furos:[furo], rows:[{tipo, tipoManual, m:{furoId: idx|null}}]}
+
+function lcRowsFromTemplate(block, tpl){
+  const fs = block.furoIds.map(id=>furos.find(f=>f.id===id)).filter(Boolean);
+  return tpl.camadas.map((c,i)=>{
+    const m = {}; fs.forEach(f=>{ const v = tpl._alignMap[f.id] ? tpl._alignMap[f.id][i] : null; m[f.id] = (v==null? null : v); });
+    return { tipo:c.tipo, tipoManual:false, m };
+  });
+}
+function lcRowsInitial(block){
+  const manual = blockCorrelacaoValida(block);
+  if(manual){
+    return manual.unidades.map(u=>({ tipo:u.tipo, tipoManual:!!u.tipoManual, m:{...(u.membros||{})} }));
+  }
+  return lcRowsFromTemplate(block, buildUnionTemplateAuto(block));
+}
+// índices de camada de cada furo que não estão em nenhuma linha
+function lcOrphans(){
+  const out = {};
+  lcState.furos.forEach(f=>{
+    const usados = new Set(lcState.rows.map(r=>r.m[f.id]).filter(v=>v!=null));
+    out[f.id] = f.camadas.map((_,j)=>j).filter(j=>!usados.has(j));
+  });
+  return out;
+}
+// linhas/colunas em que a ordem de profundidade é violada (camada mais funda acima de uma mais rasa)
+function lcConflicts(){
+  const bad = new Set();
+  lcState.furos.forEach(f=>{
+    let ult = -1;
+    lcState.rows.forEach((r,ri)=>{
+      const v = r.m[f.id]; if(v==null) return;
+      if(v<=ult) bad.add(ri+':'+f.id); else ult = v;
+    });
+  });
+  return bad;
+}
+function furoCotaNum(f){ const c = f && f.ident ? f.ident.cota : null; return (c!=='' && c!=null && isFinite(parseFloat(c))) ? parseFloat(c) : null; }
+const fmtM = v => v.toFixed(2).replace('.',',');
+// intervalo da camada j em COTA (topo e base), ou null se o furo não tem cota
+function lcLayerElev(f, j){
+  const cota = furoCotaNum(f), c = f.camadas[j]; if(cota==null || !c) return null;
+  const topoProf = j===0 ? 0 : (+f.camadas[j-1].profFinal||0);
+  return { top: cota - topoProf, base: cota - (+c.profFinal||0) };
+}
+// linhas cujas camadas correlacionadas não se sobrepõem em cota (aviso, não bloqueia: pode ser mergulho real)
+function lcCotaGaps(){
+  const gaps = new Set();
+  lcState.rows.forEach((r,ri)=>{
+    const ivs = lcState.furos.map(f=> r.m[f.id]!=null ? lcLayerElev(f, r.m[f.id]) : null).filter(Boolean);
+    for(let a=0;a<ivs.length;a++) for(let b=a+1;b<ivs.length;b++){
+      if(ivs[a].base >= ivs[b].top || ivs[b].base >= ivs[a].top) gaps.add(ri);
+    }
+  });
+  return gaps;
+}
+function lcLayerLabel(f, j){
+  const c = f.camadas[j]; if(!c) return '—';
+  const topo = j===0 ? 0 : (+f.camadas[j-1].profFinal||0);
+  const ev = lcLayerElev(f, j);
+  const tipoLbl = (TIPOS_SOLO.find(t=>t[0]===c.tipo)||[c.tipo,c.tipo])[1];
+  const d = (c.descricao||'').trim();
+  return `${j+1} · ${tipoLbl} · ${topo.toFixed(2).replace('.',',')}–${(+c.profFinal).toFixed(2).replace('.',',')} m`
+    + (ev? ` · cota ${fmtM(ev.top)}→${fmtM(ev.base)}` : '')
+    + (d? ' · '+(d.length>30? d.slice(0,30)+'…' : d) : '');
+}
+function lcRowTipoFromMembers(r){
+  for(const f of lcState.furos){
+    const v = r.m[f.id];
+    if(v!=null && f.camadas[v]) return f.camadas[v].tipo;
+  }
+  return r.tipo;
+}
+
+function openLayerCorrelationDialog(blockId, motivoAuto){
+  const block = interpBlocks.find(b=>b.id===blockId); if(!block) return;
+  const fs = block.furoIds.map(id=>furos.find(f=>f.id===id)).filter(Boolean);
+  if(fs.length<2){ toast('O bloco precisa de ao menos 2 furos'); return; }
+  lcState = { blockId, furos:fs, rows: lcRowsInitial(block) };
+  let ov = document.getElementById('layer-corr-overlay');
+  if(!ov){
+    ov = document.createElement('div'); ov.className='popup-overlay'; ov.id='layer-corr-overlay';
+    ov.innerHTML = `<style>
+      #layer-corr-overlay .editor-box{max-width:1240px;height:90vh;max-height:90vh}
+      .lc-intro{font-size:12px;color:var(--bo-muted);margin:12px 0 10px;line-height:1.5}
+      .lc-intro.auto{background:rgba(122,63,160,.10);border-left:3px solid #7a3fa0;padding:8px 10px;border-radius:0 8px 8px 0;color:var(--bo-text)}
+      .lc-wrap{overflow:auto;border:1px solid var(--bo-border);border-radius:8px}
+      table.lc-tbl{border-collapse:collapse;min-width:100%;font-size:11.5px}
+      .lc-tbl th,.lc-tbl td{border-bottom:1px solid var(--bo-border);border-right:1px solid var(--bo-border);padding:6px 7px;vertical-align:top}
+      .lc-tbl thead th{position:sticky;top:0;background:var(--bo-surface);z-index:2;text-align:left;font-family:var(--bo-mono);font-size:10px;letter-spacing:.5px}
+      .lc-tbl th small{display:block;font-weight:400;color:var(--bo-muted);letter-spacing:0;text-transform:none;font-family:var(--bo-sans);margin-top:2px;white-space:normal}
+      .lc-tbl td.lc-row-h{background:var(--bo-surface);min-width:200px}
+      .lc-tbl select{width:100%;font-size:11px;padding:4px;border:1px solid var(--bo-border);border-radius:6px;background:var(--bo-card);color:var(--bo-text)}
+      .lc-tbl td.bad{background:rgba(192,57,43,.12)} .lc-tbl td.bad select{border-color:#c0392b}
+      .lc-chip{display:flex;gap:6px;align-items:center;margin-top:4px;font-size:10.5px;color:var(--bo-muted)}
+      .lc-sw{width:22px;height:14px;border-radius:3px;border:1px solid rgba(0,0,0,.25);flex-shrink:0}
+      .lc-rowbtns{display:flex;gap:4px;margin-top:6px}
+      .lc-rowbtns button{border:1px solid var(--bo-border);background:var(--bo-card);border-radius:5px;width:24px;height:24px;cursor:pointer;font-size:12px;padding:0;color:var(--bo-text)}
+      .lc-rowbtns button:disabled{opacity:.3;cursor:default} .lc-rowbtns .x{color:#c0392b}
+      .lc-gap{margin-top:6px;font-size:10.5px;color:#b85c1a;font-weight:600}
+      .lc-status{font-size:12px;margin-top:10px;min-height:18px}
+      .lc-status.err{color:#c0392b;font-weight:600} .lc-status.warn{color:#b85c1a}
+    </style>
+    <div class="editor-box">
+      <div class="popup-header"><h3 id="lc-title">Correlacionar camadas</h3><button class="popup-close" type="button" id="lc-close">✕</button></div>
+      <div class="popup-body" style="display:flex;flex-direction:column;padding-bottom:6px">
+        <div class="lc-intro" id="lc-intro"></div>
+        <div class="lc-wrap" id="lc-wrap" style="flex:1;min-height:0"></div>
+        <div class="lc-status" id="lc-status"></div>
+      </div>
+      <div class="popup-footer">
+        <button class="mini-btn" type="button" id="lc-add-row" style="margin-right:auto">＋ Unidade</button>
+        <button class="mini-btn" type="button" id="lc-suggest" title="Refaz o alinhamento automático por tipo de solo">Sugerir (automático)</button>
+        <button class="mini-btn" type="button" id="lc-reset" title="Remove a correlação manual e volta ao alinhamento automático por tipo">Restaurar automático</button>
+        <button class="mini-btn" type="button" id="lc-cancel">Cancelar</button>
+        <button class="mini-btn primary" type="button" id="lc-apply">Aplicar correlação</button>
+      </div>
+    </div>`;
+    document.body.appendChild(ov);
+    ov.querySelector('#lc-close').onclick = ov.querySelector('#lc-cancel').onclick = ()=>ov.classList.remove('open');
+    ov.querySelector('#lc-add-row').onclick = ()=>{ const m={}; lcState.furos.forEach(f=>m[f.id]=null); lcState.rows.push({tipo:'argila',tipoManual:false,m}); renderLayerCorrelation(); };
+    ov.querySelector('#lc-suggest').onclick = ()=>{ const b=interpBlocks.find(x=>x.id===lcState.blockId); lcState.rows = lcRowsFromTemplate(b, buildUnionTemplateAuto(b)); renderLayerCorrelation(); };
+    ov.querySelector('#lc-reset').onclick = ()=>{
+      const b=interpBlocks.find(x=>x.id===lcState.blockId); if(!b) return;
+      delete b.correlacao; scheduleSave(); ov.classList.remove('open'); refreshBlockPanelIfOpen(b.id);
+      toast('Correlação manual removida — o bloco voltou ao alinhamento automático por tipo (perfis/rasters já gerados não mudam; gere de novo)');
+    };
+    ov.querySelector('#lc-apply').onclick = applyLayerCorrelation;
+  }
+  const block2 = block;
+  ov.querySelector('#lc-title').textContent = 'Correlacionar camadas — '+block.nome;
+  const intro = ov.querySelector('#lc-intro');
+  intro.className = 'lc-intro'+(motivoAuto?' auto':'');
+  intro.innerHTML = (motivoAuto ? '<b>Os furos deste bloco caracterizam o solo de formas diferentes</b> (número e/ou tipos de camadas distintos — comum entre campanhas ou empresas diferentes). ' : '')
+    + 'As camadas aparecem com profundidade <b>e cota</b> (cota do topo do furo − profundidade), pois os furos não estão necessariamente na mesma cota. Cada <b>linha</b> é uma unidade de solo equivalente ao longo do bloco; em cada coluna escolha qual camada daquele furo pertence a ela (ou nenhuma). O <b>tipo da unidade</b> define a cor/hachura no perfil, raster e modelo 3D. A tabela já começa com o alinhamento automático por tipo — ajuste o que estiver errado.'
+    + (motivoAuto ? ' Se preferir, feche a janela e use o alinhamento automático (botão "Correlacionar camadas" no painel do bloco abre esta tela depois).' : '');
+  ov.classList.add('open');
+  renderLayerCorrelation();
+}
+function refreshBlockPanelIfOpen(id){
+  try{ if(selected && selected.kind==='interp' && selected.id===id) openInterpBlockPanel(id); }catch(e){}
+}
+
+function renderLayerCorrelation(){
+  const ov = document.getElementById('layer-corr-overlay'); if(!ov||!lcState) return;
+  const { furos:fs, rows } = lcState;
+  const bad = lcConflicts();
+  const orph = lcOrphans();
+  const nOrph = Object.values(orph).reduce((a,l)=>a+l.length,0);
+  const gaps = lcCotaGaps();
+  const tipoOpts = sel => TIPOS_SOLO.map(([k,l])=>`<option value="${escAttr(k)}" ${k===sel?'selected':''}>${esc(l)}</option>`).join('');
+  let h = '<table class="lc-tbl"><thead><tr><th style="min-width:210px">Unidade equivalente<small>tipo usado no perfil / raster / 3D</small></th>'
+    + fs.map(f=>`<th style="min-width:230px">${esc(f.ident.sondagemNum||'(sem nome)')}${f.tipoSondagem==='CPTU'?' · CPTu':''}<small>${esc([f.ident.obra,f.ident.cliente].filter(Boolean).join(' · '))||'—'}<br>${furoCotaNum(f)!=null ? '<b>cota do topo '+fmtM(furoCotaNum(f))+' m</b>' : '<b style="color:#b85c1a">sem cota do topo</b>'}<br>${f.camadas.length} camada(s) · até ${(+f.camadas[f.camadas.length-1].profFinal||0).toFixed(2).replace('.',',')} m${furoCotaNum(f)!=null ? ' (cota '+fmtM(furoCotaNum(f)-(+f.camadas[f.camadas.length-1].profFinal||0))+')' : ''}</small></th>`).join('')
+    + '</tr></thead><tbody>';
+  rows.forEach((r,ri)=>{
+    const tipoCor = soilColorHex(r.tipo);
+    h += `<tr><td class="lc-row-h"><div style="display:flex;gap:6px;align-items:center"><span class="lc-sw" style="background:${tipoCor}"></span><b>${ri+1}</b>
+      <select class="lc-tipo" data-r="${ri}">${tipoOpts(r.tipo)}</select></div>
+      <div class="lc-rowbtns"><button type="button" class="up" data-r="${ri}" ${ri===0?'disabled':''} title="Subir">▲</button><button type="button" class="dn" data-r="${ri}" ${ri===rows.length-1?'disabled':''} title="Descer">▼</button><button type="button" class="x" data-r="${ri}" title="Remover unidade (as camadas ficam sem correspondência e voltam como unidades próprias)">✕</button></div>${gaps.has(ri)?'<div class="lc-gap">⚠ camadas sem sobreposição de cota</div>':''}</td>`;
+    fs.forEach(f=>{
+      const v = r.m[f.id];
+      const opts = ['<option value="">— sem correspondência —</option>'].concat(f.camadas.map((c,j)=>`<option value="${j}" ${v===j?'selected':''}>${esc(lcLayerLabel(f,j))}</option>`)).join('');
+      const c = v!=null ? f.camadas[v] : null;
+      h += `<td class="${bad.has(ri+':'+f.id)?'bad':''}"><select class="lc-cell" data-r="${ri}" data-f="${escAttr(f.id)}">${opts}</select>`
+        + (c ? `<div class="lc-chip"><span class="lc-sw" style="background:${soilColorHex(c.tipo)}"></span><span>${lcLayerElev(f,v)?'<b>cota '+fmtM(lcLayerElev(f,v).top)+' → '+fmtM(lcLayerElev(f,v).base)+'</b> · ':''}${esc((c.descricao||'').slice(0,90))||'<i>sem descrição</i>'}</span></div>` : '')
+        + '</td>';
+    });
+    h += '</tr>';
+  });
+  h += '</tbody></table>';
+  ov.querySelector('#lc-wrap').innerHTML = h;
+  const st = ov.querySelector('#lc-status');
+  if(bad.size){ st.className='lc-status err'; st.textContent = 'Ordem de profundidade violada (células em vermelho): em cada furo, as unidades devem seguir a ordem das camadas, de cima para baixo.'; }
+  else if(nOrph){ st.className='lc-status warn'; st.textContent = nOrph+' camada(s) sem correspondência — ao aplicar, entram como unidades próprias na posição correta (nenhuma camada é descartada).'+(gaps.size?' Atenção: '+gaps.size+' unidade(s) com camadas que não se sobrepõem em cota.':''); }
+  else if(gaps.size){ st.className='lc-status warn'; st.textContent = gaps.size+' unidade(s) com camadas que não se sobrepõem em cota (confira a correlação — pode ser mergulho real ou equivalência errada).'; }
+  else { st.className='lc-status'; st.textContent = rows.length+' unidade(s) · todas as camadas correlacionadas.'; }
+  ov.querySelector('#lc-apply').disabled = bad.size>0;
+  ov.querySelectorAll('.lc-cell').forEach(sel=> sel.onchange = ()=>{
+    const ri = +sel.dataset.r, fid = sel.dataset.f, v = sel.value===''? null : parseInt(sel.value,10);
+    if(v!=null) lcState.rows.forEach((r,k)=>{ if(k!==ri && r.m[fid]===v) r.m[fid]=null; });   // uma camada só pertence a uma unidade
+    lcState.rows[ri].m[fid] = v;
+    const r = lcState.rows[ri]; if(!r.tipoManual) r.tipo = lcRowTipoFromMembers(r);
+    renderLayerCorrelation();
+  });
+  ov.querySelectorAll('.lc-tipo').forEach(sel=> sel.onchange = ()=>{ const r=lcState.rows[+sel.dataset.r]; r.tipo = sel.value; r.tipoManual = true; renderLayerCorrelation(); });
+  ov.querySelectorAll('.lc-rowbtns .up').forEach(b=> b.onclick = ()=>{ const i=+b.dataset.r; const [r]=lcState.rows.splice(i,1); lcState.rows.splice(i-1,0,r); renderLayerCorrelation(); });
+  ov.querySelectorAll('.lc-rowbtns .dn').forEach(b=> b.onclick = ()=>{ const i=+b.dataset.r; const [r]=lcState.rows.splice(i,1); lcState.rows.splice(i+1,0,r); renderLayerCorrelation(); });
+  ov.querySelectorAll('.lc-rowbtns .x').forEach(b=> b.onclick = ()=>{ lcState.rows.splice(+b.dataset.r,1); renderLayerCorrelation(); });
+}
+
+// camadas sem linha viram unidades próprias, logo após a unidade da camada anterior do mesmo furo
+function lcInsertOrphans(){
+  lcState.furos.forEach(f=>{
+    for(let j=0;j<f.camadas.length;j++){
+      if(lcState.rows.some(r=>r.m[f.id]===j)) continue;
+      let pos = 0;
+      for(let k=j-1;k>=0;k--){
+        const ri = lcState.rows.findIndex(r=>r.m[f.id]===k);
+        if(ri>=0){ pos = ri+1; break; }
+      }
+      const m = {}; lcState.furos.forEach(g=>m[g.id]=null); m[f.id]=j;
+      lcState.rows.splice(pos, 0, { tipo:f.camadas[j].tipo, tipoManual:false, m });
+    }
+  });
+}
+function applyLayerCorrelation(){
+  if(!lcState) return;
+  const block = interpBlocks.find(b=>b.id===lcState.blockId); if(!block) return;
+  if(lcConflicts().size) return;
+  // unidades vazias (sem nenhuma camada) são descartadas
+  lcState.rows = lcState.rows.filter(r=> lcState.furos.some(f=>r.m[f.id]!=null));
+  lcInsertOrphans();
+  if(lcConflicts().size){ renderLayerCorrelation(); return; }
+  block.correlacao = {
+    furoIds: [...block.furoIds],
+    unidades: lcState.rows.map(r=>({ tipo:r.tipo, tipoManual:!!r.tipoManual, membros:{...r.m} })),
+    criadoEm: Date.now()
+  };
+  scheduleSave();
+  document.getElementById('layer-corr-overlay').classList.remove('open');
+  refreshBlockPanelIfOpen(block.id);
+  toast('Correlação aplicada ('+block.correlacao.unidades.length+' unidades). Novos pontos interpolados, perfis, rasters e 3D passam a usá-la — o que já foi gerado não muda; gere de novo.');
+}
+
 function createInterpBlock(){
   if(interpSelected.size<3){ alert('Selecione ao menos 3 furos.'); return; }
   const ids = Array.from(interpSelected);
@@ -4409,6 +4646,8 @@ function createInterpBlock(){
   exitInterpSelectMode();
   scheduleSave();
   toast('Bloco interpolado criado (retângulo envolvente + '+extrapDist+' m de extrapolação) — clique dentro da área tracejada para gerar um furo interpolado');
+  // furos com camadas diferentes entre si (outras campanhas/empresas): pede a correlação dos solos equivalentes
+  if(!blockHasUniformStratigraphy(block)) setTimeout(()=>openLayerCorrelationDialog(block.id, true), 350);
 }
 
 function drawInterpBlock(block){
@@ -4873,6 +5112,7 @@ function openTopoPanel(id){
 function handleInterpBlockClick(blockId, latlng){
   if(interpSelectMode || pickingFuroLoc) return;
   if(pickingCptuForBlock){ cancelPickCptuForBlock(); toast('Seleção de CPTu cancelada'); return; }
+  if(pickingAddFuroForBlock){ cancelPickAddFuro(); toast('Inclusão de furo cancelada'); return; }
   if(pickingInterpPointForBlock){
     if(pickingInterpPointForBlock===blockId) handlePickInterpPoint(blockId, latlng);
     else toast('Clique dentro da área tracejada do bloco selecionado pra criar o ponto');
@@ -4923,10 +5163,53 @@ function hidePickBanner(){ const b = document.getElementById('pick-banner'); if(
 document.addEventListener('keydown', e=>{
   if(e.key!=='Escape') return;
   if(pickingCptuForBlock){ cancelPickCptuForBlock(); toast('Seleção de CPTu cancelada'); }
+  else if(pickingAddFuroForBlock){ cancelPickAddFuro(); toast('Inclusão de furo cancelada'); }
   else if(pickingInterpPointForBlock){ cancelPickInterpPoint(); toast('Criação de ponto interpolado cancelada'); }
 });
 
 let pickingCptuForBlock = null; // id do bloco aguardando a seleção de um CPTu
+/* ── incluir um furo existente (clicado no mapa ou na tabela) como fonte do bloco interpolado:
+   o retângulo envolvente é recalculado e a correlação de camadas é refeita se necessário ── */
+let pickingAddFuroForBlock = null;
+function recomputeBlockHull(b){
+  const srcFuros = b.furoIds.map(fid=>furos.find(x=>x.id===fid)).filter(Boolean);
+  if(srcFuros.length<2) return false;
+  const pts = srcFuros.map(f=>{ const xy=localXY(f.lat,f.lng,b.refLat,b.refLng); return {x:xy.x,y:xy.y}; });
+  const rect = computeBoundingRect(pts, b.extrapDist!=null?b.extrapDist:DEFAULT_EXTRAP_M);
+  b.hull = rect.map(p=> xyToLatLng(p.x,p.y,b.refLat,b.refLng));
+  if(interpLayers[b.id]){ map.removeLayer(interpLayers[b.id]); delete interpLayers[b.id]; }
+  drawInterpBlock(b);
+  return true;
+}
+function startPickAddFuroToBlock(blockId){
+  pickingAddFuroForBlock = blockId;
+  closePanel();
+  showPickBanner('Clique num furo no mapa (ou na tabela de furos) para incluí-lo no bloco', ()=>{ cancelPickAddFuro(); toast('Inclusão de furo cancelada'); });
+  map.getContainer().style.cursor = 'crosshair';
+}
+function cancelPickAddFuro(){
+  pickingAddFuroForBlock = null;
+  hidePickBanner();
+  map.getContainer().style.cursor = '';
+}
+function handlePickAddFuroToBlock(furoId){
+  const block = interpBlocks.find(b=>b.id===pickingAddFuroForBlock);
+  const f = furos.find(x=>x.id===furoId);
+  if(!block){ cancelPickAddFuro(); return; }
+  if(!f) return;
+  if(f._interpolado){ toast('Selecione um furo de sondagem real (não um ponto interpolado)'); return; }
+  if(block.furoIds.includes(f.id)){ toast('"'+(f.ident.sondagemNum||'furo')+'" já faz parte deste bloco — escolha outro'); return; }
+  if(!isFinite(f.lat) || !isFinite(f.lng)){ toast('Este furo não tem coordenadas no mapa'); return; }
+  if(!f.camadas || !f.camadas.length){ toast('Este furo não tem camadas cadastradas'+(f.tipoSondagem==='CPTU'?' — use "Comparar com CPTu" para converter o CPTu em camadas':'')); return; }
+  cancelPickAddFuro();
+  block.furoIds.push(f.id);
+  recomputeBlockHull(block);
+  scheduleSave();
+  renderInterpList();
+  toast('"'+(f.ident.sondagemNum||'furo')+'" incluído — bloco recalculado ('+block.furoIds.length+' furos). Perfis e rasters já gerados precisam ser refeitos.');
+  if(!blockHasUniformStratigraphy(block)) setTimeout(()=>openLayerCorrelationDialog(block.id, true), 350);
+  else openInterpBlockPanel(block.id);
+}
 function startPickCptuForBlock(blockId){
   pickingCptuForBlock = blockId;
   closePanel();
@@ -4989,7 +5272,37 @@ function pickBlockTemplateFuro(block){
 // algoritmo de alinhamento (maior subsequência comum) já usado antes na concordância suave —
 // e guarda, pra cada furo real, um mapa de qual índice DELE corresponde a cada posição do
 // molde combinado (null onde aquele furo específico não tem aquela camada).
+// correlação MANUAL de camadas do bloco (definida pelo usuário na janela "Correlacionar camadas"):
+// só vale se foi feita para exatamente o mesmo conjunto de furos do bloco (se um furo entrou/saiu —
+// ex.: CPTu incorporado — volta ao alinhamento automático por tipo até correlacionar de novo)
+function blockCorrelacaoValida(block){
+  const c = block && block.correlacao;
+  if(!c || !Array.isArray(c.unidades) || !c.unidades.length) return null;
+  const a = [...(c.furoIds||[])].sort().join('|'), b = [...block.furoIds].sort().join('|');
+  return a===b ? c : null;
+}
 function buildUnionTemplate(block){
+  const manual = blockCorrelacaoValida(block);
+  const srcFuros = block.furoIds.map(id=>furos.find(f=>f.id===id)).filter(Boolean);
+  if(manual && srcFuros.length>=2){
+    const base = pickBlockTemplateFuro(block);
+    const alignMap = {}; srcFuros.forEach(f=> alignMap[f.id]=[]);
+    const camadas = manual.unidades.map((u,i)=>{
+      let descricao='', profFinal=i+1;
+      let achou=false;
+      srcFuros.forEach(f=>{
+        const idx = u.membros ? u.membros[f.id] : null;
+        const ok = idx!=null && f.camadas[idx];
+        alignMap[f.id].push(ok ? idx : null);
+        if(ok && !achou){ achou=true; descricao=f.camadas[idx].descricao; profFinal=f.camadas[idx].profFinal; }
+      });
+      return { tipo:u.tipo, descricao, profFinal };
+    });
+    return { camadas, ident: base.ident, _alignMap: alignMap, _manual:true };
+  }
+  return buildUnionTemplateAuto(block);
+}
+function buildUnionTemplateAuto(block){
   const srcFuros = block.furoIds.map(id=>furos.find(f=>f.id===id)).filter(Boolean);
   if(!srcFuros.length) return null;
   const base = pickBlockTemplateFuro(block); // só pros metadados (obra, cliente, responsável…)
@@ -5241,17 +5554,42 @@ function computeInterpolatedFuro(block, lat, lng, forcedTemplateFuro){
   // registraram, em vez de aparecer com a espessura real "constante" em qualquer lugar do bloco
   // só porque um único furo distante a tem.
   const ESPESSURA_MIN_CAMADA_PARCIAL = 0.05; // metros — bem fina, mas não exatamente zero
+  // cota do terreno do ponto interpolado — IDW entre os furos com cota numérica cadastrada
+  // (essencial pro perfil topo-geotécnico e pra interpolar as camadas em COTA, não em profundidade)
+  const cotaContribs = sources.filter(s=>{
+    const c = s.furo.ident.cota; return c!=='' && c!=null && isFinite(parseFloat(c));
+  });
+  let cotaInterp = null;
+  if(cotaContribs.length){
+    const wsum = cotaContribs.reduce((a,s)=>a+(wMap[s.id]||0),0) || 1;
+    cotaInterp = cotaContribs.reduce((a,s)=> a + (wMap[s.id]||0)*parseFloat(s.furo.ident.cota), 0) / wsum;
+    cotaInterp = Math.round(cotaInterp*100)/100;
+  }
+  // As camadas são interpoladas pela COTA da base de cada uma (cota do topo do furo − profundidade),
+  // e não pela profundidade: furos com topos em cotas diferentes têm a mesma camada a profundidades
+  // diferentes. Furo sem cota assume a cota interpolada (equivale a interpolar por profundidade);
+  // se nenhum furo tem cota, tudo cai em profundidade pura (cota de referência 0).
+  const cotaRef = cotaInterp!=null ? cotaInterp : 0;
+  const cotaFonte = {}, baseAnt = {};
+  sources.forEach(s=>{
+    const c = parseFloat(s.furo.ident.cota);
+    cotaFonte[s.id] = cotaInterp==null ? 0 : (isFinite(c) ? c : cotaInterp);
+    baseAnt[s.id] = cotaFonte[s.id]; // cota da base da camada anterior de cada furo (topo do terreno no início)
+  });
   const camadas = [];
   let profAnteriorInterp = 0;
   template.camadas.forEach((c,i)=>{
     const wsumTodos = sources.reduce((a,s)=>a+(wMap[s.id]||0), 0) || 1;
-    let profFinal = 0;
+    let cotaBase = 0;
     sources.forEach(s=>{
       const camAlin = templateAlignedCamada(template, s.furo, i);
       const w = (wMap[s.id]||0)/wsumTodos;
-      profFinal += w * (camAlin ? (+camAlin.profFinal||0) : (profAnteriorInterp+ESPESSURA_MIN_CAMADA_PARCIAL));
+      // furo sem esta camada: contribui com uma camada finíssima logo abaixo da base da anterior DELE
+      const e = camAlin ? cotaFonte[s.id] - (+camAlin.profFinal||0) : baseAnt[s.id] - ESPESSURA_MIN_CAMADA_PARCIAL;
+      baseAnt[s.id] = e;
+      cotaBase += w * e;
     });
-    profFinal = Math.round(profFinal*100)/100;
+    let profFinal = Math.round((cotaRef - cotaBase)*100)/100;
     if(profFinal <= profAnteriorInterp) profFinal = +(profAnteriorInterp+0.05).toFixed(2);
     camadas.push({ profFinal, tipo:c.tipo, descricao:c.descricao });
     profAnteriorInterp = profFinal;
@@ -5293,17 +5631,6 @@ function computeInterpolatedFuro(block, lat, lng, forcedTemplateFuro){
     const wsum = naContribs.reduce((a,s)=>a+(wMap[s.id]||0),0) || 1;
     naProf = naContribs.reduce((a,s)=> a + (wMap[s.id]||0)*(+s.furo.agua[0].prof||0), 0) / wsum;
     naProf = Math.round(naProf*100)/100;
-  }
-
-  // cota do terreno — IDW entre os furos que têm cota numérica cadastrada (essencial pro perfil topo-geotécnico)
-  const cotaContribs = sources.filter(s=>{
-    const c = s.furo.ident.cota; return c!=='' && c!=null && isFinite(parseFloat(c));
-  });
-  let cotaInterp = null;
-  if(cotaContribs.length){
-    const wsum = cotaContribs.reduce((a,s)=>a+(wMap[s.id]||0),0) || 1;
-    cotaInterp = cotaContribs.reduce((a,s)=> a + (wMap[s.id]||0)*parseFloat(s.furo.ident.cota), 0) / wsum;
-    cotaInterp = Math.round(cotaInterp*100)/100;
   }
 
   const nFontesPrevias = furos.filter(x=>x._interpolado).length;
@@ -5426,6 +5753,14 @@ function openInterpBlockPanel(id){
           <svg class="ic pb-card-ic"><use href="#ic-cube"></use></svg><em>Volume</em><b>Modelo 3D</b>
           <span>Cubo 3D do volume interpolado; arraste as setas das faces para cortar e expor a estratigrafia.</span>
         </button>
+        <button class="pb-card" id="pb-layer-corr" type="button">
+          <svg class="ic pb-card-ic"><use href="#ic-compare"></use></svg><em>${blockCorrelacaoValida(b)?'Correlação manual aplicada':'Camadas'}</em><b>Correlacionar camadas</b>
+          <span>${blockHasUniformStratigraphy(b)?'Os furos têm a mesma sequência de camadas. Abra para definir equivalências mesmo assim.':'Os furos têm camadas diferentes entre si — escolha quais solos são equivalentes (usado no perfil, raster e 3D).'}</span>
+        </button>
+        <button class="pb-card" id="pb-add-furo" type="button">
+          <svg class="ic pb-card-ic"><use href="#ic-crosshair-area"></use></svg><em>Fontes</em><b>Incluir furo no bloco</b>
+          <span>Clique num furo no mapa (ou na tabela) para adicioná-lo como fonte: a área e a interpolação são recalculadas.</span>
+        </button>
         <button class="pb-card" id="pb-compare-cptu" type="button">
           <svg class="ic pb-card-ic"><use href="#ic-compare"></use></svg><em>Validação</em><b>Comparar com CPTu</b>
           <span>Confronta N60×N-SPT com o furo interpolado na mesma posição e permite incorporar o CPTu como fonte.</span>
@@ -5465,6 +5800,8 @@ function openInterpBlockPanel(id){
       panel.querySelector('#pb-pane-ajustes').hidden = t.dataset.pane!=='ajustes';
     };
   });
+  document.getElementById('pb-layer-corr').onclick=()=>{ openLayerCorrelationDialog(b.id, false); };
+  document.getElementById('pb-add-furo').onclick=()=>{ startPickAddFuroToBlock(b.id); };
   document.getElementById('pb-compare-cptu').onclick=()=>{
     startPickCptuForBlock(b.id);
   };
@@ -5492,14 +5829,7 @@ function openInterpBlockPanel(id){
     b.extrapDist = novoExtrap;
 
     // recalcula o retângulo envolvente com a nova distância de extrapolação
-    const srcFuros = b.furoIds.map(fid=>furos.find(x=>x.id===fid)).filter(Boolean);
-    if(srcFuros.length>=2){
-      const pts = srcFuros.map(f=>{ const xy=localXY(f.lat,f.lng,b.refLat,b.refLng); return {x:xy.x,y:xy.y}; });
-      const rect = computeBoundingRect(pts, b.extrapDist);
-      b.hull = rect.map(p=> xyToLatLng(p.x,p.y,b.refLat,b.refLng));
-      if(interpLayers[b.id]){ map.removeLayer(interpLayers[b.id]); delete interpLayers[b.id]; }
-      drawInterpBlock(b);
-    }
+    recomputeBlockHull(b);
     scheduleSave(); renderInterpList(); toast('Bloco salvo');
   };
   document.getElementById('pb-del').onclick=()=>{
@@ -6781,7 +7111,9 @@ function renderProfileHtml(profile){
   const block = interpBlocks.find(b=>b.id===profile.blockId);
   const fontesTxt = block ? block.furoIds.map(id=>{ const f=furos.find(x=>x.id===id); return f?f.ident.sondagemNum:'?'; }).join(', ') : '—';
 
-  const warnEstrutura = (!estruturaUniforme && !temEdicaoManual) ? `
+  const correlManual = (typeof blockCorrelacaoValida==='function') && blockCorrelacaoValida(interpBlocks.find(b=>b.id===profile.blockId));
+  const warnEstrutura = (correlManual && !temEdicaoManual) ? `
+    <div class="warn-box" style="margin-top:8px;">🔗 Camadas correlacionadas <b>manualmente</b> entre os furos de origem (unidades de solo equivalentes definidas pelo usuário); o raster e o modelo 3D usam a mesma correlação.</div>` : (!estruturaUniforme && !temEdicaoManual) ? `
     <div class="warn-box" style="margin-top:8px;">
       ⚠ Os furos de origem deste bloco têm sequências de camadas diferentes entre si (número e/ou ordem
       de tipos de solo distintos). O perfil usa um <b>molde combinado</b> — a união de todas as camadas

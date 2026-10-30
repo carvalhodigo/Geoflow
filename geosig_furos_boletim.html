@@ -4410,6 +4410,16 @@ function lcRowsInitial(block){
   return lcRowsFromTemplate(block, buildUnionTemplateAuto(block));
 }
 // índices de camada de cada furo que não estão em nenhuma linha
+// converte o formato antigo da classificação ({fid:{idxCamada:{...}}}) para faixas por trecho ({fid:[{src,top,base,tipo,descricao}]})
+function lcClassifToArrays(manual){
+  const out = {}; if(!manual || !manual.classif) return out;
+  Object.entries(manual.classif).forEach(([fid,v])=>{
+    if(Array.isArray(v)){ out[fid] = JSON.parse(JSON.stringify(v)); return; }
+    const f = furos.find(x=>x.id===fid); if(!f) return;
+    out[fid] = Object.entries(v||{}).map(([j,ov])=>{ const c=f.camadas[+j]; if(!c) return null; const top = +j===0?0:(+f.camadas[+j-1].profFinal||0); return {src:+j, top, base:+c.profFinal||0, tipo:ov.tipo, descricao:ov.descricao}; }).filter(Boolean);
+  });
+  return out;
+}
 function lcSegs(f){ return furoSegments(f, lcState && lcState.cortes && lcState.cortes[f.id], lcState && lcState.classif && lcState.classif[f.id]); }
 // cota de referência do topo do furo para desenhar/alinhar (furo sem cota assume a média dos demais)
 function lcCota0(f){
@@ -4479,32 +4489,42 @@ function openLayerCorrelationDialog(blockId, motivoAuto){
   const fs = block.furoIds.map(id=>furos.find(f=>f.id===id)).filter(Boolean);
   if(fs.length<2){ toast('O bloco precisa de ao menos 2 furos'); return; }
   const manualInit = blockCorrelacaoValida(block);
-  lcState = { blockId, furos:fs, rows: lcRowsInitial(block), cortes: manualInit && manualInit.cortes ? JSON.parse(JSON.stringify(manualInit.cortes)) : {}, classif: manualInit && manualInit.classif ? JSON.parse(JSON.stringify(manualInit.classif)) : {}, mode:'split', clip:null, split:null };
+  lcState = { blockId, furos:fs, rows: lcRowsInitial(block), cortes: manualInit && manualInit.cortes ? JSON.parse(JSON.stringify(manualInit.cortes)) : {}, classif: lcClassifToArrays(manualInit), mode:'split', zoom:1, clip:null, split:null };
   let ov = document.getElementById('layer-corr-overlay');
   if(!ov){
     ov = document.createElement('div'); ov.className='popup-overlay'; ov.id='layer-corr-overlay';
     ov.innerHTML = `<style>
-      #layer-corr-overlay .editor-box{max-width:1240px;height:90vh;max-height:90vh}
-      .lc-intro{font-size:12px;color:var(--bo-muted);margin:12px 0 10px;line-height:1.5}
-      .lc-intro.auto{background:rgba(122,63,160,.10);border-left:3px solid #7a3fa0;padding:8px 10px;border-radius:0 8px 8px 0;color:var(--bo-text)}
+      #layer-corr-overlay .editor-box{max-width:1400px;width:96vw;height:94vh;max-height:94vh}
+      .lc-intro{font-size:12px;color:var(--bo-muted);margin:8px 0 8px;line-height:1.45;flex-shrink:0}
+      .lc-intro summary{cursor:pointer;display:inline;font-weight:700;color:#7a3fa0}
+      .lc-intro details[open] summary{display:block;margin-bottom:3px}
+      .lc-intro.auto{background:rgba(122,63,160,.10);border-left:3px solid #7a3fa0;padding:6px 10px;border-radius:0 8px 8px 0;color:var(--bo-text)}
       .lc-wrap{overflow:auto;border:1px solid var(--bo-border);border-radius:8px}
       table.lc-tbl{border-collapse:collapse;min-width:100%;font-size:11.5px}
-      .lc-tbl th,.lc-tbl td{border-bottom:1px solid var(--bo-border);border-right:1px solid var(--bo-border);padding:6px 7px;vertical-align:top}
+      .lc-tbl th,.lc-tbl td{border-bottom:1px solid var(--bo-border);border-right:1px solid var(--bo-border);padding:4px 6px;vertical-align:middle}
       .lc-tbl thead th{position:sticky;top:0;background:var(--bo-surface);z-index:2;text-align:left;font-family:var(--bo-mono);font-size:10px;letter-spacing:.5px}
       .lc-tbl th small{display:block;font-weight:400;color:var(--bo-muted);letter-spacing:0;text-transform:none;font-family:var(--bo-sans);margin-top:2px;white-space:normal}
-      .lc-tbl td.lc-row-h{background:var(--bo-surface);min-width:200px}
+      .lc-tbl td.lc-row-h{background:var(--bo-surface);min-width:290px;position:sticky;left:0;z-index:1}
+      .lc-tbl thead th:first-child{left:0;z-index:3}
+      .lc-rowh{display:flex;gap:5px;align-items:center}
+      .lc-rowh select{flex:1;min-width:0}
+      .lc-cellrow{display:flex;gap:3px;align-items:center}
+      .lc-cellrow select{flex:1;min-width:0}
+      .lc-cellrow .ib{border:1px solid var(--bo-border);background:var(--bo-card);color:var(--bo-text);border-radius:5px;width:24px;height:24px;font-size:12px;padding:0;cursor:pointer;flex-shrink:0;line-height:1}
+      .lc-cellrow .ib:hover{background:rgba(122,63,160,.15)}
+      .lc-chip span:last-child{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:260px}
       .lc-tbl select{width:100%;font-size:11px;padding:4px;border:1px solid var(--bo-border);border-radius:6px;background:var(--bo-card);color:var(--bo-text)}
       .lc-tbl td.bad{background:rgba(192,57,43,.12)} .lc-tbl td.bad select{border-color:#c0392b}
       .lc-chip{display:flex;gap:6px;align-items:center;margin-top:4px;font-size:10.5px;color:var(--bo-muted)}
       .lc-sw{width:22px;height:14px;border-radius:3px;border:1px solid rgba(0,0,0,.25);flex-shrink:0}
-      .lc-rowbtns{display:flex;gap:4px;margin-top:6px}
-      .lc-rowbtns button{border:1px solid var(--bo-border);background:var(--bo-card);border-radius:5px;width:24px;height:24px;cursor:pointer;font-size:12px;padding:0;color:var(--bo-text)}
+      .lc-rowbtns{display:flex;gap:3px}
+      .lc-rowbtns button{border:1px solid var(--bo-border);background:var(--bo-card);border-radius:5px;width:22px;height:24px;cursor:pointer;font-size:12px;padding:0;color:var(--bo-text)}
       .lc-rowbtns button:disabled{opacity:.3;cursor:default} .lc-rowbtns .x{color:#c0392b}
       .lc-modebar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:12px;margin-bottom:6px;flex-shrink:0}
       .lc-modebar .mb{border:1px solid var(--bo-border);background:var(--bo-card);color:var(--bo-text);border-radius:6px;padding:4px 10px;cursor:pointer;font-size:11.5px}
       .lc-modebar .mb.on{background:#7a3fa0;color:#fff;border-color:#7a3fa0}
       .lc-modebar .clip{background:rgba(122,63,160,.12);border:1px solid #7a3fa0;border-radius:6px;padding:3px 8px}
-      .lc-chartwrap{overflow:auto;border:1px solid var(--bo-border);border-radius:8px;margin-bottom:10px;max-height:44vh;background:var(--bo-card);flex-shrink:0}
+      .lc-chartwrap{overflow:auto;border:1px solid var(--bo-border);border-radius:8px;margin-bottom:8px;height:34vh;min-height:170px;resize:vertical;background:var(--bo-card);flex-shrink:0}
       .lc-chartwrap svg{display:block} .lc-chartwrap .seg{cursor:pointer} .lc-chartwrap .seg:hover{stroke-width:2}
       .lc-splitbar{display:none;align-items:center;gap:8px;flex-wrap:wrap;font-size:12px;padding:7px 10px;margin-bottom:8px;border:1px solid #7a3fa0;border-radius:8px;background:rgba(122,63,160,.08);flex-shrink:0}
       .lc-splitbar input{width:90px;padding:4px 6px;border:1px solid var(--bo-border);border-radius:6px;background:var(--bo-card);color:var(--bo-text)}
@@ -4522,7 +4542,7 @@ function openLayerCorrelationDialog(blockId, motivoAuto){
         <div class="lc-modebar" id="lc-modebar"></div>
         <div class="lc-chartwrap" id="lc-chart"></div>
         <div class="lc-splitbar" id="lc-splitbar"></div>
-        <div class="lc-wrap" id="lc-wrap" style="flex:1;min-height:160px"></div>
+        <div class="lc-wrap" id="lc-wrap" style="flex:1;min-height:230px"></div>
         <div class="lc-status" id="lc-status"></div>
       </div>
       <div class="popup-footer">
@@ -4539,6 +4559,22 @@ function openLayerCorrelationDialog(blockId, motivoAuto){
     ov.querySelector('#lc-add-row').onclick = ()=>{ const m={}; lcState.furos.forEach(f=>m[f.id]=null); lcState.rows.push({tipo:'argila',tipoManual:false,m}); renderLayerCorrelation(); };
     ov.querySelector('#lc-suggest').onclick = ()=>{ const b=interpBlocks.find(x=>x.id===lcState.blockId); lcState.cortes = {}; lcState.classif = {}; lcState.clip = null; lcState.split = null; lcState.rows = lcRowsFromTemplate(b, buildUnionTemplateAuto(b)); renderLayerCorrelation(); };
     ov.querySelector('#lc-align-cota').onclick = lcAlignByCota;
+    const chartBox = ov.querySelector('#lc-chart');
+    chartBox.addEventListener('wheel', ev=>{
+      if(!ev.ctrlKey && !ev.metaKey) return;
+      ev.preventDefault();
+      const v = lcState && lcState.view; if(!v) return;
+      const bb = chartBox.getBoundingClientRect();
+      const e = v.emax - ((ev.clientY - bb.top + chartBox.scrollTop) - v.padT)/v.scale; // cota sob o cursor
+      const novo = (lcState.zoom||1) * (ev.deltaY<0 ? 1.25 : 0.8);
+      // mantém a cota sob o cursor no mesmo lugar da tela
+      lcSetZoom(novo, null);
+      const v2 = lcState.view; chartBox.scrollTop = Math.max(0, v2.padT + (v2.emax - e)*v2.scale - (ev.clientY - bb.top));
+    }, {passive:false});
+    if(typeof ResizeObserver!=='undefined'){
+      let t=null, lastH=0;
+      new ResizeObserver(()=>{ if(!lcState || !chartBox.clientHeight || Math.abs(chartBox.clientHeight-lastH)<4) return; lastH=chartBox.clientHeight; clearTimeout(t); t=setTimeout(()=>{ if(lcState && ov.classList.contains('open')) renderLcChart(ov); },120); }).observe(chartBox);
+    }
     ov.querySelector('#lc-reset').onclick = ()=>{
       const b=interpBlocks.find(x=>x.id===lcState.blockId); if(!b) return;
       delete b.correlacao; scheduleSave(); ov.classList.remove('open'); refreshBlockPanelIfOpen(b.id);
@@ -4550,9 +4586,11 @@ function openLayerCorrelationDialog(blockId, motivoAuto){
   ov.querySelector('#lc-title').textContent = 'Correlacionar camadas — '+block.nome;
   const intro = ov.querySelector('#lc-intro');
   intro.className = 'lc-intro'+(motivoAuto?' auto':'');
-  intro.innerHTML = (motivoAuto ? '<b>Os furos deste bloco caracterizam o solo de formas diferentes</b> (número e/ou tipos de camadas distintos — comum entre campanhas ou empresas diferentes). ' : '')
-    + 'O gráfico mostra os furos <b>na mesma escala de cota</b> (cota do topo do furo − profundidade), pois os topos não estão necessariamente na mesma cota. Se uma camada de um furo corresponde a duas ou mais do outro, clique nela no gráfico (ou use "✂ Quebrar") para dividi-la numa cota; "Alinhar por cota" faz isso automaticamente. Cada <b>linha</b> é uma unidade de solo equivalente ao longo do bloco; em cada coluna escolha qual camada daquele furo pertence a ela (ou nenhuma). O <b>tipo da unidade</b> define a cor/hachura no perfil, raster e modelo 3D. A tabela já começa com o alinhamento automático por tipo — ajuste o que estiver errado.'
-    + (motivoAuto ? ' Se preferir, feche a janela e use o alinhamento automático (botão "Correlacionar camadas" no painel do bloco abre esta tela depois).' : '');
+  intro.innerHTML = (motivoAuto ? '<b>Os furos deste bloco caracterizam o solo de formas diferentes</b> (comum entre campanhas ou empresas diferentes). ' : '')
+    + '<details'+(motivoAuto?' open':'')+'><summary>Como usar</summary>'
+    + 'O gráfico mostra os furos <b>na mesma escala de cota</b> (cota do topo − profundidade). Cada <b>linha</b> da tabela é uma unidade de solo equivalente; em cada coluna escolha qual camada do furo pertence a ela. O <b>tipo da unidade</b> define cor/hachura no perfil, raster e 3D. '
+    + '<b>✂ Quebrar</b>: se uma camada corresponde a duas ou mais do outro furo, clique nela no gráfico e informe a cota. <b>Alinhar por cota</b> faz isso automaticamente. <b>⧉ Copiar classificação</b>: copie o tipo/descrição de uma camada para outra. <b>Zoom</b>: botões + / − ou Ctrl + roda do mouse sobre o gráfico; arraste o canto inferior do gráfico para mudar a altura.'
+    + '</details>';
   ov.classList.add('open');
   renderLayerCorrelation();
 }
@@ -4565,18 +4603,26 @@ function renderLcChart(ov){
   info.forEach(o=> o.sg.forEach(g=>{ emax=Math.max(emax,o.c0-g.top); emin=Math.min(emin,o.c0-g.base); }));
   if(!isFinite(emax)){ box.innerHTML=''; return; }
   const range = Math.max(0.5, emax-emin);
-  const scale = Math.max(12, Math.min(44, 300/range));
-  const padT = 40, padL = 54, segW = 70, colStep = 160, H = padT + range*scale + 16, W = padL + fs.length*colStep;
+  // escala base: ajusta a altura útil do quadro (que o usuário pode redimensionar); o zoom multiplica
+  const zoom = lcState.zoom || 1;
+  const availH = (box.clientHeight && box.clientHeight>80) ? box.clientHeight : 300;
+  const baseScale = Math.max(6, Math.min(120, (availH-40-22)/range));
+  const scale = Math.min(600, baseScale*zoom);
+  const availW = (box.clientWidth && box.clientWidth>200) ? box.clientWidth : 700;
+  const colStep = Math.max(170, Math.min(340, Math.floor((availW-60)/Math.max(1,fs.length))));
+  const padT = 40, padL = 54, segW = Math.max(80, Math.min(130, Math.round(colStep*0.42))), H = padT + range*scale + 22, W = padL + fs.length*colStep;
+  const prev = lcState.view; // mantém o ponto (cota) que estava no centro do quadro ao dar zoom
+  lcState.view = { emax, scale, padT };
   const yOf = e => padT + (emax-e)*scale;
   const isClip = (fid,g)=> lcState.clip && lcState.clip.fid===fid && lcState.clip.src===g.src;
-  const step = [0.25,0.5,1,2,5,10,20].find(s=>s*scale>=26) || 20;
+  const step = [0.05,0.1,0.25,0.5,1,2,5,10,20].find(s=>s*scale>=26) || 20;
   let svg = `<svg id="lc-svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg" style="font-family:var(--bo-sans,sans-serif)">`;
   for(let e=Math.ceil(emin/step)*step; e<=emax+1e-9; e+=step){
     const y = yOf(e);
-    svg += `<line x1="${padL-6}" x2="${W-6}" y1="${y}" y2="${y}" stroke="rgba(120,120,120,.28)" stroke-dasharray="2 3"/><text x="${padL-9}" y="${y+3.5}" text-anchor="end" font-size="10" fill="currentColor">${fmtM(e)}</text>`;
+    svg += `<line x1="${padL-6}" x2="${W-6}" y1="${y}" y2="${y}" stroke="rgba(120,120,120,.28)" stroke-dasharray="2 3"/><text x="${padL-9}" y="${y+3.5}" text-anchor="end" font-size="10" fill="currentColor">${fmtM(Math.round(e*100)/100)}</text>`;
   }
   svg += `<text x="6" y="14" font-size="10" fill="currentColor" font-weight="700">cota (m)</text>`;
-  const colX = i => padL + 12 + i*colStep;
+  const colX = i => padL + 12 + i*colStep + (colStep-segW-24)/2;
   // faixas de ligação das unidades entre furos consecutivos que as possuem
   lcState.rows.forEach((r,ri)=>{
     const mem = info.map((o,i)=>({o,i,v:r.m[o.f.id]})).filter(x=>x.v!=null && x.o.sg[x.v]);
@@ -4595,14 +4641,19 @@ function renderLcChart(ov){
       const y1 = yOf(o.c0-g.top), y2 = yOf(o.c0-g.base), h = Math.max(1.5,y2-y1);
       const ri = lcState.rows.findIndex(r=>r.m[o.f.id]===k);
       const assigned = ri>=0;
-      svg += `<g><rect class="seg" data-f="${escAttr(o.f.id)}" data-k="${k}" x="${x}" y="${y1}" width="${segW}" height="${h}" fill="${soilColorHex(g.tipo)}" fill-opacity="${assigned?0.95:0.45}" stroke="${isClip(o.f.id,g)?'#7a3fa0':(assigned?'#222':'#c0392b')}" stroke-width="${isClip(o.f.id,g)?3.2:1.2}" ${assigned?'':'stroke-dasharray="4 3"'}><title>${esc(lcLayerLabel(o.f,k))}${assigned?' — unidade '+(ri+1):' — sem correspondência'}</title></rect>`
-           + (h>13 ? `<text x="${x+segW/2}" y="${y1+h/2+3.5}" text-anchor="middle" font-size="10.5" font-weight="700" fill="#fff" stroke="rgba(0,0,0,.55)" stroke-width=".6" paint-order="stroke" pointer-events="none">${assigned?'U'+(ri+1):'—'}</text>` : '')
+      svg += `<g><rect class="seg" data-f="${escAttr(o.f.id)}" data-k="${k}" x="${x}" y="${y1}" width="${segW}" height="${h}" fill="${soilColorHex(assigned?lcState.rows[ri].tipo:g.tipo)}" fill-opacity="${assigned?0.95:0.45}" stroke="${isClip(o.f.id,g)?'#7a3fa0':(assigned?'#222':'#c0392b')}" stroke-width="${isClip(o.f.id,g)?3.2:1.2}" ${assigned?'':'stroke-dasharray="4 3"'}><title>${esc(lcLayerLabel(o.f,k))}${assigned?' — unidade '+(ri+1):' — sem correspondência'}</title></rect>`
+           + (h>13 ? `<text x="${x+segW/2}" y="${y1+h/2+3.5}" text-anchor="middle" font-size="10.5" font-weight="700" fill="#fff" stroke="rgba(0,0,0,.55)" stroke-width=".6" paint-order="stroke" pointer-events="none">${assigned?'U'+(ri+1):'—'}${h>30?` · ${fmtM(g.base-g.top)} m`:''}</text>` : '')
            + (g.editado && h>13 ? `<text x="${x+segW-4}" y="${y1+11}" text-anchor="end" font-size="10" fill="#fff" stroke="rgba(0,0,0,.6)" stroke-width=".6" paint-order="stroke" pointer-events="none">✎</text>` : '')
            + `</g>`;
     });
   });
   svg += '</svg>';
+  const sl = box.scrollLeft, st0 = box.scrollTop;
   box.innerHTML = svg;
+  if(lcState.keepCenter!=null && prev){
+    box.scrollTop = Math.max(0, padT + (emax - lcState.keepCenter)*scale - box.clientHeight/2);
+    lcState.keepCenter = null; box.scrollLeft = sl;
+  } else { box.scrollLeft = sl; box.scrollTop = st0; }
   box.querySelectorAll('.seg').forEach(r=> r.addEventListener('click', ev=>{
     const svgEl = box.querySelector('svg'); const bb = svgEl.getBoundingClientRect();
     const e = emax - ((ev.clientY - bb.top) - padT)/scale;
@@ -4662,11 +4713,16 @@ function lcMerge(fid, k){ // une o trecho k com o k+1 (desfaz uma quebra)
   if(!a || !b || a.src!==b.src) return;
   const lista = lcState.cortes[fid] || [];
   const ix = lista.findIndex(d=>Math.abs(d-a.base)<0.006); if(ix>=0) lista.splice(ix,1);
+  // trecho unido assume a classificação do trecho de cima
+  const ovA = a.editado ? {tipo:a.tipo, descricao:a.descricao} : null;
   const rowA = lcState.rows.find(r=>r.m[fid]===k), rowB = lcState.rows.find(r=>r.m[fid]===k+1);
   if(rowB){ if(rowA) rowB.m[fid] = null; else rowB.m[fid] = k; }
   lcState.rows.forEach(r=>{ if(r.m[fid]!=null && r.m[fid]>k+1) r.m[fid]--; });
   lcState.rows = lcState.rows.filter(r=> lcState.furos.some(x=>r.m[x.id]!=null));
   lcState.split = null;
+  const merged = lcSegs(f)[k];
+  if(merged) lcClassifSet(fid, merged, ovA);
+  lcRefreshRowTipos();
   lcAutoLink(fid, k);
   renderLayerCorrelation();
 }
@@ -4732,17 +4788,30 @@ function lcPasteTo(fid, k){
   if(cp.fid===fid && cp.src===g.src) return;
   const comDesc = !document.getElementById('lc-copy-desc') || document.getElementById('lc-copy-desc').checked;
   const orig = f.camadas[g.src];
-  (lcState.classif[fid] = lcState.classif[fid]||{})[g.src] = { tipo:cp.tipo, descricao: comDesc ? cp.descricao : (g.descricao||'') };
+  lcClassifSet(fid, g, { tipo:cp.tipo, descricao: comDesc ? cp.descricao : (g.descricao||'') });
   lcRefreshRowTipos();
   lcAutoLink(fid, k);
   renderLayerCorrelation();
 }
 function lcRestoreClassif(fid, k){
   const f = lcState.furos.find(x=>x.id===fid); const g = f && lcSegs(f)[k]; if(!g) return;
-  if(lcState.classif[fid]) delete lcState.classif[fid][g.src];
+  lcClassifSet(fid, g, null);
   lcRefreshRowTipos();
   lcAutoLink(fid, k);
   renderLayerCorrelation();
+}
+// grava (ou, com ov=null, remove) a classificação do TRECHO g; faixas cujo ponto médio cai dentro dele são substituídas
+function lcClassifSet(fid, g, ov){
+  const f = lcState.furos.find(x=>x.id===fid);
+  let lista = lcState.classif[fid]; if(!Array.isArray(lista)) lista = lcState.classif[fid] = [];
+  const mid = (g.top+g.base)/2;
+  lcState.classif[fid] = lista.filter(r=> !(r.src===g.src && ((r.top+r.base)/2 >= g.top-1e-6 && (r.top+r.base)/2 <= g.base+1e-6) || (r.src===g.src && mid>=r.top-1e-6 && mid<=r.base+1e-6)));
+  // a faixa antiga pode cobrir mais que o trecho (ex.: camada inteira colada antes de quebrar): preserva as partes vizinhas
+  lista.filter(r=> r.src===g.src && mid>=r.top-1e-6 && mid<=r.base+1e-6).forEach(r=>{
+    if(r.top < g.top-1e-6) lcState.classif[fid].push({...r, base:g.top});
+    if(r.base > g.base+1e-6) lcState.classif[fid].push({...r, top:g.base});
+  });
+  if(ov) lcState.classif[fid].push({ src:g.src, top:g.top, base:g.base, tipo:ov.tipo, descricao:ov.descricao });
 }
 function lcRefreshRowTipos(){ lcState.rows.forEach(r=>{ if(!r.tipoManual) r.tipo = lcRowTipoFromMembers(r); }); }
 function renderLcModeBar(ov){
@@ -4754,6 +4823,10 @@ function renderLcModeBar(ov){
     + (lcState.mode==='copy' ? `<span style="color:var(--bo-muted)">${cp?'Agora clique na camada de <b>destino</b> (ou em ⎘ Colar na tabela). Clique de novo na origem para limpar.':'Clique na camada de <b>origem</b> no gráfico (ou em ⧉ Copiar na tabela).'}</span>` : '')
     + (cp ? `<span class="clip">Copiado: <b>${esc(cp.nome)}</b> — ${esc(nomeTipo(cp.tipo))}${cp.descricao?' · '+esc(cp.descricao.slice(0,40)):''} <button type="button" class="mb" id="lc-clip-clear" style="padding:1px 7px">✕</button></span>` : '')
     + (cp || lcState.mode==='copy' ? `<label style="font-size:11.5px"><input type="checkbox" id="lc-copy-desc" ${lcState.copyDesc===false?'':'checked'}> copiar também a descrição</label>` : '');
+  bar.insertAdjacentHTML('beforeend', `<span style="margin-left:auto;display:flex;align-items:center;gap:4px" title="Ctrl + roda do mouse sobre o gráfico também dá zoom">Zoom <button type="button" class="mb" id="lc-zoom-out">−</button><b style="min-width:42px;text-align:center">${Math.round((lcState.zoom||1)*100)}%</b><button type="button" class="mb" id="lc-zoom-in">+</button><button type="button" class="mb" id="lc-zoom-fit" title="Ajustar o gráfico ao quadro">Ajustar</button></span>`);
+  bar.querySelector('#lc-zoom-in').onclick = ()=> lcSetZoom((lcState.zoom||1)*1.5);
+  bar.querySelector('#lc-zoom-out').onclick = ()=> lcSetZoom((lcState.zoom||1)/1.5);
+  bar.querySelector('#lc-zoom-fit').onclick = ()=> lcSetZoom(1);
   bar.querySelectorAll('.mb[data-mode]').forEach(b=> b.onclick = ()=>{ lcState.mode = b.dataset.mode; lcState.split = null; renderLayerCorrelation(); });
   const cc = bar.querySelector('#lc-clip-clear'); if(cc) cc.onclick = ()=>{ lcState.clip = null; renderLayerCorrelation(); };
   const cd = bar.querySelector('#lc-copy-desc'); if(cd) cd.onchange = ()=>{ lcState.copyDesc = cd.checked; };
@@ -4799,6 +4872,16 @@ function lcAutoLink(fid, k){
   return true;
 }
 
+function lcSetZoom(z, anchorE){
+  const box = document.getElementById('lc-chart'); if(!box||!lcState) return;
+  z = Math.max(0.25, Math.min(40, z));
+  const v = lcState.view;
+  lcState.keepCenter = anchorE!=null ? anchorE : (v ? v.emax - (box.scrollTop + box.clientHeight/2 - v.padT)/v.scale : null);
+  lcState.zoom = z;
+  renderLcChart(document.getElementById('layer-corr-overlay'));
+  renderLcModeBar(document.getElementById('layer-corr-overlay'));
+}
+
 function refreshBlockPanelIfOpen(id){
   try{ if(selected && selected.kind==='interp' && selected.id===id) openInterpBlockPanel(id); }catch(e){}
 }
@@ -4811,22 +4894,29 @@ function renderLayerCorrelation(){
   const nOrph = Object.values(orph).reduce((a,l)=>a+l.length,0);
   const gaps = lcCotaGaps();
   const tipoOpts = sel => TIPOS_SOLO.map(([k,l])=>`<option value="${escAttr(k)}" ${k===sel?'selected':''}>${esc(l)}</option>`).join('');
-  let h = '<table class="lc-tbl"><thead><tr><th style="min-width:210px">Unidade equivalente<small>tipo usado no perfil / raster / 3D</small></th>'
-    + fs.map(f=>`<th style="min-width:230px">${esc(f.ident.sondagemNum||'(sem nome)')}${f.tipoSondagem==='CPTU'?' · CPTu':''}<small>${esc([f.ident.obra,f.ident.cliente].filter(Boolean).join(' · '))||'—'}<br>${furoCotaNum(f)!=null ? '<b>cota do topo '+fmtM(furoCotaNum(f))+' m</b>' : '<b style="color:#b85c1a">sem cota do topo</b>'}<br>${f.camadas.length} camada(s) · até ${(+f.camadas[f.camadas.length-1].profFinal||0).toFixed(2).replace('.',',')} m${furoCotaNum(f)!=null ? ' (cota '+fmtM(furoCotaNum(f)-(+f.camadas[f.camadas.length-1].profFinal||0))+')' : ''}</small></th>`).join('')
+  let h = '<table class="lc-tbl"><thead><tr><th style="min-width:290px">Unidade equivalente<small>tipo usado no perfil / raster / 3D</small></th>'
+    + fs.map(f=>`<th style="min-width:300px">${esc(f.ident.sondagemNum||'(sem nome)')}${f.tipoSondagem==='CPTU'?' · CPTu':''}<small title="${escAttr([f.ident.obra,f.ident.cliente].filter(Boolean).join(' · '))}">${furoCotaNum(f)!=null ? '<b>topo '+fmtM(furoCotaNum(f))+' m</b>' : '<b style="color:#b85c1a">sem cota do topo</b>'} · ${f.camadas.length} camada(s) até ${(+f.camadas[f.camadas.length-1].profFinal||0).toFixed(2).replace('.',',')} m${furoCotaNum(f)!=null ? ' (cota '+fmtM(furoCotaNum(f)-(+f.camadas[f.camadas.length-1].profFinal||0))+')' : ''}${[f.ident.obra].filter(Boolean).length?'<br>'+esc(f.ident.obra):''}</small></th>`).join('')
     + '</tr></thead><tbody>';
   rows.forEach((r,ri)=>{
     const tipoCor = soilColorHex(r.tipo);
-    h += `<tr><td class="lc-row-h"><div style="display:flex;gap:6px;align-items:center"><span class="lc-sw" style="background:${tipoCor}"></span><b>${ri+1}</b>
-      <select class="lc-tipo" data-r="${ri}">${tipoOpts(r.tipo)}</select></div>
-      <div class="lc-rowbtns"><button type="button" class="up" data-r="${ri}" ${ri===0?'disabled':''} title="Subir">▲</button><button type="button" class="dn" data-r="${ri}" ${ri===rows.length-1?'disabled':''} title="Descer">▼</button><button type="button" class="x" data-r="${ri}" title="Remover unidade (as camadas ficam sem correspondência e voltam como unidades próprias)">✕</button></div>${gaps.has(ri)?'<div class="lc-gap">⚠ camadas sem sobreposição de cota</div>':''}</td>`;
+    h += `<tr><td class="lc-row-h"><div class="lc-rowh"><span class="lc-sw" style="background:${tipoCor}"></span><b>${ri+1}</b>
+      <select class="lc-tipo" data-r="${ri}">${tipoOpts(r.tipo)}</select>
+      <div class="lc-rowbtns"><button type="button" class="up" data-r="${ri}" ${ri===0?'disabled':''} title="Subir">▲</button><button type="button" class="dn" data-r="${ri}" ${ri===rows.length-1?'disabled':''} title="Descer">▼</button><button type="button" class="x" data-r="${ri}" title="Remover unidade (as camadas ficam sem correspondência e voltam como unidades próprias)">✕</button></div></div>${gaps.has(ri)?'<div class="lc-gap">⚠ camadas sem sobreposição de cota</div>':''}</td>`;
     fs.forEach(f=>{
       const v = r.m[f.id];
       const segsF = lcSegs(f);
       const opts = ['<option value="">— sem correspondência —</option>'].concat(segsF.map((c,j)=>`<option value="${j}" ${v===j?'selected':''}>${esc(lcLayerLabel(f,j))}</option>`)).join('');
       const c = v!=null ? segsF[v] : null;
-      h += `<td class="${bad.has(ri+':'+f.id)?'bad':''}"><select class="lc-cell" data-r="${ri}" data-f="${escAttr(f.id)}">${opts}</select>`
-        + (v!=null ? `<div class="lc-cellbtns"><button type="button" class="lc-copy" data-f="${escAttr(f.id)}" data-k="${v}" title="Copiar a classificação (tipo e descrição) desta camada">⧉ Copiar</button>${lcState.clip && !(lcState.clip.fid===f.id && lcState.clip.src===c.src) ? `<button type="button" class="lc-paste" data-f="${escAttr(f.id)}" data-k="${v}" title="Colar a classificação copiada nesta camada">⎘ Colar</button>` : ''}${c.editado ? `<button type="button" class="lc-orig" data-f="${escAttr(f.id)}" data-k="${v}" title="Voltar à classificação original deste furo">↺ Original</button>` : ''}<button type="button" class="lc-split" data-f="${escAttr(f.id)}" data-k="${v}" title="Quebrar esta camada em duas, numa cota à escolha">✂ Quebrar</button>${v>0 && segsF[v-1] && segsF[v-1].src===c.src ? `<button type="button" class="lc-merge" data-f="${escAttr(f.id)}" data-k="${v-1}" title="Desfazer a quebra com o trecho de cima">⤒ Unir acima</button>` : ''}</div>` : '')
-        + (c ? `<div class="lc-chip"><span class="lc-sw" style="background:${soilColorHex(c.tipo)}"></span><span>${lcLayerElev(f,v)?'<b>cota '+fmtM(lcLayerElev(f,v).top)+' → '+fmtM(lcLayerElev(f,v).base)+'</b> · ':''}${esc((c.descricao||'').slice(0,90))||'<i>sem descrição</i>'}</span></div>` : '')
+      const ib = (cls,txt,title,extra='')=>`<button type="button" class="ib ${cls}" data-f="${escAttr(f.id)}" data-k="${v}" ${extra} title="${title}">${txt}</button>`;
+      const btns = v!=null
+        ? ib('lc-copy','⧉','Copiar a classificação (tipo e descrição) desta camada')
+          + (lcState.clip && !(lcState.clip.fid===f.id && lcState.clip.src===c.src) ? ib('lc-paste','⎘','Colar a classificação copiada nesta camada') : '')
+          + ib('lc-split','✂','Quebrar esta camada em duas, numa cota à escolha')
+          + (v>0 && segsF[v-1] && segsF[v-1].src===c.src ? `<button type="button" class="ib lc-merge" data-f="${escAttr(f.id)}" data-k="${v-1}" title="Desfazer a quebra com o trecho de cima">⤒</button>` : '')
+          + (c.editado ? ib('lc-orig','↺','Voltar à classificação original deste furo') : '')
+        : '';
+      h += `<td class="${bad.has(ri+':'+f.id)?'bad':''}"><div class="lc-cellrow"><select class="lc-cell" data-r="${ri}" data-f="${escAttr(f.id)}">${opts}</select>${btns}</div>`
+        + (c ? `<div class="lc-chip" title="${escAttr((c.descricao||'')+'')}"><span class="lc-sw" style="background:${soilColorHex(c.tipo)}"></span><span>${c.editado?'✎ ':''}${lcLayerElev(f,v)?'<b>cota '+fmtM(lcLayerElev(f,v).top)+' → '+fmtM(lcLayerElev(f,v).base)+'</b> · ':''}${esc((c.descricao||'').slice(0,90))||'<i>sem descrição</i>'}</span></div>` : '')
         + '</td>';
     });
     h += '</tr>';
@@ -5563,10 +5653,16 @@ function furoSegments(f, cortes, classif){
   const out = []; let top = 0;
   f.camadas.forEach((c,j)=>{
     const base = +c.profFinal||0; let t = top;
-    const ov = classif && classif[j]; // classificação copiada de outra camada (vale só neste bloco)
-    const tipo = ov ? ov.tipo : c.tipo, descricao = ov ? ov.descricao : c.descricao, editado = !!ov;
-    cs.forEach(d=>{ if(d>t+0.005 && d<base-0.005){ out.push({tipo, descricao, top:t, base:d, profFinal:d, src:j, editado}); t = d; } });
-    out.push({tipo, descricao, top:t, base:base, profFinal:base, src:j, editado});
+    // classificação aplicada (copiada) só neste bloco, por TRECHO: lista de {src,top,base,tipo,descricao};
+    // um trecho usa a faixa que contém o seu ponto médio (formato antigo {idxCamada:{tipo,descricao}} = camada inteira)
+    const ovDe = (a,b)=>{
+      if(!classif) return null;
+      if(Array.isArray(classif)){ const m=(a+b)/2; return classif.find(r=>r.src===j && m>=r.top-1e-6 && m<=r.base+1e-6) || null; }
+      return classif[j] || null;
+    };
+    const push = (a,b)=>{ const ov = ovDe(a,b); out.push({tipo: ov?ov.tipo:c.tipo, descricao: ov?ov.descricao:c.descricao, top:a, base:b, profFinal:b, src:j, editado:!!ov}); };
+    cs.forEach(d=>{ if(d>t+0.005 && d<base-0.005){ push(t,d); t = d; } });
+    push(t,base);
     top = base;
   });
   return out;

@@ -1104,6 +1104,7 @@ label{font-size:9px;letter-spacing:.8px;color:var(--mu)}
   <div class="tgroup">
     <span class="tglabel">Importar</span>
     <button class="tbtn" id="btn-import" title="Aceita shapefile (.zip), GeoJSON, ou campanha completa em JSON ({&quot;furos&quot;:[...]}, com camadas e golpes por profundidade)"><svg class="ic"><use href="#ic-import"></use></svg> Arquivo</button>
+    <button class="tbtn" id="btn-campanhas" title="Criar e editar campanhas (Cliente, Obra, UO, Local) e associar furos a elas" style="display:none">Campanhas</button>
   </div>
 
   <div class="tgroup">
@@ -1331,12 +1332,21 @@ label{font-size:9px;letter-spacing:.8px;color:var(--mu)}
 
       <!-- PAINEL 1 — IDENTIFICAÇÃO -->
       <div class="edit-panel active" id="bo-panel-ident">
+        <div class="fieldset-title">Campanha</div>
+        <div class="field" style="max-width:640px;margin-bottom:6px">
+          <label>Campanha deste furo</label>
+          <div style="display:flex;gap:8px;align-items:center">
+            <select id="bo-f-campanha" class="f-input" style="flex:1"></select>
+            <button type="button" class="mini-btn" id="bo-camp-manage" title="Criar, editar e associar furos a campanhas">Gerenciar campanhas</button>
+          </div>
+          <span class="hint" id="bo-camp-hint" style="font-size:11px"></span>
+        </div>
         <div class="fieldset-title">Dados gerais</div>
         <div class="input-grid">
-          <div class="field"><label>Cliente</label><input id="bo-f-cliente" type="text" placeholder="Ex: Vision Engenharia"></div>
-          <div class="field"><label>Obra</label><input id="bo-f-obra" type="text" placeholder="Ex: SE CAC3"></div>
-          <div class="field" id="bo-f-uo-wrap"><label>Unidade Operacional (UO)</label><input id="bo-f-uo" type="text" placeholder="Ex: UO-Sul"></div>
-          <div class="field"><label>Local</label><input id="bo-f-local" type="text" placeholder="Ex: Cachoeirinha - RS"></div>
+          <div class="field"><label>Cliente</label><input id="bo-f-cliente" type="text" list="dl-camp-cliente" autocomplete="off" placeholder="Ex: Vision Engenharia"></div>
+          <div class="field"><label>Obra</label><input id="bo-f-obra" type="text" list="dl-camp-obra" autocomplete="off" placeholder="Ex: SE CAC3"></div>
+          <div class="field" id="bo-f-uo-wrap"><label>Unidade Operacional (UO)</label><input id="bo-f-uo" type="text" list="dl-camp-uo" autocomplete="off" placeholder="Ex: UO-Sul"></div>
+          <div class="field"><label>Local</label><input id="bo-f-local" type="text" list="dl-camp-local" autocomplete="off" placeholder="Ex: Cachoeirinha - RS"></div>
           <div class="field"><label id="bo-f-sondagem-num-label">Sondagem N°</label><input id="bo-f-sondagem-num" type="text" placeholder="Ex: SPT-01"></div>
           <div class="field" id="bo-f-laudo-wrap" style="display:none"><label>N° do laudo</label><input id="bo-f-laudo" type="text" placeholder="Ex: 2607307.R00"></div>
           <div class="field"><label>Início</label><input id="bo-f-data-inicio" type="text" placeholder="dd/mm/aa"></div>
@@ -1442,7 +1452,7 @@ label{font-size:9px;letter-spacing:.8px;color:var(--mu)}
           </tr></thead>
           <tbody id="bo-tbody-golpes"></tbody>
         </table>
-        <button class="add-row-btn" type="button" onclick="boAddGolpeRow()">+ Profundidade</button>
+        <button class="add-row-btn" type="button" onclick="boAddGolpeRow(null)">+ Profundidade</button>
       </div>
 
       <!-- PAINEL 5 — PARÂMETROS ESTIMADOS (SPT) -->
@@ -1727,6 +1737,7 @@ function blankFuro(lat,lng){
   const sondagemNum = 'F-'+(furos.length+1).toString().padStart(2,'0');
   return {
     id:newFuroId(), lat, lng, hash: computeFuroHash(sondagemNum, '', lat, lng, ''),
+    campanhaId:'', // campanha a que o furo pertence (ver CAMPANHAS)
     tipoSondagem:'SPT', // 'SPT' | 'CPTU' — controla quais campos o editor de boletim mostra
     ident:{
       cliente:'', obra:'', unidadeOperacional:'', local:'', sondagemNum,
@@ -2313,7 +2324,7 @@ function scheduleSave(){ clearTimeout(saveTimer); saveTimer=setTimeout(saveStudy
 // já carregado no app — usado tanto pra publicar o banco mestre quanto, futuramente, exportar
 function furoToFlatExportData(f){
   return {
-    id: f.id, hash: f.hash,
+    id: f.id, hash: f.hash, campanhaId: f.campanhaId || '',
     tipoSondagem: f.tipoSondagem || 'SPT',
     sondagemNum: f.ident.sondagemNum, obra: f.ident.obra, unidadeOperacional: f.ident.unidadeOperacional, cliente: f.ident.cliente, local: f.ident.local,
     dataInicio: f.ident.dataInicio, dataFim: f.ident.dataFim, cota: f.ident.cota,
@@ -2336,6 +2347,7 @@ let masterFurosDirty = false; // true quando o admin editou os furos mas ainda n
 function markMasterDirty(){
   masterFurosDirty = true;
   try{ window.storage.set('geosig:furos_master_cache', JSON.stringify(furos.filter(f=>!f._interpolado).map(furoToFlatExportData))); }catch(e){}
+  try{ window.storage.set('geosig:campanhas_master_cache', JSON.stringify(campanhas)); }catch(e){}
 }
 window.addEventListener('beforeunload', e=>{
   if(masterFurosDirty && isAdmin()){ e.preventDefault(); e.returnValue = ''; }
@@ -2343,8 +2355,9 @@ window.addEventListener('beforeunload', e=>{
 
 function publishFurosJson(){
   const list = furos.filter(f=>!f._interpolado).map(furoToFlatExportData);
-  download('furos.json', JSON.stringify({furos:list}, null, 2), 'application/json');
+  download('furos.json', JSON.stringify({campanhas, furos:list}, null, 2), 'application/json');
   window.storage.set('geosig:furos_master_cache', JSON.stringify(list)).catch(()=>{});
+  window.storage.set('geosig:campanhas_master_cache', JSON.stringify(campanhas)).catch(()=>{});
   masterFurosDirty = false;
   toast('furos.json baixado — substitua o arquivo no servidor/repositório para publicar pra todo mundo');
 }
@@ -2357,17 +2370,21 @@ async function loadFurosMaster(){
     const data = await resp.json();
     const list = Array.isArray(data.furos) ? data.furos : [];
     furos = list.map(fd=>buildFuroFromImportData(fd)).filter(Boolean);
+    campanhas = Array.isArray(data.campanhas) ? data.campanhas.filter(c=>c && c.id) : [];
     try{ await window.storage.set('geosig:furos_master_cache', JSON.stringify(list)); }catch(e){}
+    try{ await window.storage.set('geosig:campanhas_master_cache', JSON.stringify(campanhas)); }catch(e){}
   }catch(e){
     try{
       const r = await window.storage.get('geosig:furos_master_cache');
       const cached = JSON.parse(r.value);
       furos = cached.map(fd=>buildFuroFromImportData(fd)).filter(Boolean);
+      try{ const rc = await window.storage.get('geosig:campanhas_master_cache'); campanhas = JSON.parse(rc.value)||[]; }catch(e3){ campanhas = []; }
       toast('furos.json não encontrado no servidor — usando a última cópia salva neste navegador');
     }catch(e2){
-      furos = [];
+      furos = []; campanhas = [];
     }
   }
+  ensureCampanhasFromFuros();
 }
 
 function migrateLegacyFuroFormat(f){
@@ -2528,6 +2545,64 @@ async function reloadForCurrentUser(){
 }
 
 /* ══════════════════ FUROS / BOLETINS ══════════════════ */
+/* ══════════════════ CAMPANHAS ══════════════════
+   Uma campanha agrupa furos com os mesmos dados gerais. Cliente, Obra, UO e Local são HERDADOS
+   da campanha (cadastrados uma vez só; editar a campanha atualiza todos os furos dela). Os demais
+   campos (datum, responsável, CREA, sondador, desenhista, equipamento, método, revestimento) são
+   PADRÕES: preenchem um furo novo mas continuam editáveis em cada furo. Cada furo guarda o
+   campanhaId e também cópias dos campos (ident.*), então tabelas, relatórios e exportações
+   continuam funcionando como antes. Persistida junto do banco mestre (furos.json → "campanhas"). */
+let campanhas = [];
+const CAMP_HERDADOS = ['cliente','obra','unidadeOperacional','local'];
+const CAMP_PADROES_IDENT = ['datum','responsavel','crea','sondador','desenhista'];
+const CAMP_PADROES_FURO = ['metodo','equipamento','revestimento'];
+function newCampanhaId(){ return 'C'+Date.now().toString(36)+Math.random().toString(36).slice(2,5); }
+function campanhaById(id){ return id ? campanhas.find(c=>c.id===id) || null : null; }
+function hashStrSimples(str){ let h=5381; for(let i=0;i<str.length;i++) h=((h<<5)+h+str.charCodeAt(i))|0; return (h>>>0).toString(36); }
+function campChaveFuro(f){ return CAMP_HERDADOS.map(k=>String((f.ident||{})[k]||'').trim().toLowerCase()).join('|'); }
+// furos antigos (sem campanhaId) são agrupados por Cliente+Obra+UO+Local — id determinístico, então o
+// agrupamento é o mesmo a cada abertura enquanto não for publicado
+function ensureCampanhasFromFuros(){
+  furos.forEach(f=>{
+    if(f._interpolado || f.campanhaId) return;
+    const chave = campChaveFuro(f); if(!chave.replace(/\|/g,'')) return;
+    const id = 'CA'+hashStrSimples(chave);
+    let c = campanhaById(id);
+    if(!c){
+      c = { id, nome: f.ident.obra || f.ident.cliente || f.ident.local || 'Campanha' };
+      CAMP_HERDADOS.forEach(k=> c[k] = f.ident[k]||'');
+      CAMP_PADROES_IDENT.forEach(k=> c[k] = f.ident[k]||'');
+      CAMP_PADROES_FURO.forEach(k=> c[k] = f[k]||'');
+      campanhas.push(c);
+    }
+    f.campanhaId = id;
+  });
+  campanhas = campanhas.filter(c=> furos.some(f=>f.campanhaId===c.id) || !String(c.id).startsWith('CA')); // descarta campanhas automáticas que ficaram sem furos
+}
+function aplicarCampanhaAoFuro(f, c){
+  if(!f || !c) return;
+  f.campanhaId = c.id;
+  CAMP_HERDADOS.forEach(k=> f.ident[k] = c[k]||'');
+  f.hash = computeFuroHash(f.ident.sondagemNum, f.ident.obra, f.lat, f.lng, f.ident.cota);
+}
+function valoresCadastrados(chave){
+  const set = new Set();
+  furos.forEach(f=>{ if(!f._interpolado){ const v = String((f.ident||{})[chave]||'').trim(); if(v) set.add(v); } });
+  campanhas.forEach(c=>{ const v = String(c[chave]||'').trim(); if(v) set.add(v); });
+  return Array.from(set).sort((a,b)=>a.localeCompare(b,'pt-BR'));
+}
+// listas (datalist) dos campos Cliente/Obra/UO/Local: combo editável com os valores já cadastrados
+function refreshCampDatalists(){
+  const map = {cliente:'dl-camp-cliente', obra:'dl-camp-obra', unidadeOperacional:'dl-camp-uo', local:'dl-camp-local'};
+  Object.entries(map).forEach(([k,id])=>{
+    let dl = document.getElementById(id);
+    if(!dl){ dl = document.createElement('datalist'); dl.id = id; document.body.appendChild(dl); }
+    dl.innerHTML = valoresCadastrados(k).map(v=>`<option value="${escAttr(v)}"></option>`).join('');
+  });
+}
+function getCampanhaAtiva(){ try{ return localStorage.getItem('geosig:campanha_ativa')||''; }catch(e){ return ''; } }
+function setCampanhaAtiva(id){ try{ if(id) localStorage.setItem('geosig:campanha_ativa', id); }catch(e){} }
+
 function newFuroId(){ return 'F'+Date.now().toString(36)+Math.random().toString(36).slice(2,5); }
 
 function profFinal(f){
@@ -3204,7 +3279,18 @@ function boAddCamadaRow(profFinal='', tipo='argila', desc=''){
   });
   document.getElementById('bo-tbody-camadas').appendChild(tr);
 }
+// prof===null: linha nova pelo botão "+ Profundidade" — numera sozinha (profundidade da última linha + o
+// mesmo intervalo das duas últimas, ou 1,00 m)
+function boProximaProfGolpe(){
+  const vals = Array.from(document.querySelectorAll('#bo-tbody-golpes .c-prof')).map(i=>parseFloat(i.value)).filter(v=>isFinite(v));
+  if(!vals.length) return 1;
+  const ult = vals[vals.length-1];
+  const passo = vals.length>=2 && vals[vals.length-1]-vals[vals.length-2]>0 ? vals[vals.length-1]-vals[vals.length-2] : 1;
+  return Math.round((ult+passo)*100)/100;
+}
 function boAddGolpeRow(prof='', g1='', g2='', g3=''){
+  const nova = prof===null;
+  if(nova) prof = boProximaProfGolpe();
   const tr=document.createElement('tr');
   tr.innerHTML=`<td><input type="number" step="0.1" class="c-prof" value="${escAttr(prof)}"></td>
     <td><input type="number" step="1" min="0" class="c-g1" value="${escAttr(g1)}"></td>
@@ -3222,6 +3308,7 @@ function boAddGolpeRow(prof='', g1='', g2='', g3=''){
   tr.querySelector('.row-remove').addEventListener('click', ()=>tr.remove());
   document.getElementById('bo-tbody-golpes').appendChild(tr);
   upd();
+  if(nova){ const i1 = tr.querySelector('.c-g1'); if(i1) i1.focus(); } // já pronto para digitar os golpes
 }
 
 /* ══════════════════════════════════════════════════════════════
@@ -3312,6 +3399,178 @@ function listarEstimativasSPT(f){
   });
 }
 
+/* ── seletor de campanha no editor do boletim ── */
+const CAMP_CAMPOS_FORM = {cliente:'bo-f-cliente', obra:'bo-f-obra', unidadeOperacional:'bo-f-uo', local:'bo-f-local'};
+const CAMP_PADROES_FORM = {datum:'bo-f-datum', responsavel:'bo-f-responsavel', crea:'bo-f-crea', sondador:'bo-f-sondador', desenhista:'bo-f-desenhista', equipamento:'bo-f-equip', metodo:'bo-f-metodo', revestimento:'bo-f-revest'};
+function fillCampanhaSelect(selId, aplicarPadroes){
+  const sel = document.getElementById('bo-f-campanha'); if(!sel) return;
+  const lista = [...campanhas].sort((a,b)=>String(a.nome).localeCompare(String(b.nome),'pt-BR'));
+  sel.innerHTML = '<option value="">— sem campanha (preencher manualmente) —</option>'
+    + lista.map(c=>`<option value="${escAttr(c.id)}">${esc(c.nome)}${c.cliente?' · '+esc(c.cliente):''}</option>`).join('')
+    + '<option value="__new__">＋ Nova campanha com estes dados…</option>';
+  sel.value = campanhaById(selId) ? selId : '';
+  aplicarCampanhaNoForm(sel.value, !!aplicarPadroes);
+}
+// trava/destrava Cliente/Obra/UO/Local conforme a campanha; ao ESCOLHER uma campanha, também
+// preenche os padrões (datum, responsável…) dos campos que ainda estão vazios
+function aplicarCampanhaNoForm(campId, preencherPadroes){
+  const c = campanhaById(campId);
+  const hint = document.getElementById('bo-camp-hint');
+  Object.entries(CAMP_CAMPOS_FORM).forEach(([k,id])=>{
+    const el = document.getElementById(id); if(!el) return;
+    if(c){ el.value = c[k]||''; el.readOnly = true; el.style.background = 'var(--bo-surface, #eee)'; el.title = 'Herdado da campanha — edite em "Gerenciar campanhas"'; }
+    else { el.readOnly = false; el.style.background = ''; el.title = ''; }
+  });
+  if(hint) hint.textContent = c ? 'Cliente, Obra, UO e Local vêm da campanha (cadastrados uma vez só). Para alterá-los, use "Gerenciar campanhas".' : 'Sem campanha: preencha Cliente, Obra, UO e Local (as listas sugerem valores já cadastrados).';
+  if(c && preencherPadroes){
+    Object.entries(CAMP_PADROES_FORM).forEach(([k,id])=>{
+      const el = document.getElementById(id); if(el && !String(el.value||'').trim() && c[k]) el.value = c[k];
+    });
+  }
+}
+document.getElementById('bo-f-campanha').addEventListener('change', e=>{
+  const v = e.target.value;
+  if(v==='__new__'){
+    const dados = {}; Object.entries(CAMP_CAMPOS_FORM).forEach(([k,id])=>{ dados[k] = (document.getElementById(id)||{}).value||''; });
+    Object.entries(CAMP_PADROES_FORM).forEach(([k,id])=>{ dados[k] = (document.getElementById(id)||{}).value||''; });
+    e.target.value = '';
+    openCampanhaDialog({novo:true, dados, doEditor:true});
+    return;
+  }
+  aplicarCampanhaNoForm(v, true);
+});
+document.getElementById('bo-camp-manage').addEventListener('click', ()=>{
+  const sel = document.getElementById('bo-f-campanha');
+  openCampanhaDialog({id: sel && campanhaById(sel.value) ? sel.value : null, doEditor:true});
+});
+
+/* ── janela "Gerenciar campanhas" ── */
+let cdState = null; // {id|null, doEditor, membros:Set<furoId>}
+function openCampanhaDialog(opts){
+  opts = opts||{};
+  refreshCampDatalists();
+  let ov = document.getElementById('campanha-overlay');
+  if(!ov){
+    ov = document.createElement('div'); ov.className='popup-overlay'; ov.id='campanha-overlay';
+    ov.innerHTML = `<style>
+      #campanha-overlay .editor-box{max-width:1080px;width:94vw;height:88vh;max-height:88vh}
+      .cd-wrap{display:grid;grid-template-columns:250px 1fr;gap:14px;height:100%;min-height:0}
+      .cd-list{border:1px solid var(--bo-border);border-radius:8px;overflow:auto;background:var(--bo-card)}
+      .cd-item{padding:8px 10px;border-bottom:1px solid var(--bo-border);cursor:pointer;font-size:12.5px}
+      .cd-item.on{background:rgba(122,63,160,.14);font-weight:700}
+      .cd-item small{display:block;color:var(--bo-muted);font-weight:400}
+      .cd-form{overflow:auto;padding-right:4px}
+      .cd-furos{border:1px solid var(--bo-border);border-radius:8px;max-height:230px;overflow:auto;padding:4px 8px;background:var(--bo-card)}
+      .cd-furos label{display:flex;gap:8px;align-items:center;font-size:12px;padding:3px 0;cursor:pointer}
+      .cd-furos label small{color:var(--bo-muted)}
+    </style>
+    <div class="editor-box">
+      <div class="popup-header"><h3>Campanhas</h3><button class="popup-close" type="button" id="cd-close">✕</button></div>
+      <div class="popup-body" style="padding-top:12px"><div class="cd-wrap"><div class="cd-list" id="cd-list"></div><div class="cd-form" id="cd-form"></div></div></div>
+      <div class="popup-footer">
+        <button class="mini-btn" type="button" id="cd-new" style="margin-right:auto">＋ Nova campanha</button>
+        <button class="mini-btn danger" type="button" id="cd-del">Excluir campanha</button>
+        <button class="mini-btn" type="button" id="cd-cancel">Fechar</button>
+        <button class="mini-btn primary" type="button" id="cd-save">Salvar campanha</button>
+      </div>
+    </div>`;
+    document.body.appendChild(ov);
+    ov.querySelector('#cd-close').onclick = ov.querySelector('#cd-cancel').onclick = ()=>ov.classList.remove('open');
+    ov.querySelector('#cd-new').onclick = ()=> cdSelect(null, {});
+    ov.querySelector('#cd-save').onclick = cdSave;
+    ov.querySelector('#cd-del').onclick = cdDelete;
+  }
+  ov.classList.add('open');
+  if(opts.novo) cdSelect(null, opts.dados||{}, opts); else cdSelect(opts.id || (campanhas[0]&&campanhas[0].id) || null, null, opts);
+}
+function cdSelect(id, dadosNovo, opts){
+  const c = campanhaById(id);
+  cdState = { id: c?c.id:null, doEditor: (opts&&opts.doEditor) || (cdState&&cdState.doEditor) || false, dadosNovo: dadosNovo||null,
+    membros: new Set(c ? furos.filter(f=>!f._interpolado && f.campanhaId===c.id).map(f=>f.id) : []) };
+  cdRender();
+}
+function cdRender(){
+  const ov = document.getElementById('campanha-overlay'); if(!ov||!cdState) return;
+  const c = campanhaById(cdState.id);
+  const base = c || cdState.dadosNovo || {};
+  ov.querySelector('#cd-list').innerHTML = [...campanhas].sort((a,b)=>String(a.nome).localeCompare(String(b.nome),'pt-BR')).map(x=>{
+    const n = furos.filter(f=>!f._interpolado && f.campanhaId===x.id).length;
+    return `<div class="cd-item ${x.id===cdState.id?'on':''}" data-id="${escAttr(x.id)}">${esc(x.nome)}<small>${esc(x.cliente||'—')} · ${n} furo(s)</small></div>`;
+  }).join('') || '<div style="padding:12px;font-size:12px;color:var(--bo-muted)">Nenhuma campanha ainda. Use "＋ Nova campanha".</div>';
+  ov.querySelectorAll('.cd-item').forEach(el=> el.onclick = ()=> cdSelect(el.dataset.id, null));
+  const inp = (id,label,val,list,ph)=>`<div class="field"><label>${label}</label><input class="f-input" id="${id}" type="text" ${list?`list="${list}" autocomplete="off"`:''} value="${escAttr(val||'')}" placeholder="${escAttr(ph||'')}"></div>`;
+  const reais = furos.filter(f=>!f._interpolado).sort((a,b)=>String(a.ident.sondagemNum).localeCompare(String(b.ident.sondagemNum),'pt-BR',{numeric:true}));
+  ov.querySelector('#cd-form').innerHTML = `
+    <div class="fieldset-title">${c?'Editar campanha':'Nova campanha'}</div>
+    <div class="input-grid">
+      ${inp('cd-nome','Nome da campanha',c?c.nome:(base.obra||base.cliente||''),null,'Ex: Campanha 2025 — ECOMP')}
+      ${inp('cd-cliente','Cliente',base.cliente,'dl-camp-cliente','Ex: SKEC')}
+      ${inp('cd-obra','Obra',base.obra,'dl-camp-obra','Ex: ECOMP CAMPO GRANDE')}
+      ${inp('cd-uo','Unidade Operacional (UO)',base.unidadeOperacional,'dl-camp-uo','Ex: UO-Sul')}
+      ${inp('cd-local','Local',base.local,'dl-camp-local','Ex: Campo Grande - MS')}
+    </div>
+    <div class="fieldset-title" style="margin-top:14px">Padrões para novos furos <small style="font-weight:400;text-transform:none">(preenchem o furo, mas continuam editáveis em cada um)</small></div>
+    <div class="input-grid">
+      ${inp('cd-datum','Datum',base.datum,null,'SIRGAS2000')}
+      ${inp('cd-resp','Responsável técnico',base.responsavel)}
+      ${inp('cd-crea','CREA',base.crea)}
+      ${inp('cd-sond','Sondador / Operador',base.sondador)}
+      ${inp('cd-desen','Desenhista',base.desenhista)}
+      ${inp('cd-equip','Equipamento',base.equipamento)}
+      ${inp('cd-metodo','Método',base.metodo,null,'SPT (NBR 6484)')}
+      ${inp('cd-revest','Revestimento / diâmetro',base.revestimento)}
+    </div>
+    <div class="fieldset-title" style="margin-top:14px">Furos desta campanha <small style="font-weight:400;text-transform:none">(${cdState.membros.size} selecionado(s) — marque para associar; furos de outra campanha mudam para esta ao salvar)</small></div>
+    <div class="cd-furos" id="cd-furos">${reais.map(f=>{
+      const o = campanhaById(f.campanhaId);
+      return `<label><input type="checkbox" data-f="${escAttr(f.id)}" ${cdState.membros.has(f.id)?'checked':''}> <b>${esc(f.ident.sondagemNum||'(sem nome)')}</b> <small>${esc(f.tipoSondagem==='CPTU'?'CPTu':'SPT')}${o && o.id!==cdState.id ? ' · hoje em: '+esc(o.nome) : (!o?' · sem campanha':'')}</small></label>`;
+    }).join('') || '<small>Nenhum furo cadastrado.</small>'}</div>`;
+  ov.querySelectorAll('#cd-furos input').forEach(ch=> ch.onchange = ()=>{ if(ch.checked) cdState.membros.add(ch.dataset.f); else cdState.membros.delete(ch.dataset.f); });
+  ov.querySelector('#cd-del').style.display = c ? '' : 'none';
+}
+function cdSave(){
+  if(!cdState) return;
+  const v = id => (document.getElementById(id)||{}).value||'';
+  const dados = { cliente:v('cd-cliente').trim(), obra:v('cd-obra').trim(), unidadeOperacional:v('cd-uo').trim(), local:v('cd-local').trim(),
+    datum:v('cd-datum').trim(), responsavel:v('cd-resp').trim(), crea:v('cd-crea').trim(), sondador:v('cd-sond').trim(), desenhista:v('cd-desen').trim(),
+    equipamento:v('cd-equip').trim(), metodo:v('cd-metodo').trim(), revestimento:v('cd-revest').trim() };
+  const nome = v('cd-nome').trim() || dados.obra || dados.cliente;
+  if(!nome){ toast('Informe ao menos o nome da campanha (ou a Obra/Cliente)'); return; }
+  let c = campanhaById(cdState.id);
+  if(!c){ c = { id:newCampanhaId() }; campanhas.push(c); }
+  Object.assign(c, {nome}, dados);
+  // associa/desassocia furos e propaga os campos herdados
+  furos.forEach(f=>{
+    if(f._interpolado) return;
+    if(cdState.membros.has(f.id)) aplicarCampanhaAoFuro(f, c);
+    else if(f.campanhaId===c.id) f.campanhaId = '';
+  });
+  cdState.id = c.id;
+  setCampanhaAtiva(c.id);
+  markMasterDirty();
+  refreshCampDatalists();
+  try{ renderFuroList(); }catch(e){}
+  // se aberto a partir do editor do boletim, seleciona essa campanha lá
+  const edOpen = document.getElementById('bo-editor-overlay').classList.contains('open');
+  if(edOpen){ const sel0 = document.getElementById('bo-f-campanha'); const atual = sel0 && sel0.value; fillCampanhaSelect(cdState.doEditor && (!atual || atual==='' || atual===c.id || cdState.dadosNovo) ? c.id : atual, cdState.dadosNovo ? true : false); }
+  cdState.dadosNovo = null;
+  cdRender();
+  toast('Campanha "'+c.nome+'" salva — '+cdState.membros.size+' furo(s) associado(s)');
+}
+function cdDelete(){
+  const c = campanhaById(cdState && cdState.id); if(!c) return;
+  const n = furos.filter(f=>f.campanhaId===c.id).length;
+  if(!confirm('Excluir a campanha "'+c.nome+'"? Os '+n+' furo(s) continuam existindo, com os dados atuais, mas ficam sem campanha.')) return;
+  furos.forEach(f=>{ if(f.campanhaId===c.id) f.campanhaId=''; });
+  campanhas = campanhas.filter(x=>x.id!==c.id);
+  markMasterDirty();
+  refreshCampDatalists();
+  try{ renderFuroList(); }catch(e){}
+  if(document.getElementById('bo-editor-overlay').classList.contains('open')){ const sel0=document.getElementById('bo-f-campanha'); fillCampanhaSelect(sel0 && sel0.value===c.id ? '' : (sel0&&sel0.value), false); }
+  cdSelect(campanhas[0] ? campanhas[0].id : null, null);
+}
+document.getElementById('btn-campanhas').addEventListener('click', ()=> openCampanhaDialog({}));
+
 function openBoletimEditor(id){
   const f = furos.find(x=>x.id===id); if(!f) return;
   editingFuroId = id;
@@ -3320,6 +3579,13 @@ function openBoletimEditor(id){
   set('bo-f-obra', f.ident.obra);
   set('bo-f-uo', f.ident.unidadeOperacional);
   set('bo-f-local', f.ident.local);
+  refreshCampDatalists();
+  // furo novo sem campanha: já entra na última campanha usada (cadastro por campanha)
+  if(f._isNewUnsaved && !f.campanhaId){
+    const ativa = campanhaById(getCampanhaAtiva());
+    if(ativa){ f.campanhaId = ativa.id; }
+  }
+  fillCampanhaSelect(f.campanhaId, !!(f._isNewUnsaved && f.campanhaId));
   set('bo-f-sondagem-num', f.ident.sondagemNum);
   set('bo-f-laudo', f.ident.laudo);
   set('bo-f-data-inicio', f.ident.dataInicio);
@@ -3408,6 +3674,8 @@ function saveBoletimEditor(){
   }
 
   f.tipoSondagem = tipo;
+  const campSel = val('bo-f-campanha');
+  f.campanhaId = (campSel && campSel!=='__new__' && campanhaById(campSel)) ? campSel : '';
   f.ident = {
     cliente: val('bo-f-cliente'), obra: val('bo-f-obra'), unidadeOperacional: val('bo-f-uo'), local: val('bo-f-local'),
     sondagemNum: val('bo-f-sondagem-num').trim() || f.ident.sondagemNum,
@@ -3475,6 +3743,7 @@ function saveBoletimEditor(){
       f.ident.zonaUTM = z+(novoLat<0?'S':'N');
     }
   }catch(e){}
+  { const cc = campanhaById(f.campanhaId); if(cc){ CAMP_HERDADOS.forEach(k=> f.ident[k] = cc[k]||''); setCampanhaAtiva(cc.id); } }
   f.hash = computeFuroHash(f.ident.sondagemNum, f.ident.obra, f.lat, f.lng, f.ident.cota);
   // redesenha o marcador do zero (não só reposiciona) — o tipo de sondagem pode ter mudado
   // nesta edição, e o ícone/cor no mapa (círculo SPT vs quadrado CPTu) precisa refletir isso
@@ -4557,7 +4826,7 @@ function openLayerCorrelationDialog(blockId, motivoAuto){
     document.body.appendChild(ov);
     ov.querySelector('#lc-close').onclick = ov.querySelector('#lc-cancel').onclick = ()=>ov.classList.remove('open');
     ov.querySelector('#lc-add-row').onclick = ()=>{ const m={}; lcState.furos.forEach(f=>m[f.id]=null); lcState.rows.push({tipo:'argila',tipoManual:false,m}); renderLayerCorrelation(); };
-    ov.querySelector('#lc-suggest').onclick = ()=>{ const b=interpBlocks.find(x=>x.id===lcState.blockId); lcState.cortes = {}; lcState.classif = {}; lcState.clip = null; lcState.split = null; lcState.rows = lcRowsFromTemplate(b, buildUnionTemplateAuto(b)); renderLayerCorrelation(); };
+    ov.querySelector('#lc-suggest').onclick = ()=>{ const b=interpBlocks.find(x=>x.id===lcState.blockId); lcState.cortes = {}; lcState.classif = {}; lcState.clip = null; lcState.split = null; lcState.cutSel = null; lcState.rows = lcRowsFromTemplate(b, buildUnionTemplateAuto(b)); renderLayerCorrelation(); };
     ov.querySelector('#lc-align-cota').onclick = lcAlignByCota;
     const chartBox = ov.querySelector('#lc-chart');
     chartBox.addEventListener('wheel', ev=>{
@@ -4571,6 +4840,26 @@ function openLayerCorrelationDialog(blockId, motivoAuto){
       lcSetZoom(novo, null);
       const v2 = lcState.view; chartBox.scrollTop = Math.max(0, v2.padT + (v2.emax - e)*v2.scale - (ev.clientY - bb.top));
     }, {passive:false});
+    chartBox.addEventListener('pointerdown', ev=>{
+      const el = ev.target && ev.target.closest ? ev.target.closest('.cut') : null; if(!el || !lcState) return;
+      ev.preventDefault(); ev.stopPropagation();
+      const fid = el.dataset.f, k = +el.dataset.k;
+      lcSelectCut(fid, k);
+      let moved = false;
+      const mv = e2=>{
+        const ci = lcCutInfo(fid,k), v = lcState.view; if(!ci || !v) return;
+        const bb = chartBox.querySelector('svg').getBoundingClientRect();
+        const e = v.emax - ((e2.clientY - bb.top) - v.padT)/v.scale;
+        if(lcMoveCut(fid, k, ci.c0 - e)){ moved = true; renderLcChart(ov); }
+      };
+      const up = ()=>{
+        document.removeEventListener('pointermove', mv); document.removeEventListener('pointerup', up);
+        lcState.dragEnd = Date.now();
+        renderLayerCorrelation(); // atualiza tabela (rótulos de cota/profundidade) e a barra do corte
+      };
+      document.addEventListener('pointermove', mv); document.addEventListener('pointerup', up);
+      renderLcChart(ov); lcRenderSplitBar(ov);
+    });
     if(typeof ResizeObserver!=='undefined'){
       let t=null, lastH=0;
       new ResizeObserver(()=>{ if(!lcState || !chartBox.clientHeight || Math.abs(chartBox.clientHeight-lastH)<4) return; lastH=chartBox.clientHeight; clearTimeout(t); t=setTimeout(()=>{ if(lcState && ov.classList.contains('open')) renderLcChart(ov); },120); }).observe(chartBox);
@@ -4589,7 +4878,7 @@ function openLayerCorrelationDialog(blockId, motivoAuto){
   intro.innerHTML = (motivoAuto ? '<b>Os furos deste bloco caracterizam o solo de formas diferentes</b> (comum entre campanhas ou empresas diferentes). ' : '')
     + '<details'+(motivoAuto?' open':'')+'><summary>Como usar</summary>'
     + 'O gráfico mostra os furos <b>na mesma escala de cota</b> (cota do topo − profundidade). Cada <b>linha</b> da tabela é uma unidade de solo equivalente; em cada coluna escolha qual camada do furo pertence a ela. O <b>tipo da unidade</b> define cor/hachura no perfil, raster e 3D. '
-    + '<b>✂ Quebrar</b>: se uma camada corresponde a duas ou mais do outro furo, clique nela no gráfico e informe a cota. <b>Alinhar por cota</b> faz isso automaticamente. <b>⧉ Copiar classificação</b>: copie o tipo/descrição de uma camada para outra. <b>Zoom</b>: botões + / − ou Ctrl + roda do mouse sobre o gráfico; arraste o canto inferior do gráfico para mudar a altura.'
+    + '<b>✂ Quebrar</b>: se uma camada corresponde a duas ou mais do outro furo, clique nela no gráfico e informe a cota; a <b>linha de corte</b> (tracejada roxa) pode ser selecionada e arrastada para mover, ou removida. <b>Alinhar por cota</b> faz isso automaticamente. <b>⧉ Copiar classificação</b>: copie o tipo/descrição de uma camada para outra. <b>Zoom</b>: botões + / − ou Ctrl + roda do mouse sobre o gráfico; arraste o canto inferior do gráfico para mudar a altura.'
     + '</details>';
   ov.classList.add('open');
   renderLayerCorrelation();
@@ -4647,6 +4936,20 @@ function renderLcChart(ov){
            + `</g>`;
     });
   });
+  // linhas de corte (contato entre dois trechos da mesma camada original): selecionáveis e arrastáveis
+  info.forEach((o,i)=>{
+    const x = colX(i);
+    o.sg.forEach((g,k)=>{
+      const nx = o.sg[k+1]; if(!nx || nx.src!==g.src) return;
+      const y = yOf(o.c0-g.base);
+      const sel = lcState.cutSel && lcState.cutSel.fid===o.f.id && lcState.cutSel.k===k;
+      svg += `<g class="cutg"><line x1="${x-6}" x2="${x+segW+6}" y1="${y}" y2="${y}" stroke="#7a3fa0" stroke-width="${sel?3:1.6}" stroke-dasharray="${sel?'':'5 3'}" pointer-events="none"/>`
+           + `<rect x="${x+segW-2}" y="${y-5}" width="10" height="10" rx="2" fill="${sel?'#7a3fa0':'#fff'}" stroke="#7a3fa0" stroke-width="1.5" pointer-events="none"/>`
+           + `<line class="cut" data-f="${escAttr(o.f.id)}" data-k="${k}" x1="${x-8}" x2="${x+segW+12}" y1="${y}" y2="${y}" stroke="transparent" stroke-width="12" style="cursor:ns-resize"><title>Linha de corte — clique para selecionar, arraste para mover (cota ${fmtM(o.c0-g.base)})</title></line>`
+           + (sel ? `<text x="${x+segW+16}" y="${y+3.5}" font-size="10.5" font-weight="700" fill="#7a3fa0">${fmtM(o.c0-g.base)}</text>` : '')
+           + `</g>`;
+    });
+  });
   svg += '</svg>';
   const sl = box.scrollLeft, st0 = box.scrollTop;
   box.innerHTML = svg;
@@ -4657,9 +4960,56 @@ function renderLcChart(ov){
   box.querySelectorAll('.seg').forEach(r=> r.addEventListener('click', ev=>{
     const svgEl = box.querySelector('svg'); const bb = svgEl.getBoundingClientRect();
     const e = emax - ((ev.clientY - bb.top) - padT)/scale;
+    if(Date.now() - (lcState.dragEnd||0) < 250) return; // clique gerado ao soltar o arrasto de uma linha de corte
     if(lcState.mode==='copy'){ lcCopyClick(r.dataset.f, +r.dataset.k); return; }
     lcOpenSplit(r.dataset.f, +r.dataset.k, isFinite(e)? e : null);
   }));
+}
+
+/* ── linha de corte selecionada: mover (arrastando no gráfico ou digitando a cota) ou remover ── */
+function lcCutInfo(fid, k){
+  const f = lcState.furos.find(x=>x.id===fid); if(!f) return null;
+  const segs = lcSegs(f), up = segs[k], lo = segs[k+1];
+  if(!up || !lo || up.src!==lo.src) return null;
+  return { f, up, lo, c0: lcCota0(f), temCota: furoCotaNum(f)!=null };
+}
+function lcMoveCut(fid, k, novaProf){
+  const ci = lcCutInfo(fid, k); if(!ci || !isFinite(novaProf)) return false;
+  const velho = ci.up.base;
+  const p = Math.round(Math.max(ci.up.top+0.05, Math.min(ci.lo.base-0.05, novaProf))*100)/100;
+  if(Math.abs(p-velho)<0.0049) return false;
+  const lista = lcState.cortes[fid] || [];
+  const ix = lista.findIndex(d=>Math.abs(d-velho)<0.006); if(ix<0) return false;
+  lista[ix] = p;
+  // faixas de classificação coladas nos trechos vizinhos acompanham a linha
+  if(Array.isArray(lcState.classif[fid])) lcState.classif[fid].forEach(r=>{
+    if(r.src!==ci.up.src) return;
+    if(Math.abs(r.base-velho)<0.006) r.base = p;
+    if(Math.abs(r.top-velho)<0.006) r.top = p;
+  });
+  return true;
+}
+function lcSelectCut(fid, k){
+  lcState.cutSel = (fid && lcCutInfo(fid,k)) ? {fid,k} : null;
+  lcState.split = null;
+}
+function lcRenderCutBar(ov, bar){
+  const cs = lcState.cutSel, ci = cs && lcCutInfo(cs.fid, cs.k);
+  if(!ci){ lcState.cutSel = null; bar.style.display='none'; bar.innerHTML=''; return; }
+  const valor = ci.temCota ? ci.c0-ci.up.base : ci.up.base;
+  bar.style.display = 'flex';
+  bar.innerHTML = `<span>↕ Linha de corte de <b>${esc(ci.f.ident.sondagemNum||'furo')}</b> (entre os trechos ${cs.k+1} e ${cs.k+2}) — arraste no gráfico ou informe ${ci.temCota?'a cota':'a profundidade'}:</span>`
+    + `<input type="number" step="0.05" id="lc-cut-val" value="${Math.round(valor*100)/100}"> m <button type="button" class="mini-btn primary" id="lc-cut-ok">Mover</button>`
+    + `<button type="button" class="mini-btn" id="lc-cut-del" title="Remove a linha de corte e une os dois trechos">Remover corte</button><button type="button" class="mini-btn" id="lc-cut-x">Fechar</button>`
+    + `<span class="err" id="lc-cut-msg"></span>`;
+  bar.querySelector('#lc-cut-x').onclick = ()=>{ lcState.cutSel = null; renderLayerCorrelation(); };
+  bar.querySelector('#lc-cut-del').onclick = ()=>{ const {fid,k}=cs; lcState.cutSel = null; lcMerge(fid,k); };
+  bar.querySelector('#lc-cut-ok').onclick = ()=>{
+    const v = parseFloat(bar.querySelector('#lc-cut-val').value);
+    const prof = ci.temCota ? ci.c0 - v : v;
+    if(!isFinite(prof) || prof<=ci.up.top+0.05 || prof>=ci.lo.base-0.05){ bar.querySelector('#lc-cut-msg').textContent = 'Informe um valor entre os limites dos dois trechos (mín. 5 cm de cada lado).'; return; }
+    lcMoveCut(cs.fid, cs.k, prof); renderLayerCorrelation();
+  };
 }
 
 /* ── quebrar uma camada numa cota ── */
@@ -4669,12 +5019,14 @@ function lcOpenSplit(fid, k, cotaSugerida){
   const temCota = furoCotaNum(f)!=null, c0 = lcCota0(f);
   let v = cotaSugerida!=null ? cotaSugerida : c0 - (g.top+g.base)/2;
   v = Math.round(v*20)/20;
+  lcState.cutSel = null;
   lcState.split = { fid, k, valor: temCota ? v : Math.round((g.top+g.base)/2*20)/20, temCota, msg:'' };
   lcRenderSplitBar(document.getElementById('layer-corr-overlay'));
 }
 function lcRenderSplitBar(ov){
   const bar = ov && ov.querySelector('#lc-splitbar'); if(!bar) return;
   const sp = lcState && lcState.split;
+  if(!sp && lcState && lcState.cutSel){ lcRenderCutBar(ov, bar); return; }
   if(!sp){ bar.style.display='none'; bar.innerHTML=''; return; }
   const f = lcState.furos.find(x=>x.id===sp.fid); const g = f && lcSegs(f)[sp.k];
   if(!g){ lcState.split=null; bar.style.display='none'; return; }
@@ -4702,7 +5054,7 @@ function lcSplit(fid, k, prof){
   const m = {}; lcState.furos.forEach(x=>m[x.id]=null); m[fid] = k+1;
   const row = { tipo:g.tipo, tipoManual:false, m };
   if(ri>=0) lcState.rows.splice(ri+1, 0, row); else lcState.rows.push(row);
-  lcState.split = null;
+  lcState.split = null; lcState.cutSel = null;
   lcAutoLink(fid, k+1); lcAutoLink(fid, k);
   renderLayerCorrelation();
   return true;
@@ -4720,6 +5072,7 @@ function lcMerge(fid, k){ // une o trecho k com o k+1 (desfaz uma quebra)
   lcState.rows.forEach(r=>{ if(r.m[fid]!=null && r.m[fid]>k+1) r.m[fid]--; });
   lcState.rows = lcState.rows.filter(r=> lcState.furos.some(x=>r.m[x.id]!=null));
   lcState.split = null;
+  lcState.cutSel = null;
   const merged = lcSegs(f)[k];
   if(merged) lcClassifSet(fid, merged, ovA);
   lcRefreshRowTipos();
@@ -4762,7 +5115,7 @@ function lcAlignByCota(){
   fs.forEach(f=>{ const seen = new Set(); rows.forEach(r=>{ const v=r.m[f.id]; if(v==null) return; if(seen.has(v)) r.m[f.id]=null; else seen.add(v); }); });
   rows.forEach(r=>{ r.tipo = lcRowTipoFromMembers(r) || 'argila'; });
   lcState.rows = rows.filter(r=> fs.some(f=>r.m[f.id]!=null));
-  lcState.split = null;
+  lcState.split = null; lcState.cutSel = null;
   renderLayerCorrelation();
   const semCota = fs.filter(f=>furoCotaNum(f)==null).length;
   toast('Camadas quebradas e alinhadas por cota ('+lcState.rows.length+' unidades).'+(semCota? ' '+semCota+' furo(s) sem cota do topo foram posicionados na cota média.' : '')+' Revise os tipos e correspondências.');
@@ -9614,7 +9967,9 @@ document.getElementById('file-input').addEventListener('change', async e=>{
       }
       if(parsed && Array.isArray(parsed.furos)){
         if(!isAdmin()){ alert('Só o Administrador pode importar furos para o banco principal. Peça pra alguém com esse perfil importar, ou troque de perfil no botão de perfil no topo (isso é só organizacional, não uma senha).'); e.target.value=''; return; }
+        if(Array.isArray(parsed.campanhas)) parsed.campanhas.forEach(c=>{ if(c && c.id && !campanhaById(c.id)) campanhas.push(c); });
         const n = importFuroCampaignJSON(parsed.furos);
+        ensureCampanhasFromFuros();
         const dup = importFuroCampaignJSON.lastSkipped||0;
         renderFuroList(); fitAll(); scheduleSave();
         if(n>0) toggleFuroTable(true);
@@ -9698,6 +10053,7 @@ function buildFuroFromImportData(fd){
 
   const f = blankFuro(lat, lng);
   if(fd.id) f.id = fd.id;
+  f.campanhaId = fd.campanhaId || '';
   f.tipoSondagem = fd.tipoSondagem || 'SPT';
   f.ident.sondagemNum = fd.sondagemNum || f.ident.sondagemNum;
   f.ident.obra = fd.obra || '';
@@ -10133,6 +10489,8 @@ function applyRolePermissions(){
   else if(addFuroBtn) addFuroBtn.style.display = admin ? '' : 'none';
   const publishBtn = document.getElementById('btn-publish-furos');
   if(publishBtn) publishBtn.style.display = admin ? '' : 'none';
+  const campBtn = document.getElementById('btn-campanhas');
+  if(campBtn) campBtn.style.display = admin ? '' : 'none';
 }
 function openUserSetup(){
   document.getElementById('user-setup-name').value = currentUser.name;

@@ -4758,7 +4758,7 @@ function openLayerCorrelationDialog(blockId, motivoAuto){
   const fs = block.furoIds.map(id=>furos.find(f=>f.id===id)).filter(Boolean);
   if(fs.length<2){ toast('O bloco precisa de ao menos 2 furos'); return; }
   const manualInit = blockCorrelacaoValida(block);
-  lcState = { blockId, furos:fs, rows: lcRowsInitial(block), cortes: manualInit && manualInit.cortes ? JSON.parse(JSON.stringify(manualInit.cortes)) : {}, classif: lcClassifToArrays(manualInit), mode:'split', zoom:1, clip:null, split:null };
+  lcState = { blockId, furos:fs, rows: lcRowsInitial(block), cortes: manualInit && manualInit.cortes ? JSON.parse(JSON.stringify(manualInit.cortes)) : {}, classif: lcClassifToArrays(manualInit), mode:'split', zoom:1, v3d:false, hl:null, solo3d:null, clip:null, split:null };
   let ov = document.getElementById('layer-corr-overlay');
   if(!ov){
     ov = document.createElement('div'); ov.className='popup-overlay'; ov.id='layer-corr-overlay';
@@ -4793,7 +4793,30 @@ function openLayerCorrelationDialog(blockId, motivoAuto){
       .lc-modebar .mb{border:1px solid var(--bo-border);background:var(--bo-card);color:var(--bo-text);border-radius:6px;padding:4px 10px;cursor:pointer;font-size:11.5px}
       .lc-modebar .mb.on{background:#7a3fa0;color:#fff;border-color:#7a3fa0}
       .lc-modebar .clip{background:rgba(122,63,160,.12);border:1px solid #7a3fa0;border-radius:6px;padding:3px 8px}
-      .lc-chartwrap{overflow:auto;border:1px solid var(--bo-border);border-radius:8px;margin-bottom:8px;height:34vh;min-height:170px;resize:vertical;background:var(--bo-card);flex-shrink:0}
+      .lc-topwrap{display:flex;gap:8px;align-items:stretch;flex-wrap:wrap;flex-shrink:0;margin-bottom:8px}
+      .lc-chartwrap{overflow:auto;border:1px solid var(--bo-border);border-radius:8px;height:34vh;min-height:170px;resize:vertical;background:var(--bo-card);flex:1 1 380px;min-width:0}
+      .lc-3d{position:fixed;right:28px;top:84px;width:min(620px,62vw);height:min(500px,64vh);min-width:320px;min-height:240px;max-width:96vw;max-height:94vh;z-index:10050;display:flex;flex-direction:column;border:1px solid var(--bo-border);border-radius:10px;overflow:hidden;resize:both;background:var(--bo-card);box-shadow:0 12px 40px rgba(0,0,0,.35)}
+      .lc3d-title{display:flex;align-items:center;gap:8px;padding:6px 10px;background:#7a3fa0;color:#fff;font-size:12px;font-weight:600;cursor:move;user-select:none;touch-action:none}
+      .lc3d-title .x{margin-left:auto;border:0;background:transparent;color:#fff;font-size:15px;cursor:pointer;line-height:1}
+      .lc-3d[hidden]{display:none}
+      .lc-plan{flex:0 0 250px;min-width:0;border:1px solid var(--bo-border);border-radius:8px;background:var(--bo-card);padding:8px 10px;display:flex;flex-direction:column;gap:4px;overflow:auto;max-height:34vh;min-height:170px}
+      .lc-plan h4{margin:0;font:600 10.5px/1.2 var(--bo-mono,monospace);letter-spacing:.06em;text-transform:uppercase;color:var(--bo-text)}
+      .lc-plan svg{display:block;width:100%;height:auto;flex-shrink:0}
+      .lc-plan .lg{display:flex;align-items:center;gap:7px;font-size:11px;color:var(--bo-text)}
+      .lc-plan .lg i{width:20px;height:9px;border-radius:2px;flex:none}
+      .lc-plan .lg i.orf{background:repeating-linear-gradient(45deg,rgba(192,57,43,.25) 0 2px,transparent 2px 4px);border:1px dashed #c0392b}
+      .lc3d-bar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:5px 8px;border-bottom:1px solid var(--bo-border);font-size:11px}
+      .lc3d-bar .mb{border:1px solid var(--bo-border);background:var(--bo-card);color:var(--bo-text);border-radius:6px;padding:2px 9px;cursor:pointer;font-size:11px}
+      .lc3d-bar .mb.on{background:#7a3fa0;color:#fff;border-color:#7a3fa0}
+      .lc3d-bar label{display:flex;align-items:center;gap:4px;cursor:pointer;white-space:nowrap}
+      .lc3d-sp{flex:1}
+      .lc3d-canvas{position:relative;flex:1;min-height:120px;background:#e9e6df}
+      .lc3d-canvas canvas{display:block;width:100%;height:100%}
+      .lc3d-units{display:flex;gap:4px;flex-wrap:wrap;padding:4px 8px;border-top:1px solid var(--bo-border);font-size:10.5px}
+      .lc3d-units button{border:1px solid var(--bo-border);background:var(--bo-card);color:var(--bo-text);border-radius:5px;padding:1px 6px;cursor:pointer;display:flex;align-items:center;gap:4px;font-size:10.5px}
+      .lc3d-units button.on{border-color:#7a3fa0;box-shadow:inset 0 0 0 1px #7a3fa0}
+      .lc3d-units .sw{width:11px;height:9px;border-radius:2px;border:1px solid rgba(0,0,0,.3)}
+      .lc-tbl tr.lc-hl td{background:rgba(122,63,160,.13)}
       .lc-chartwrap svg{display:block} .lc-chartwrap .seg{cursor:pointer} .lc-chartwrap .seg:hover{stroke-width:2}
       .lc-splitbar{display:none;align-items:center;gap:8px;flex-wrap:wrap;font-size:12px;padding:7px 10px;margin-bottom:8px;border:1px solid #7a3fa0;border-radius:8px;background:rgba(122,63,160,.08);flex-shrink:0}
       .lc-splitbar input{width:90px;padding:4px 6px;border:1px solid var(--bo-border);border-radius:6px;background:var(--bo-card);color:var(--bo-text)}
@@ -4804,12 +4827,28 @@ function openLayerCorrelationDialog(blockId, motivoAuto){
       .lc-status{font-size:12px;margin-top:10px;min-height:18px}
       .lc-status.err{color:#c0392b;font-weight:600} .lc-status.warn{color:#b85c1a}
     </style>
+    <div class="lc-3d" id="lc-3d" hidden>
+      <div class="lc3d-title" id="lc3d-title"><span>◈ Visualização 3D da correlação</span><button type="button" class="x" id="lc3d-close" title="Fechar">✕</button></div>
+      <div class="lc3d-bar">
+        <button type="button" class="mb on" data-v="iso">3D</button><button type="button" class="mb" data-v="plan">Planta</button><button type="button" class="mb" data-v="side">Lateral</button>
+        <span class="lc3d-sp"></span>
+        <label title="Exagero vertical">Exag. <input type="range" id="lc3d-exag" min="1" max="12" step="0.5" value="3" style="width:70px;vertical-align:middle"> <b id="lc3d-exagv">3×</b></label>
+        <label><input type="checkbox" id="lc3d-surf" checked> superfícies</label>
+        <label><input type="checkbox" id="lc3d-wall" checked> paredes</label>
+      </div>
+      <div class="lc3d-canvas" id="lc3d-canvas"></div>
+      <div class="lc3d-units" id="lc3d-units"></div>
+    </div>
     <div class="editor-box">
       <div class="popup-header"><h3 id="lc-title">Correlacionar camadas</h3><button class="popup-close" type="button" id="lc-close">✕</button></div>
       <div class="popup-body" style="display:flex;flex-direction:column;padding-bottom:6px">
         <div class="lc-intro" id="lc-intro"></div>
         <div class="lc-modebar" id="lc-modebar"></div>
-        <div class="lc-chartwrap" id="lc-chart"></div>
+        <div class="lc-topwrap" id="lc-topwrap">
+          <div class="lc-chartwrap" id="lc-chart"></div>
+          <div class="lc-plan" id="lc-plan"></div>
+
+        </div>
         <div class="lc-splitbar" id="lc-splitbar"></div>
         <div class="lc-wrap" id="lc-wrap" style="flex:1;min-height:230px"></div>
         <div class="lc-status" id="lc-status"></div>
@@ -4881,9 +4920,52 @@ function openLayerCorrelationDialog(blockId, motivoAuto){
     + '<b>✂ Quebrar</b>: se uma camada corresponde a duas ou mais do outro furo, clique nela no gráfico e informe a cota; a <b>linha de corte</b> (tracejada roxa) pode ser selecionada e arrastada para mover, ou removida. <b>Alinhar por cota</b> faz isso automaticamente. <b>⧉ Copiar classificação</b>: copie o tipo/descrição de uma camada para outra. <b>Zoom</b>: botões + / − ou Ctrl + roda do mouse sobre o gráfico; arraste o canto inferior do gráfico para mudar a altura.'
     + '</details>';
   ov.classList.add('open');
+  if(lc3d){ lc3d.fitted = false; }
   renderLayerCorrelation();
 }
 /* ── gráfico de correlação por cota: um furo por coluna, todos na mesma escala de cota ── */
+/* ── mini-mapa em planta dos furos do bloco (cor por campanha/obra, distâncias entre vizinhos) ── */
+function lcCampLabel(f){
+  const c = campanhaById(f.campanhaId), obra = String((f.ident||{}).obra||'').trim();
+  const nome = c ? (c.nome||'').trim() : '';
+  if(nome && obra && nome.toLowerCase()!==obra.toLowerCase()) return nome+' — '+obra;
+  return nome || obra || 'Sem campanha';
+}
+function renderLcPlan(ov){
+  const box = ov.querySelector('#lc-plan'); if(!box || !lcState) return;
+  const block = interpBlocks.find(b=>b.id===lcState.blockId); if(!block){ box.innerHTML=''; return; }
+  const P = lcState.furos.map(f=>{ const xy = localXY(f.lat,f.lng,block.refLat,block.refLng); return {f, x:xy.x, y:xy.y, grp:lcCampLabel(f)}; });
+  if(!P.length){ box.innerHTML=''; return; }
+  const cores = ['#7a3fa0','#2f8a7a','#d9822b','#2f6db5','#b5446e','#6b8e23','#8a6d3b','#555'];
+  const grps = []; P.forEach(o=>{ if(!grps.includes(o.grp)) grps.push(o.grp); });
+  const cor = g => cores[grps.indexOf(g)%cores.length];
+  const W=250, Hh=210, pad=34;
+  const xs=P.map(o=>o.x), ys=P.map(o=>o.y);
+  const x0=Math.min(...xs), x1=Math.max(...xs), y0=Math.min(...ys), y1=Math.max(...ys);
+  const sc = Math.min((W-2*pad)/Math.max(x1-x0,1), (Hh-2*pad)/Math.max(y1-y0,1));
+  const ox = (W-(x1-x0)*sc)/2, oy = (Hh-(y1-y0)*sc)/2;
+  P.forEach(o=>{ o.px = ox+(o.x-x0)*sc; o.py = Hh-(oy+(o.y-y0)*sc); });
+  // árvore geradora mínima (Prim) → ligações entre vizinhos, com a distância
+  const ed = [], inT = new Set([0]);
+  while(inT.size<P.length){
+    let best=null;
+    inT.forEach(i=>P.forEach((q,j)=>{ if(inT.has(j)) return; const d=Math.hypot(P[i].x-q.x,P[i].y-q.y); if(!best||d<best.d) best={i,j,d}; }));
+    ed.push(best); inT.add(best.j);
+  }
+  let g = '<text x="4" y="12" font-size="10" fill="#8a5a3a">N ↑</text>';
+  ed.forEach(e=>{ const a=P[e.i], b=P[e.j];
+    g += `<line x1="${a.px}" y1="${a.py}" x2="${b.px}" y2="${b.py}" stroke="#b9a98f" stroke-width="1" stroke-dasharray="3 3"/>`
+       + `<text x="${(a.px+b.px)/2}" y="${(a.py+b.py)/2-3}" font-size="9.5" fill="#4a7fb5" text-anchor="middle" paint-order="stroke" stroke="#fffdf8" stroke-width="3">${Math.round(e.d)} m</text>`; });
+  P.forEach(o=>{ const cota = furoCotaNum(o.f);
+    g += `<circle cx="${o.px}" cy="${o.py}" r="6" fill="${cor(o.grp)}" stroke="#fff" stroke-width="1.5"><title>${esc(o.f.ident.sondagemNum||'furo')} — ${esc(o.grp)}</title></circle>`
+       + `<text x="${o.px}" y="${o.py-10}" font-size="10.5" font-weight="700" text-anchor="middle" fill="#222" paint-order="stroke" stroke="#fffdf8" stroke-width="3">${esc(o.f.ident.sondagemNum||'furo')}</text>`
+       + `<text x="${o.px}" y="${o.py+18}" font-size="9.5" text-anchor="middle" fill="#666" paint-order="stroke" stroke="#fffdf8" stroke-width="3">${cota!=null?fmtM(cota):'sem cota'}</text>`; });
+  box.innerHTML = '<h4>Posição dos furos em planta</h4>'
+    + `<svg viewBox="0 0 ${W} ${Hh}" role="img" aria-label="Posição dos furos em planta">${g}</svg>`
+    + grps.map(n=>`<div class="lg"><i style="background:${cor(n)}"></i>${esc(n)}</div>`).join('')
+    + '<div class="lg"><i class="orf"></i>Camada sem correspondência</div>';
+}
+
 function renderLcChart(ov){
   const box = ov.querySelector('#lc-chart'); if(!box || !lcState) return;
   const fs = lcState.furos;
@@ -5173,6 +5255,7 @@ function renderLcModeBar(ov){
   const nomeTipo = t => (TIPOS_SOLO.find(x=>x[0]===t)||[t,t])[1];
   bar.innerHTML = `<button type="button" class="mb ${lcState.mode==='split'?'on':''}" data-mode="split" title="Clicar numa camada do gráfico abre a quebra por cota">✂ Quebrar camadas</button>`
     + `<button type="button" class="mb ${lcState.mode==='copy'?'on':''}" data-mode="copy" title="Clicar numa camada do gráfico copia a classificação; clicar noutra cola">⧉ Copiar classificação</button>`
+    + `<button type="button" class="mb ${lcState.v3d?'on':''}" id="lc-3d-toggle" title="Abre uma janela separada com os furos em 3D, na posição e cota reais">◈ Ver em 3D</button>`
     + (lcState.mode==='copy' ? `<span style="color:var(--bo-muted)">${cp?'Agora clique na camada de <b>destino</b> (ou em ⎘ Colar na tabela). Clique de novo na origem para limpar.':'Clique na camada de <b>origem</b> no gráfico (ou em ⧉ Copiar na tabela).'}</span>` : '')
     + (cp ? `<span class="clip">Copiado: <b>${esc(cp.nome)}</b> — ${esc(nomeTipo(cp.tipo))}${cp.descricao?' · '+esc(cp.descricao.slice(0,40)):''} <button type="button" class="mb" id="lc-clip-clear" style="padding:1px 7px">✕</button></span>` : '')
     + (cp || lcState.mode==='copy' ? `<label style="font-size:11.5px"><input type="checkbox" id="lc-copy-desc" ${lcState.copyDesc===false?'':'checked'}> copiar também a descrição</label>` : '');
@@ -5181,6 +5264,7 @@ function renderLcModeBar(ov){
   bar.querySelector('#lc-zoom-out').onclick = ()=> lcSetZoom((lcState.zoom||1)/1.5);
   bar.querySelector('#lc-zoom-fit').onclick = ()=> lcSetZoom(1);
   bar.querySelectorAll('.mb[data-mode]').forEach(b=> b.onclick = ()=>{ lcState.mode = b.dataset.mode; lcState.split = null; renderLayerCorrelation(); });
+  const t3 = bar.querySelector('#lc-3d-toggle'); if(t3) t3.onclick = ()=>{ lcState.v3d = !lcState.v3d; renderLayerCorrelation(); };
   const cc = bar.querySelector('#lc-clip-clear'); if(cc) cc.onclick = ()=>{ lcState.clip = null; renderLayerCorrelation(); };
   const cd = bar.querySelector('#lc-copy-desc'); if(cd) cd.onchange = ()=>{ lcState.copyDesc = cd.checked; };
 }
@@ -5235,6 +5319,218 @@ function lcSetZoom(z, anchorE){
   renderLcModeBar(document.getElementById('layer-corr-overlay'));
 }
 
+/* ══════════════════════════════════════════════════════════════
+   VISUALIZAÇÃO 3D DA CORRELAÇÃO — painel ao lado do gráfico por cota. Os furos aparecem na posição
+   real em planta (coordenadas do bloco) e na cota real; cada unidade vira uma superfície que liga os
+   seus trechos nos vários furos, triangulada (Delaunay em planta) para não se sobrepor.
+   ══════════════════════════════════════════════════════════════ */
+// triangulação de Delaunay (Bowyer–Watson) de pontos em planta [{x,z}] → [[i,j,k]]; vazio se < 3 pontos
+// ou se forem todos colineares
+function lcDelaunay(P){
+  const n = P.length; if(n<3) return [];
+  let minX=Infinity,minZ=Infinity,maxX=-Infinity,maxZ=-Infinity;
+  P.forEach(p=>{ minX=Math.min(minX,p.x); maxX=Math.max(maxX,p.x); minZ=Math.min(minZ,p.z); maxZ=Math.max(maxZ,p.z); });
+  const d = Math.max(maxX-minX, maxZ-minZ, 1e-6), mx=(minX+maxX)/2, mz=(minZ+maxZ)/2;
+  const pts = P.map(p=>({x:p.x,z:p.z})).concat([{x:mx-20*d,z:mz-d},{x:mx,z:mz+20*d},{x:mx+20*d,z:mz-d}]);
+  const orient = (a,b,c)=> (b.x-a.x)*(c.z-a.z)-(b.z-a.z)*(c.x-a.x);
+  const inCirc = (p,t)=>{
+    const a=pts[t[0]], b=pts[t[1]], c=pts[t[2]];
+    const ax=a.x-p.x, az=a.z-p.z, bx=b.x-p.x, bz=b.z-p.z, cx=c.x-p.x, cz=c.z-p.z;
+    const det = (ax*ax+az*az)*(bx*cz-cx*bz) - (bx*bx+bz*bz)*(ax*cz-cx*az) + (cx*cx+cz*cz)*(ax*bz-bx*az);
+    return orient(a,b,c)>0 ? det>1e-12 : det<-1e-12;
+  };
+  let tris = [[n,n+1,n+2]];
+  for(let i=0;i<n;i++){
+    const bad = tris.filter(t=>inCirc(pts[i],t));
+    const cnt = new Map();
+    bad.forEach(t=>[[t[0],t[1]],[t[1],t[2]],[t[2],t[0]]].forEach(e=>{ const k=Math.min(e[0],e[1])+'_'+Math.max(e[0],e[1]); const o=cnt.get(k); if(o) o.c++; else cnt.set(k,{e,c:1}); }));
+    tris = tris.filter(t=>!bad.includes(t));
+    cnt.forEach(o=>{ if(o.c===1) tris.push([o.e[0],o.e[1],i]); });
+  }
+  return tris.filter(t=>t.every(v=>v<n) && Math.abs(orient(pts[t[0]],pts[t[1]],pts[t[2]]))>1e-9);
+}
+// arestas de contorno de uma triangulação (usadas por uma só face)
+function lcBoundaryEdges(tris){
+  const m = new Map();
+  tris.forEach(t=>[[t[0],t[1]],[t[1],t[2]],[t[2],t[0]]].forEach(e=>{ const k=Math.min(e[0],e[1])+'_'+Math.max(e[0],e[1]); const o=m.get(k); if(o) o.c++; else m.set(k,{e,c:1}); }));
+  return Array.from(m.values()).filter(o=>o.c===1).map(o=>o.e);
+}
+// dados da cena (sem depender do THREE): furos, trechos, unidades e suas triangulações
+function lc3dBuildData(){
+  const block = interpBlocks.find(b=>b.id===lcState.blockId); if(!block) return null;
+  const info = lcState.furos.map((f,fi)=>{ const xy = localXY(f.lat,f.lng,block.refLat,block.refLng); return {f,fi,x:xy.x,z:-xy.y,c0:lcCota0(f),sg:lcSegs(f)}; });
+  const cx = info.reduce((a,o)=>a+o.x,0)/info.length, cz = info.reduce((a,o)=>a+o.z,0)/info.length;
+  info.forEach(o=>{ o.x-=cx; o.z-=cz; });
+  let emin=Infinity, emax=-Infinity;
+  info.forEach(o=>o.sg.forEach(g=>{ emax=Math.max(emax,o.c0-g.top); emin=Math.min(emin,o.c0-g.base); }));
+  const rows = lcState.rows;
+  info.forEach(o=>{ o.segs = o.sg.map((g,k)=>{ const ri = rows.findIndex(r=>r.m[o.f.id]===k); return {k, ri, orf:ri<0, tipo: ri>=0?rows[ri].tipo:g.tipo, eTop:o.c0-g.top, eBase:o.c0-g.base}; }); });
+  const unidades = rows.map((r,ri)=>{
+    const pts = info.filter(o=>r.m[o.f.id]!=null && o.segs[r.m[o.f.id]]).map(o=>{ const g=o.segs[r.m[o.f.id]]; return {x:o.x,z:o.z,eTop:g.eTop,eBase:g.eBase}; });
+    let tris = lcDelaunay(pts), edges;
+    if(tris.length) edges = lcBoundaryEdges(tris);
+    else { // 2 pontos ou colineares: parede entre pontos consecutivos
+      const ord = pts.map((_,i)=>i).sort((a,b)=> pts[a].x-pts[b].x || pts[a].z-pts[b].z);
+      edges = []; for(let i=0;i+1<ord.length;i++) edges.push([ord[i],ord[i+1]]);
+    }
+    return {ri, tipo:r.tipo, pts, tris, edges};
+  });
+  const xs=info.map(o=>o.x), zs=info.map(o=>o.z);
+  const span = Math.max(Math.max(...xs)-Math.min(...xs), Math.max(...zs)-Math.min(...zs), 10);
+  return {info, unidades, emin, emax, span};
+}
+
+let lc3d = null; // {renderer, scene, camera, controls, group, raf, on, pick, ro}
+function lc3dOk(){ return typeof THREE!=='undefined' && THREE.OrbitControls && THREE.WebGLRenderer; }
+function lc3dStop(){ if(lc3d){ lc3d.on=false; if(lc3d.raf){ cancelAnimationFrame(lc3d.raf); lc3d.raf=0; } } }
+function lc3dEnsure(){
+  if(lc3d) return true;
+  if(!lc3dOk()){ toast('3D indisponível: biblioteca gráfica não carregada'); return false; }
+  const wrap = document.getElementById('lc3d-canvas'); if(!wrap) return false;
+  try{
+    const renderer = new THREE.WebGLRenderer({antialias:true});
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio||1, 2));
+    wrap.appendChild(renderer.domElement);
+    const scene = new THREE.Scene(); scene.background = new THREE.Color(0xe9e6df);
+    const camera = new THREE.PerspectiveCamera(40, 1, 0.5, 5000);
+    const controls = new THREE.OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true; controls.dampingFactor = 0.1;
+    scene.add(new THREE.HemisphereLight(0xffffff, 0x777766, 0.85));
+    const dl = new THREE.DirectionalLight(0xffffff, 0.65); dl.position.set(60,120,40); scene.add(dl);
+    const group = new THREE.Group(); scene.add(group);
+    lc3d = {renderer, scene, camera, controls, group, raf:0, on:false, pick:[], fitted:false, view:'iso'};
+    if(typeof ResizeObserver!=='undefined') lc3d.ro = new ResizeObserver(()=>lc3dResize()), lc3d.ro.observe(wrap);
+    // clique (sem arrastar) numa camada seleciona a unidade correspondente na tabela
+    let down=null;
+    renderer.domElement.addEventListener('pointerdown', e=>{ down={x:e.clientX,y:e.clientY}; });
+    renderer.domElement.addEventListener('pointerup', e=>{
+      if(!down || Math.hypot(e.clientX-down.x,e.clientY-down.y)>4){ down=null; return; } down=null;
+      const bb = renderer.domElement.getBoundingClientRect();
+      const ndc = new THREE.Vector2(((e.clientX-bb.left)/bb.width)*2-1, -((e.clientY-bb.top)/bb.height)*2+1);
+      const rc = new THREE.Raycaster(); rc.setFromCamera(ndc, camera);
+      const hit = rc.intersectObjects(lc3d.pick, false)[0];
+      lcState.hl = (hit && hit.object.userData.ri>=0 && lcState.hl!==hit.object.userData.ri) ? hit.object.userData.ri : null;
+      renderLayerCorrelation();
+      if(lcState.hl!=null){ const tr = document.querySelector('#lc-wrap tr[data-ri="'+lcState.hl+'"]'); if(tr && tr.scrollIntoView) tr.scrollIntoView({block:'nearest'}); }
+    });
+    // controles do painel
+    const ov = document.getElementById('layer-corr-overlay');
+    ov.querySelectorAll('.lc3d-bar [data-v]').forEach(b=> b.onclick = ()=>{ lc3dSetView(b.dataset.v); });
+    ov.querySelector('#lc3d-close').onclick = ()=>{ lcState.v3d = false; renderLayerCorrelation(); };
+    (function(){ // arrastar a janela pela barra de título
+      const w = ov.querySelector('#lc-3d'), t = ov.querySelector('#lc3d-title'); let d = null;
+      t.addEventListener('pointerdown', e=>{ if(e.target.closest('button')) return; const r = w.getBoundingClientRect(); d = {dx:e.clientX-r.left, dy:e.clientY-r.top}; w.style.right='auto'; w.style.left=r.left+'px'; w.style.top=r.top+'px'; try{ t.setPointerCapture(e.pointerId); }catch(_){} });
+      t.addEventListener('pointermove', e=>{ if(!d) return; const W=w.offsetWidth, H=w.offsetHeight; w.style.left=Math.max(-W+80, Math.min(innerWidth-80, e.clientX-d.dx))+'px'; w.style.top=Math.max(0, Math.min(innerHeight-40, e.clientY-d.dy))+'px'; });
+      const end = ()=>{ d = null; }; t.addEventListener('pointerup', end); t.addEventListener('pointercancel', end);
+    })();
+    ov.querySelector('#lc3d-exag').oninput = e=>{ lcState.exag = +e.target.value; ov.querySelector('#lc3d-exagv').textContent = lcState.exag.toString().replace('.',',')+'×'; lc3dRender(); lc3dSetView(lc3d.view); };
+    ov.querySelector('#lc3d-surf').onchange = ()=> lc3dRender();
+    ov.querySelector('#lc3d-wall').onchange = ()=> lc3dRender();
+  }catch(e){ console.error(e); lc3d = null; toast('Não foi possível iniciar o 3D neste navegador'); return false; }
+  return true;
+}
+function lc3dResize(){
+  if(!lc3d) return;
+  const wrap = document.getElementById('lc3d-canvas'); if(!wrap) return;
+  const w = wrap.clientWidth, h = wrap.clientHeight; if(!w || !h) return;
+  lc3d.renderer.setSize(w, h, false); lc3d.camera.aspect = w/h; lc3d.camera.updateProjectionMatrix();
+}
+function lc3dSetView(v){
+  if(!lc3d || !lc3d.data) return;
+  lc3d.view = v;
+  const d = lc3d.data, H = d.span, ex = lcState.exag||1, V = (d.emax-d.emin)*ex;
+  const t = new THREE.Vector3(0, V/2, 0), dist = Math.max(H, V*1.3)*1.7;
+  lc3d.controls.target.copy(t);
+  if(v==='plan') lc3d.camera.position.set(0, V/2+dist*1.15, 0.01);
+  else if(v==='side') lc3d.camera.position.set(0, V/2+V*0.05, dist*1.05);
+  else lc3d.camera.position.set(dist*0.62, V/2+dist*0.5, dist*0.78);
+  lc3d.camera.lookAt(t); lc3d.controls.update();
+  document.querySelectorAll('#layer-corr-overlay .lc3d-bar [data-v]').forEach(b=>b.classList.toggle('on', b.dataset.v===v));
+}
+function lc3dLabel(txt, size){
+  const c = document.createElement('canvas'), g = c.getContext('2d');
+  if(!g) return new THREE.Object3D(); // sem canvas 2D: sem rótulo
+  const font = '600 26px ui-monospace, Menlo, monospace'; g.font = font;
+  const w = Math.ceil(g.measureText(txt).width)+18; c.width = w; c.height = 40; g.font = font;
+  g.fillStyle = 'rgba(20,18,15,.74)'; g.fillRect(0,2,w,36); g.fillStyle = '#fff'; g.textBaseline = 'middle'; g.fillText(txt, 9, 21);
+  const sp = new THREE.Sprite(new THREE.SpriteMaterial({map:new THREE.CanvasTexture(c), depthTest:false, transparent:true}));
+  sp.scale.set((w/40)*size, size, 1); sp.renderOrder = 10; return sp;
+}
+function lc3dRender(){
+  if(!lc3dEnsure()) return;
+  const data = lc3dBuildData(); if(!data) return;
+  lc3d.data = data;
+  const ov = document.getElementById('layer-corr-overlay');
+  const soloIdx = lcState.solo3d;
+  // exagero inicial automático: altura ≈ 30% da extensão em planta
+  if(lcState.exag==null){ const v = data.emax-data.emin||1; lcState.exag = Math.max(1, Math.min(12, Math.round((0.3*data.span/v)*2)/2)); }
+  const ex = lcState.exag;
+  ov.querySelector('#lc3d-exag').value = ex; ov.querySelector('#lc3d-exagv').textContent = ex.toString().replace('.',',')+'×';
+  const showSurf = ov.querySelector('#lc3d-surf').checked, showWall = ov.querySelector('#lc3d-wall').checked;
+  const Y = e => (e-data.emin)*ex;
+  const grp = lc3d.group;
+  while(grp.children.length){ const o = grp.children.pop(); o.traverse(n=>{ if(n.geometry) n.geometry.dispose(); if(n.material){ if(n.material.map) n.material.map.dispose(); n.material.dispose(); } }); }
+  lc3d.pick = [];
+  const R = Math.max(0.5, data.span*0.012);
+  const campCor = ['#7a3fa0','#2f8f7b','#c2692b','#2a5a8c','#a03f5e'];
+  const campIds = []; data.info.forEach(o=>{ const id=o.f.campanhaId||''; if(!campIds.includes(id)) campIds.push(id); });
+
+  data.info.forEach(o=>{
+    o.segs.forEach(s=>{
+      const dim = soloIdx!=null && s.ri!==soloIdx;
+      const h = Math.max(0.03, (s.eTop-s.eBase)*ex);
+      const m = new THREE.MeshStandardMaterial({color:new THREE.Color(soilColorHex(s.tipo)), roughness:.85, transparent:true, opacity: dim?0.16:1});
+      const cyl = new THREE.Mesh(new THREE.CylinderGeometry(R,R,h,20), m);
+      cyl.position.set(o.x, Y(s.eBase)+h/2, o.z); cyl.userData = {ri:s.ri, fi:o.fi, k:s.k}; grp.add(cyl); lc3d.pick.push(cyl);
+      const hl = lcState.hl===s.ri && s.ri>=0;
+      const ed = new THREE.LineSegments(new THREE.EdgesGeometry(cyl.geometry, 60), new THREE.LineBasicMaterial({color: hl?0x7a3fa0 : (s.orf?0xc0392b:0x222222), transparent:true, opacity: dim?0.2:1}));
+      ed.position.copy(cyl.position); grp.add(ed);
+      if(s.orf && !dim){ const ring = new THREE.Mesh(new THREE.CylinderGeometry(R*1.6,R*1.6,h,20,1,true), new THREE.MeshBasicMaterial({color:0xc0392b, transparent:true, opacity:.2, side:THREE.DoubleSide})); ring.position.copy(cyl.position); grp.add(ring); }
+    });
+    const top = o.c0, bot = o.segs.length ? o.segs[o.segs.length-1].eBase : o.c0;
+    const cc = new THREE.Color(campCor[Math.max(0,campIds.indexOf(o.f.campanhaId||''))%campCor.length]);
+    grp.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(o.x,Y(bot)-R,o.z), new THREE.Vector3(o.x,Y(top)+R*3,o.z)]), new THREE.LineBasicMaterial({color:cc})));
+    const disc = new THREE.Mesh(new THREE.CylinderGeometry(R*1.9,R*1.9,R*0.15,24), new THREE.MeshBasicMaterial({color:cc})); disc.position.set(o.x, Y(data.emin)-R*0.3, o.z); grp.add(disc);
+    const lab = lc3dLabel((o.f.ident.sondagemNum||'furo')+'  '+(furoCotaNum(o.f)!=null? fmtM(o.c0)+' m':'sem cota'), data.span*0.045);
+    lab.position.set(o.x, Y(top)+R*3+data.span*0.05, o.z); grp.add(lab);
+  });
+
+  data.unidades.forEach(u=>{
+    if(soloIdx!=null && soloIdx!==u.ri) return;
+    if(u.pts.length<2) return;
+    const col = new THREE.Color(soilColorHex(u.tipo));
+    const mat = new THREE.MeshStandardMaterial({color:col, transparent:true, opacity: lcState.hl===u.ri?0.7:(soloIdx===u.ri?0.6:0.4), side:THREE.DoubleSide, roughness:.9, depthWrite:false});
+    const lineMat = new THREE.LineBasicMaterial({color:col.clone().multiplyScalar(.55), transparent:true, opacity:.85});
+    const P = (p,top)=>[p.x, Y(top?p.eTop:p.eBase), p.z];
+    const pos = [];
+    if(showSurf) u.tris.forEach(t=>{ [true,false].forEach(top=>{ t.forEach(i=> pos.push(...P(u.pts[i],top))); }); });
+    if(showWall) u.edges.forEach(([a,b])=>{
+      const A=u.pts[a], B=u.pts[b];
+      pos.push(...P(A,true),...P(B,true),...P(B,false), ...P(A,true),...P(B,false),...P(A,false));
+      [true,false].forEach(top=> grp.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(...P(A,top)), new THREE.Vector3(...P(B,top))]), lineMat)));
+    });
+    if(pos.length){ const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos,3)); g.computeVertexNormals(); grp.add(new THREE.Mesh(g, mat)); }
+    if(showSurf) u.tris.forEach(t=>[true,false].forEach(top=>{ // contorno das faces
+      const pp = t.map(i=>new THREE.Vector3(...P(u.pts[i],top))); pp.push(pp[0]);
+      grp.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(pp), new THREE.LineBasicMaterial({color:col.clone().multiplyScalar(.6), transparent:true, opacity:.35})));
+    }));
+  });
+  const grid = new THREE.GridHelper(Math.ceil(data.span*1.8/10)*10, 12, 0x888888, 0x888888); grid.position.y = Y(data.emin)-R*0.5; grid.material.transparent = true; grid.material.opacity = .35; grp.add(grid);
+
+  // chips das unidades (isolar)
+  const box = ov.querySelector('#lc3d-units');
+  box.innerHTML = lcState.rows.map((r,ri)=>`<button type="button" data-u="${ri}" class="${soloIdx===ri?'on':''}" title="Isolar a unidade ${ri+1}"><span class="sw" style="background:${soilColorHex(r.tipo)}"></span>U${ri+1}</button>`).join('')
+    + (soloIdx!=null ? '<button type="button" data-u="-1">mostrar todas</button>' : '');
+  box.querySelectorAll('button').forEach(b=> b.onclick = ()=>{ const i=+b.dataset.u; lcState.solo3d = (i<0 || lcState.solo3d===i) ? null : i; lc3dRender(); });
+  lc3dResize();
+  if(!lc3d.fitted){ lc3d.fitted = true; lc3dSetView('iso'); }
+  if(!lc3d.on){ lc3d.on = true; (function loop(){
+    if(!lc3d || !lc3d.on) return;
+    const o = document.getElementById('layer-corr-overlay'); if(!o || !o.classList.contains('open') || !lcState || !lcState.v3d){ lc3d.on = false; lc3d.raf = 0; return; }
+    lc3d.raf = requestAnimationFrame(loop); lc3d.controls.update(); lc3d.renderer.render(lc3d.scene, lc3d.camera);
+  })(); }
+}
+
 function refreshBlockPanelIfOpen(id){
   try{ if(selected && selected.kind==='interp' && selected.id===id) openInterpBlockPanel(id); }catch(e){}
 }
@@ -5252,7 +5548,7 @@ function renderLayerCorrelation(){
     + '</tr></thead><tbody>';
   rows.forEach((r,ri)=>{
     const tipoCor = soilColorHex(r.tipo);
-    h += `<tr><td class="lc-row-h"><div class="lc-rowh"><span class="lc-sw" style="background:${tipoCor}"></span><b>${ri+1}</b>
+    h += `<tr class="${lcState.hl===ri?'lc-hl':''}" data-ri="${ri}"><td class="lc-row-h"><div class="lc-rowh"><span class="lc-sw" style="background:${tipoCor}"></span><b>${ri+1}</b>
       <select class="lc-tipo" data-r="${ri}">${tipoOpts(r.tipo)}</select>
       <div class="lc-rowbtns"><button type="button" class="up" data-r="${ri}" ${ri===0?'disabled':''} title="Subir">▲</button><button type="button" class="dn" data-r="${ri}" ${ri===rows.length-1?'disabled':''} title="Descer">▼</button><button type="button" class="x" data-r="${ri}" title="Remover unidade (as camadas ficam sem correspondência e voltam como unidades próprias)">✕</button></div></div>${gaps.has(ri)?'<div class="lc-gap">⚠ camadas sem sobreposição de cota</div>':''}</td>`;
     fs.forEach(f=>{
@@ -5276,7 +5572,9 @@ function renderLayerCorrelation(){
   });
   h += '</tbody></table>';
   ov.querySelector('#lc-wrap').innerHTML = h;
-  renderLcChart(ov);
+  const p3 = ov.querySelector('#lc-3d'); if(p3) p3.hidden = !lcState.v3d;
+  renderLcChart(ov); renderLcPlan(ov);
+  if(lcState.v3d) lc3dRender(); else lc3dStop();
   lcRenderSplitBar(ov);
   ov.querySelectorAll('.lc-split').forEach(b=> b.onclick = ()=>{ const f=lcState.furos.find(x=>x.id===b.dataset.f); const sg=lcSegs(f)[+b.dataset.k]; lcOpenSplit(f.id, +b.dataset.k, null); });
   ov.querySelectorAll('.lc-merge').forEach(b=> b.onclick = ()=> lcMerge(b.dataset.f, +b.dataset.k));

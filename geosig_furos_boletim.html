@@ -3326,6 +3326,32 @@ function nSptMedioNaFaixa(golpes, profTopo, profBase){
   if(validos.length===0) return null;
   return validos.reduce((a,b)=>a+b,0)/validos.length;
 }
+// formata o N-SPT médio (sem casas se inteiro, senão 1 casa); null → '—'
+function fmtNspt(v){ return v==null ? '—' : (Math.abs(v-Math.round(v))<0.05 ? String(Math.round(v)) : v.toFixed(1).replace('.',',')); }
+// N-SPT médio de um trecho {top,base} de um furo
+function nsptDoTrecho(f, seg){ return seg ? nSptMedioNaFaixa(f.golpes, seg.top, seg.base) : null; }
+// resumo do N-SPT de uma lista de médias por furo: {media, min, max, n}
+function nsptResumo(vals){
+  const v = vals.filter(x=>x!=null && isFinite(x));
+  if(!v.length) return null;
+  return { media: v.reduce((a,b)=>a+b,0)/v.length, min: Math.min(...v), max: Math.max(...v), n: v.length };
+}
+function nsptResumoTxt(r, curto){
+  if(!r) return 'sem SPT';
+  return fmtNspt(r.media) + (r.n>1 ? ' ('+fmtNspt(r.min)+'–'+fmtNspt(r.max)+(curto?'':', '+r.n+' furos')+')' : '');
+}
+// N-SPT médio por camada do molde de um bloco (média das médias dos furos que têm a camada)
+function nsptPorCamadaBloco(block){
+  if(!block) return null;
+  const tpl = buildUnionTemplate(block); if(!tpl || !tpl.camadas) return null;
+  const srcs = block.furoIds.map(id=>furos.find(f=>f.id===id)).filter(Boolean);
+  return tpl.camadas.map((c,i)=> nsptResumo(srcs.map(f=>{
+    const seg = templateAlignedCamada(tpl, f, i); if(!seg) return null;
+    let top = seg.top;
+    if(top==null){ const j = f.camadas.indexOf(seg); top = j>0 ? (parseFloat(f.camadas[j-1].profFinal)||0) : 0; }
+    return nSptMedioNaFaixa(f.golpes, top, parseFloat(seg.profFinal)||0);
+  })));
+}
 // aplica as correlações clássicas de N-SPT conforme o tipo de solo da camada — usa o N-SPT
 // direto como aproximação de N60 (o app não registra a eficiência de energia do equipamento;
 // se o seu martelo tiver eficiência muito diferente de ~60%, ajuste os resultados manualmente)
@@ -4696,9 +4722,36 @@ function lcCota0(f){
   const ks = lcState.furos.map(furoCotaNum).filter(v=>v!=null);
   return ks.length ? ks.reduce((a,b)=>a+b,0)/ks.length : 0;
 }
+// furos exibidos: o par selecionado (correlação 2 a 2) ou todos
+function lcVis(){
+  if(lcState && lcState.pair){ const v = lcState.pair.map(id=>lcState.furos.find(f=>f.id===id)).filter(Boolean); if(v.length===2) return v; }
+  return lcState.furos;
+}
+// no modo par, só aparecem as unidades que têm camada de um dos dois furos (ou que estão vazias)
+// pontos interpolados (furos sintéticos PI-xx) já salvos neste bloco
+function blockInterpPoints(block){
+  return furos.filter(f=>f._interpolado && f._interpBlockId===(block&&block.id)).sort((a,b)=>String(a.ident.sondagemNum).localeCompare(String(b.ident.sondagemNum),'pt-BR',{numeric:true}));
+}
+function lcBlockInterp(){ const b = interpBlocks.find(x=>x.id===lcState.blockId); return b ? blockInterpPoints(b) : []; }
+// exclui um ponto interpolado do bloco (os furos de origem e a correlação não são afetados)
+function excluirPontoInterpolado(id, semConfirmar){
+  const f = furos.find(x=>x.id===id); if(!f || !f._interpolado) return false;
+  if(!semConfirmar && !confirm('Excluir o ponto interpolado "'+(f.ident.sondagemNum||'')+'"? Os furos de origem e a correlação não são afetados.')) return false;
+  const blockId = f._interpBlockId;
+  deleteFuro(id);
+  if(lcState && lcState.blockId===blockId){ const ov = document.getElementById('layer-corr-overlay'); if(ov && ov.classList.contains('open')) renderLayerCorrelation(); }
+  refreshBlockPanelIfOpen(blockId);
+  toast('Ponto interpolado excluído.');
+  return true;
+}
+function lcRowVisible(r){
+  if(!lcState.pair) return true;
+  const v = lcVis(); if(v.length!==2) return true;
+  return v.some(f=>r.m[f.id]!=null) || !lcState.furos.some(f=>r.m[f.id]!=null);
+}
 function lcOrphans(){
   const out = {};
-  lcState.furos.forEach(f=>{
+  lcVis().forEach(f=>{
     const usados = new Set(lcState.rows.map(r=>r.m[f.id]).filter(v=>v!=null));
     out[f.id] = lcSegs(f).map((_,j)=>j).filter(j=>!usados.has(j));
   });
@@ -4727,7 +4780,7 @@ function lcLayerElev(f, j){
 function lcCotaGaps(){
   const gaps = new Set();
   lcState.rows.forEach((r,ri)=>{
-    const ivs = lcState.furos.map(f=> r.m[f.id]!=null ? lcLayerElev(f, r.m[f.id]) : null).filter(Boolean);
+    const ivs = lcVis().map(f=> r.m[f.id]!=null ? lcLayerElev(f, r.m[f.id]) : null).filter(Boolean);
     for(let a=0;a<ivs.length;a++) for(let b=a+1;b<ivs.length;b++){
       if(ivs[a].base >= ivs[b].top || ivs[b].base >= ivs[a].top) gaps.add(ri);
     }
@@ -4758,7 +4811,7 @@ function openLayerCorrelationDialog(blockId, motivoAuto){
   const fs = block.furoIds.map(id=>furos.find(f=>f.id===id)).filter(Boolean);
   if(fs.length<2){ toast('O bloco precisa de ao menos 2 furos'); return; }
   const manualInit = blockCorrelacaoValida(block);
-  lcState = { blockId, furos:fs, rows: lcRowsInitial(block), cortes: manualInit && manualInit.cortes ? JSON.parse(JSON.stringify(manualInit.cortes)) : {}, classif: lcClassifToArrays(manualInit), mode:'split', zoom:1, v3d:false, hl:null, solo3d:null, clip:null, split:null };
+  lcState = { blockId, furos:fs, rows: lcRowsInitial(block), cortes: manualInit && manualInit.cortes ? JSON.parse(JSON.stringify(manualInit.cortes)) : {}, classif: lcClassifToArrays(manualInit), mode:'split', zoom:1, v3d:false, hl:null, solo3d:null, clip:null, split:null, pair:null, pickA:null };
   let ov = document.getElementById('layer-corr-overlay');
   if(!ov){
     ov = document.createElement('div'); ov.className='popup-overlay'; ov.id='layer-corr-overlay';
@@ -4784,6 +4837,7 @@ function openLayerCorrelationDialog(blockId, motivoAuto){
       .lc-chip span:last-child{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:260px}
       .lc-tbl select{width:100%;font-size:11px;padding:4px;border:1px solid var(--bo-border);border-radius:6px;background:var(--bo-card);color:var(--bo-text)}
       .lc-tbl td.bad{background:rgba(192,57,43,.12)} .lc-tbl td.bad select{border-color:#c0392b}
+      .lc-nspt{margin-top:3px;font-size:10.5px;color:var(--bo-muted)} .lc-nspt b{color:var(--bo-text)}
       .lc-chip{display:flex;gap:6px;align-items:center;margin-top:4px;font-size:10.5px;color:var(--bo-muted)}
       .lc-sw{width:22px;height:14px;border-radius:3px;border:1px solid rgba(0,0,0,.25);flex-shrink:0}
       .lc-rowbtns{display:flex;gap:3px}
@@ -4792,6 +4846,10 @@ function openLayerCorrelationDialog(blockId, motivoAuto){
       .lc-modebar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:12px;margin-bottom:6px;flex-shrink:0}
       .lc-modebar .mb{border:1px solid var(--bo-border);background:var(--bo-card);color:var(--bo-text);border-radius:6px;padding:4px 10px;cursor:pointer;font-size:11.5px}
       .lc-modebar .mb.on{background:#7a3fa0;color:#fff;border-color:#7a3fa0}
+      #lc-pairbar:empty{display:none}
+      #lc-pairbar select{border:1px solid var(--bo-border);background:var(--bo-card);color:var(--bo-text);border-radius:6px;padding:3px 6px;font-size:11.5px}
+      #lc-pairbar .mb.done::after{content:' ✓';color:#2f8a4a;font-weight:700}
+      #lc-pairbar .mb.on.done::after{color:#fff}
       .lc-modebar .clip{background:rgba(122,63,160,.12);border:1px solid #7a3fa0;border-radius:6px;padding:3px 8px}
       .lc-topwrap{display:flex;gap:8px;align-items:stretch;flex-wrap:wrap;flex-shrink:0;margin-bottom:8px}
       .lc-chartwrap{overflow:auto;border:1px solid var(--bo-border);border-radius:8px;height:34vh;min-height:170px;resize:vertical;background:var(--bo-card);flex:1 1 380px;min-width:0}
@@ -4844,6 +4902,7 @@ function openLayerCorrelationDialog(blockId, motivoAuto){
       <div class="popup-body" style="display:flex;flex-direction:column;padding-bottom:6px">
         <div class="lc-intro" id="lc-intro"></div>
         <div class="lc-modebar" id="lc-modebar"></div>
+        <div class="lc-modebar" id="lc-pairbar"></div>
         <div class="lc-topwrap" id="lc-topwrap">
           <div class="lc-chartwrap" id="lc-chart"></div>
           <div class="lc-plan" id="lc-plan"></div>
@@ -4940,38 +4999,111 @@ function renderLcPlan(ov){
   const grps = []; P.forEach(o=>{ if(!grps.includes(o.grp)) grps.push(o.grp); });
   const cor = g => cores[grps.indexOf(g)%cores.length];
   const W=250, Hh=210, pad=34;
-  const xs=P.map(o=>o.x), ys=P.map(o=>o.y);
+  const PI = blockInterpPoints(block).filter(f=>isFinite(f.lat)&&isFinite(f.lng)).map(f=>{ const xy = localXY(f.lat,f.lng,block.refLat,block.refLng); return {f, x:xy.x, y:xy.y}; });
+  const xs=P.concat(PI).map(o=>o.x), ys=P.concat(PI).map(o=>o.y);
   const x0=Math.min(...xs), x1=Math.max(...xs), y0=Math.min(...ys), y1=Math.max(...ys);
   const sc = Math.min((W-2*pad)/Math.max(x1-x0,1), (Hh-2*pad)/Math.max(y1-y0,1));
   const ox = (W-(x1-x0)*sc)/2, oy = (Hh-(y1-y0)*sc)/2;
-  P.forEach(o=>{ o.px = ox+(o.x-x0)*sc; o.py = Hh-(oy+(o.y-y0)*sc); });
-  // árvore geradora mínima (Prim) → ligações entre vizinhos, com a distância
+  P.concat(PI).forEach(o=>{ o.px = ox+(o.x-x0)*sc; o.py = Hh-(oy+(o.y-y0)*sc); });
+  const ed = lcMst(P);   // ligações entre vizinhos (árvore geradora mínima), com a distância
+  const pairIds = lcState.pair ? new Set(lcVis().map(f=>f.id)) : null;
+  let g = '<text x="4" y="12" font-size="10" fill="#8a5a3a">N ↑</text>';
+  ed.forEach(e=>{ const a=P[e.i], b=P[e.j];
+    g += `<line x1="${a.px}" y1="${a.py}" x2="${b.px}" y2="${b.py}" stroke="#b9a98f" stroke-width="1" stroke-dasharray="3 3"/>`
+       + `<text x="${(a.px+b.px)/2}" y="${(a.py+b.py)/2-3}" font-size="9.5" fill="#4a7fb5" text-anchor="middle" paint-order="stroke" stroke="#fffdf8" stroke-width="3">${Math.round(e.d)} m</text>`; });
+  P.forEach(o=>{ const cota = furoCotaNum(o.f);
+    const inPair = pairIds && pairIds.has(o.f.id), isPick = lcState.pickA===o.f.id;
+    g += `<g class="pl-pt" data-f="${escAttr(o.f.id)}" style="cursor:pointer" opacity="${pairIds && !inPair ? .4 : 1}">`
+       + (inPair ? `<circle cx="${o.px}" cy="${o.py}" r="10" fill="none" stroke="#222" stroke-width="2"/>` : '')
+       + (isPick ? `<circle cx="${o.px}" cy="${o.py}" r="10" fill="none" stroke="#7a3fa0" stroke-width="2" stroke-dasharray="3 2"/>` : '')
+       + `<circle cx="${o.px}" cy="${o.py}" r="6" fill="${cor(o.grp)}" stroke="#fff" stroke-width="1.5"><title>${esc(o.f.ident.sondagemNum||'furo')} — ${esc(o.grp)} (clique para escolher o par)</title></circle>`
+       + `<text x="${o.px}" y="${o.py-10}" font-size="10.5" font-weight="700" text-anchor="middle" fill="#222" paint-order="stroke" stroke="#fffdf8" stroke-width="3">${esc(o.f.ident.sondagemNum||'furo')}</text>`
+       + `<text x="${o.px}" y="${o.py+18}" font-size="9.5" text-anchor="middle" fill="#666" paint-order="stroke" stroke="#fffdf8" stroke-width="3">${cota!=null?fmtM(cota):'sem cota'}</text></g>`; });
+  PI.forEach(o=>{ const cota = furoCotaNum(o.f), nm = esc(o.f.ident.sondagemNum||'PI');
+    g += `<g class="pl-ip" opacity="${pairIds ? .4 : 1}"><path d="M${o.px},${o.py-6.5} L${o.px+6.5},${o.py} L${o.px},${o.py+6.5} L${o.px-6.5},${o.py} Z" fill="#fff" stroke="#7a3fa0" stroke-width="2"><title>${nm} — ponto interpolado</title></path>`
+       + `<text x="${o.px}" y="${o.py-10}" font-size="10" font-weight="700" text-anchor="middle" fill="#7a3fa0" paint-order="stroke" stroke="#fffdf8" stroke-width="3">${nm}</text>`
+       + `<text x="${o.px}" y="${o.py+18}" font-size="9.5" text-anchor="middle" fill="#7a3fa0" paint-order="stroke" stroke="#fffdf8" stroke-width="3">${cota!=null?fmtM(cota):'sem cota'}</text></g>`; });
+  box.innerHTML = '<h4>Posição dos furos em planta</h4>'
+    + `<svg viewBox="0 0 ${W} ${Hh}" role="img" aria-label="Posição dos furos em planta">${g}</svg>`
+    + grps.map(n=>`<div class="lg"><i style="background:${cor(n)}"></i>${esc(n)}</div>`).join('')
+    + '<div class="lg"><i class="orf"></i>Camada sem correspondência</div>'
+    + (PI.length ? '<div class="lg"><i style="background:#fff;border:2px solid #7a3fa0;width:10px;height:10px;transform:rotate(45deg);border-radius:1px"></i>Ponto interpolado</div>'
+        + PI.map(o=>`<div class="lg" style="justify-content:space-between"><span>🔮 ${esc(o.f.ident.sondagemNum||'PI')}${furoCotaNum(o.f)!=null?' · '+fmtM(furoCotaNum(o.f))+' m':''}</span><button type="button" class="ipdel mb" data-id="${escAttr(o.f.id)}" title="Excluir este ponto interpolado" style="border:1px solid var(--bo-border);background:var(--bo-card);color:#c0392b;border-radius:5px;cursor:pointer;font-size:11px;padding:0 6px">🗑 excluir</button></div>`).join('') : '')
+    + '<div class="lg" style="color:var(--bo-muted);font-size:10px">Clique em 2 furos para correlacionar só esse par.</div>';
+  box.querySelectorAll('button.ipdel').forEach(b=> b.onclick = ()=> excluirPontoInterpolado(b.dataset.id));
+  box.querySelectorAll('.pl-pt').forEach(el=> el.onclick = ()=>{
+    const id = el.dataset.f;
+    if(!lcState.pickA){ lcState.pickA = id; renderLcPlan(ov); return; }
+    if(lcState.pickA===id){ lcState.pickA = null; renderLcPlan(ov); return; }
+    const a = lcState.pickA; lcState.pickA = null; lcSetPair(a, id);
+  });
+}
+function lcMst(P){
   const ed = [], inT = new Set([0]);
   while(inT.size<P.length){
     let best=null;
     inT.forEach(i=>P.forEach((q,j)=>{ if(inT.has(j)) return; const d=Math.hypot(P[i].x-q.x,P[i].y-q.y); if(!best||d<best.d) best={i,j,d}; }));
     ed.push(best); inT.add(best.j);
   }
-  let g = '<text x="4" y="12" font-size="10" fill="#8a5a3a">N ↑</text>';
-  ed.forEach(e=>{ const a=P[e.i], b=P[e.j];
-    g += `<line x1="${a.px}" y1="${a.py}" x2="${b.px}" y2="${b.py}" stroke="#b9a98f" stroke-width="1" stroke-dasharray="3 3"/>`
-       + `<text x="${(a.px+b.px)/2}" y="${(a.py+b.py)/2-3}" font-size="9.5" fill="#4a7fb5" text-anchor="middle" paint-order="stroke" stroke="#fffdf8" stroke-width="3">${Math.round(e.d)} m</text>`; });
-  P.forEach(o=>{ const cota = furoCotaNum(o.f);
-    g += `<circle cx="${o.px}" cy="${o.py}" r="6" fill="${cor(o.grp)}" stroke="#fff" stroke-width="1.5"><title>${esc(o.f.ident.sondagemNum||'furo')} — ${esc(o.grp)}</title></circle>`
-       + `<text x="${o.px}" y="${o.py-10}" font-size="10.5" font-weight="700" text-anchor="middle" fill="#222" paint-order="stroke" stroke="#fffdf8" stroke-width="3">${esc(o.f.ident.sondagemNum||'furo')}</text>`
-       + `<text x="${o.px}" y="${o.py+18}" font-size="9.5" text-anchor="middle" fill="#666" paint-order="stroke" stroke="#fffdf8" stroke-width="3">${cota!=null?fmtM(cota):'sem cota'}</text>`; });
-  box.innerHTML = '<h4>Posição dos furos em planta</h4>'
-    + `<svg viewBox="0 0 ${W} ${Hh}" role="img" aria-label="Posição dos furos em planta">${g}</svg>`
-    + grps.map(n=>`<div class="lg"><i style="background:${cor(n)}"></i>${esc(n)}</div>`).join('')
-    + '<div class="lg"><i class="orf"></i>Camada sem correspondência</div>';
+  return ed;
+}
+// ── correlação 2 a 2: mostra só dois furos; as demais ligações são preservadas e o 3D acompanha ──
+function lcSetPair(a, b){
+  if(!a || !b || a===b) return;
+  lcState.pair = [a,b]; lcState.pickA = null; lcState.split = null; lcState.cutSel = null;
+  renderLayerCorrelation();
+}
+function lcPairDone(a, b){
+  const fa = lcState.furos.find(f=>f.id===a), fb = lcState.furos.find(f=>f.id===b); if(!fa||!fb) return false;
+  const used = f=>new Set(lcState.rows.map(r=>r.m[f.id]).filter(v=>v!=null));
+  const ua = used(fa), ub = used(fb);
+  if(lcSegs(fa).some((_,j)=>!ua.has(j)) || lcSegs(fb).some((_,j)=>!ub.has(j))) return false;
+  return lcState.rows.every(r=> (r.m[a]!=null) === (r.m[b]!=null)) && lcState.rows.some(r=>r.m[a]!=null && r.m[b]!=null);
+}
+function lcPairList(){
+  const block = interpBlocks.find(b=>b.id===lcState.blockId); if(!block) return [];
+  const P = lcState.furos.map(f=>{ const xy = localXY(f.lat,f.lng,block.refLat,block.refLng); return {f, x:xy.x, y:xy.y}; });
+  return lcMst(P).map(e=>({a:P[e.i].f, b:P[e.j].f, d:e.d}));
+}
+function renderLcPairBar(ov){
+  const bar = ov.querySelector('#lc-pairbar'); if(!bar || !lcState) return;
+  const on = !!lcState.pair && lcVis().length===2, fs = lcState.furos;
+  const nm = f => esc(f.ident.sondagemNum||'(sem nome)');
+  const optsFor = sel => fs.map(f=>`<option value="${escAttr(f.id)}" ${f.id===sel?'selected':''}>${nm(f)}</option>`).join('');
+  let h = `<span style="font-weight:600">Correlacionar:</span>`
+    + `<button type="button" class="mb ${on?'':'on'}" id="lc-pair-all" title="Mostra todos os furos do bloco">Todos os furos</button>`
+    + `<button type="button" class="mb ${on?'on':''}" id="lc-pair-two" title="Mostra só dois furos para correlacionar; as ligações com os outros furos são mantidas">2 furos</button>`;
+  if(on){
+    const [A,B] = lcVis();
+    h += `<select id="lc-pair-a" title="Furo da esquerda">${optsFor(A.id)}</select><span>⇄</span><select id="lc-pair-b" title="Furo da direita">${optsFor(B.id)}</select>`
+      + `<button type="button" class="mb" id="lc-pair-align" title="Alinha por cota só estes dois furos, sem mexer nas ligações com os demais">Alinhar por cota (par)</button>`
+      + `<span style="color:var(--bo-muted)">Pares vizinhos:</span>`
+      + lcPairList().map((e,i)=>{ const sel = (e.a.id===A.id&&e.b.id===B.id)||(e.a.id===B.id&&e.b.id===A.id); return `<button type="button" class="mb ${sel?'on':''} ${lcPairDone(e.a.id,e.b.id)?'done':''}" data-pa="${escAttr(e.a.id)}" data-pb="${escAttr(e.b.id)}" title="Distância ${Math.round(e.d)} m">${nm(e.a)} ↔ ${nm(e.b)}</button>`; }).join('');
+  }
+  bar.innerHTML = h;
+  bar.querySelector('#lc-pair-all').onclick = ()=>{ lcState.pair = null; lcState.pickA = null; lcState.split = null; lcState.cutSel = null; renderLayerCorrelation(); };
+  bar.querySelector('#lc-pair-two').onclick = ()=>{
+    if(on) return;
+    const l = lcPairList(); const e = l.find(x=>!lcPairDone(x.a.id,x.b.id)) || l[0]; if(e) lcSetPair(e.a.id, e.b.id);
+  };
+  if(on){
+    const sa = bar.querySelector('#lc-pair-a'), sb = bar.querySelector('#lc-pair-b');
+    const chg = ()=>{ if(sa.value===sb.value){ toast('Escolha dois furos diferentes'); renderLcPairBar(ov); return; } lcSetPair(sa.value, sb.value); };
+    sa.onchange = chg; sb.onchange = chg;
+    bar.querySelector('#lc-pair-align').onclick = ()=> lcAlignPair();
+    bar.querySelectorAll('[data-pa]').forEach(b=> b.onclick = ()=> lcSetPair(b.dataset.pa, b.dataset.pb));
+  }
 }
 
 function renderLcChart(ov){
   const box = ov.querySelector('#lc-chart'); if(!box || !lcState) return;
-  const fs = lcState.furos;
+  const fs = lcVis();
   const info = fs.map(f=>{ const c0 = lcCota0(f); const sg = lcSegs(f); return {f, c0, sg}; });
+  // pontos interpolados do bloco: colunas somente leitura ao final (ocultas no modo par)
+  const infoI = lcState.pair ? [] : lcBlockInterp().map(f=>({f, c0:lcCota0(f), sg:furoSegments(f), interp:true}));
+  const infoAll = info.concat(infoI);
   let emax = -Infinity, emin = Infinity;
-  info.forEach(o=> o.sg.forEach(g=>{ emax=Math.max(emax,o.c0-g.top); emin=Math.min(emin,o.c0-g.base); }));
+  infoAll.forEach(o=> o.sg.forEach(g=>{ emax=Math.max(emax,o.c0-g.top); emin=Math.min(emin,o.c0-g.base); }));
   if(!isFinite(emax)){ box.innerHTML=''; return; }
   const range = Math.max(0.5, emax-emin);
   // escala base: ajusta a altura útil do quadro (que o usuário pode redimensionar); o zoom multiplica
@@ -4980,8 +5112,8 @@ function renderLcChart(ov){
   const baseScale = Math.max(6, Math.min(120, (availH-40-22)/range));
   const scale = Math.min(600, baseScale*zoom);
   const availW = (box.clientWidth && box.clientWidth>200) ? box.clientWidth : 700;
-  const colStep = Math.max(170, Math.min(340, Math.floor((availW-60)/Math.max(1,fs.length))));
-  const padT = 40, padL = 54, segW = Math.max(80, Math.min(130, Math.round(colStep*0.42))), H = padT + range*scale + 22, W = padL + fs.length*colStep;
+  const colStep = Math.max(170, Math.min(340, Math.floor((availW-60)/Math.max(1,infoAll.length))));
+  const padT = 40, padL = 54, segW = Math.max(80, Math.min(130, Math.round(colStep*0.42))), H = padT + range*scale + 22, W = padL + infoAll.length*colStep;
   const prev = lcState.view; // mantém o ponto (cota) que estava no centro do quadro ao dar zoom
   lcState.view = { emax, scale, padT };
   const yOf = e => padT + (emax-e)*scale;
@@ -5004,8 +5136,23 @@ function renderLcChart(ov){
       svg += `<polygon points="${pts}" fill="${soilColorHex(r.tipo)}" fill-opacity=".38" stroke="${soilColorHex(r.tipo)}" stroke-opacity=".7" stroke-width="1"/>`;
     }
   });
-  info.forEach((o,i)=>{
+  infoAll.forEach((o,i)=>{
     const x = colX(i);
+    if(o.interp){
+      svg += `<text x="${x+segW/2}" y="14" text-anchor="middle" font-size="11" font-weight="700" fill="#7a3fa0">🔮 ${esc(o.f.ident.sondagemNum||'PI')}</text>`
+           + `<text class="ipdel" data-id="${escAttr(o.f.id)}" x="${x+segW+4}" y="14" font-size="11" fill="#c0392b" style="cursor:pointer"><title>Excluir este ponto interpolado</title>✕</text>`
+           + `<text x="${x+segW/2}" y="27" text-anchor="middle" font-size="9.5" fill="#7a3fa0" opacity=".85">interpolado · ${furoCotaNum(o.f)!=null?'topo '+fmtM(o.c0):'sem cota'}</text>`;
+      o.sg.forEach((g,k)=>{
+        const y1 = yOf(o.c0-g.top), y2 = yOf(o.c0-g.base), h = Math.max(1.5,y2-y1);
+        const ri = (o.sg.length===lcState.rows.length) ? k : -1;   // camadas do ponto seguem a ordem das unidades quando geradas com a mesma correlação
+        const n = nsptDoTrecho(o.f,g);
+        svg += `<g><rect class="iseg" x="${x}" y="${y1}" width="${segW}" height="${h}" fill="${soilColorHex(g.tipo)}" fill-opacity=".8" stroke="#7a3fa0" stroke-width="1.2" stroke-dasharray="4 2"><title>${esc(o.f.ident.sondagemNum)} (interpolado) — ${esc(lcLayerLabel(o.f,k))}</title></rect>`
+             + (h>13 ? `<text x="${x+segW/2}" y="${y1+h/2+3.5}" text-anchor="middle" font-size="10.5" font-weight="700" fill="#fff" stroke="rgba(0,0,0,.55)" stroke-width=".6" paint-order="stroke" pointer-events="none">${ri>=0?'U'+(ri+1):''}${h>30?`${ri>=0?' · ':''}${fmtM(g.base-g.top)} m`:''}</text>` : '')
+             + (h>=34 && n!=null ? `<text x="${x+segW/2}" y="${y1+h/2+16}" text-anchor="middle" font-size="9.5" font-weight="600" fill="#fff" stroke="rgba(0,0,0,.55)" stroke-width=".5" paint-order="stroke" pointer-events="none">N ${fmtNspt(n)}</text>` : '')
+             + `</g>`;
+      });
+      return;
+    }
     svg += `<text x="${x+segW/2}" y="14" text-anchor="middle" font-size="11" font-weight="700" fill="currentColor">${esc(o.f.ident.sondagemNum||'(sem nome)')}</text>`
          + `<text x="${x+segW/2}" y="27" text-anchor="middle" font-size="9.5" fill="currentColor" opacity=".7">${furoCotaNum(o.f)!=null?'topo '+fmtM(o.c0):'sem cota (ref. '+fmtM(o.c0)+')'}</text>`;
     o.sg.forEach((g,k)=>{
@@ -5014,6 +5161,7 @@ function renderLcChart(ov){
       const assigned = ri>=0;
       svg += `<g><rect class="seg" data-f="${escAttr(o.f.id)}" data-k="${k}" x="${x}" y="${y1}" width="${segW}" height="${h}" fill="${soilColorHex(assigned?lcState.rows[ri].tipo:g.tipo)}" fill-opacity="${assigned?0.95:0.45}" stroke="${isClip(o.f.id,g)?'#7a3fa0':(assigned?'#222':'#c0392b')}" stroke-width="${isClip(o.f.id,g)?3.2:1.2}" ${assigned?'':'stroke-dasharray="4 3"'}><title>${esc(lcLayerLabel(o.f,k))}${assigned?' — unidade '+(ri+1):' — sem correspondência'}</title></rect>`
            + (h>13 ? `<text x="${x+segW/2}" y="${y1+h/2+3.5}" text-anchor="middle" font-size="10.5" font-weight="700" fill="#fff" stroke="rgba(0,0,0,.55)" stroke-width=".6" paint-order="stroke" pointer-events="none">${assigned?'U'+(ri+1):'—'}${h>30?` · ${fmtM(g.base-g.top)} m`:''}</text>` : '')
+           + (h>=34 && nsptDoTrecho(o.f,g)!=null ? `<text x="${x+segW/2}" y="${y1+h/2+16}" text-anchor="middle" font-size="9.5" font-weight="600" fill="#fff" stroke="rgba(0,0,0,.55)" stroke-width=".5" paint-order="stroke" pointer-events="none">N ${fmtNspt(nsptDoTrecho(o.f,g))}</text>` : '')
            + (g.editado && h>13 ? `<text x="${x+segW-4}" y="${y1+11}" text-anchor="end" font-size="10" fill="#fff" stroke="rgba(0,0,0,.6)" stroke-width=".6" paint-order="stroke" pointer-events="none">✎</text>` : '')
            + `</g>`;
     });
@@ -5039,6 +5187,7 @@ function renderLcChart(ov){
     box.scrollTop = Math.max(0, padT + (emax - lcState.keepCenter)*scale - box.clientHeight/2);
     lcState.keepCenter = null; box.scrollLeft = sl;
   } else { box.scrollLeft = sl; box.scrollTop = st0; }
+  box.querySelectorAll('.ipdel').forEach(b=> b.addEventListener('click', ()=> excluirPontoInterpolado(b.dataset.id)));
   box.querySelectorAll('.seg').forEach(r=> r.addEventListener('click', ev=>{
     const svgEl = box.querySelector('svg'); const bb = svgEl.getBoundingClientRect();
     const e = emax - ((ev.clientY - bb.top) - padT)/scale;
@@ -5203,6 +5352,45 @@ function lcAlignByCota(){
   toast('Camadas quebradas e alinhadas por cota ('+lcState.rows.length+' unidades).'+(semCota? ' '+semCota+' furo(s) sem cota do topo foram posicionados na cota média.' : '')+' Revise os tipos e correspondências.');
 }
 function lcSegsOrig(f){ return furoSegments(f, []); }
+// alinhamento por cota só do par exibido: refaz cortes e ligações dos dois furos e preserva as unidades dos demais
+function lcAlignPair(){
+  if(!lcState || !lcState.pair) return;
+  const fs = lcVis(); if(fs.length!==2) return;
+  const TOL = 0.15, bounds = [];
+  fs.forEach(f=>{ const c0=lcCota0(f); lcSegsOrig(f).forEach(g=>{ bounds.push(c0-g.top); bounds.push(c0-g.base); }); });
+  bounds.sort((a,b)=>b-a);
+  const reps = []; let grp = [];
+  bounds.forEach(e=>{ if(grp.length && grp[0]-e>TOL){ reps.push(grp.reduce((a,b)=>a+b,0)/grp.length); grp=[]; } grp.push(e); });
+  if(grp.length) reps.push(grp.reduce((a,b)=>a+b,0)/grp.length);
+  if(reps.length<2) return;
+  fs.forEach(f=>{
+    const c0=lcCota0(f), cuts=[];
+    lcSegsOrig(f).forEach(g=> reps.forEach(e=>{ const d=c0-e; if(d>g.top+TOL && d<g.base-TOL) cuts.push(Math.round(d*100)/100); }));
+    lcState.cortes[f.id] = cuts;
+  });
+  const novas = [];
+  for(let i=0;i+1<reps.length;i++){
+    const eT = reps[i], eB = reps[i+1], hBand = eT-eB, m = {}; lcState.furos.forEach(f=>m[f.id]=null); let any = false;
+    fs.forEach(f=>{
+      const c0=lcCota0(f); let best=null, bestOv=0;
+      lcSegs(f).forEach((g,k)=>{ const ov = Math.min(eT,c0-g.top)-Math.max(eB,c0-g.base); if(ov>bestOv){ bestOv=ov; best=k; } });
+      if(best!=null && bestOv>=0.5*hBand){ m[f.id]=best; any=true; }
+    });
+    if(any) novas.push({tipo:null, tipoManual:false, m, _mid:(eT+eB)/2});
+  }
+  const seen = {}; novas.forEach(r=> fs.forEach(f=>{ const v=r.m[f.id]; if(v==null) return; seen[f.id]=seen[f.id]||new Set(); if(seen[f.id].has(v)) r.m[f.id]=null; else seen[f.id].add(v); }));
+  novas.forEach(r=>{ r.tipo = lcRowTipoFromMembers(r) || 'argila'; });
+  // as camadas antigas dos dois furos (índices já inválidos) saem das unidades; as dos outros furos ficam
+  lcState.rows.forEach(r=> fs.forEach(f=>{ r.m[f.id] = null; }));
+  const rem = lcState.rows.filter(r=> lcState.furos.some(f=>r.m[f.id]!=null));
+  rem.forEach(r=>{ const mids = lcState.furos.filter(f=>r.m[f.id]!=null && lcSegs(f)[r.m[f.id]]).map(f=>{ const g=lcSegs(f)[r.m[f.id]]; return lcCota0(f)-(g.top+g.base)/2; }); r._mid = mids.length? mids.reduce((a,b)=>a+b,0)/mids.length : -1e9; });
+  let pos = 0;
+  novas.filter(r=> fs.some(f=>r.m[f.id]!=null)).forEach(nr=>{ let j=pos; while(j<rem.length && rem[j]._mid>=nr._mid) j++; rem.splice(j,0,nr); pos=j+1; });
+  rem.forEach(r=>{ delete r._mid; });
+  lcState.rows = rem; lcState.split = null; lcState.cutSel = null;
+  renderLayerCorrelation();
+  toast('Par alinhado por cota. As ligações com os outros furos foram mantidas.');
+}
 
 /* ── copiar a classificação (tipo + descrição) de uma camada para outra, mesmo de campanhas diferentes.
    Não altera o furo: fica registrada só neste bloco (block.correlacao.classif), por camada original ── */
@@ -5537,7 +5725,8 @@ function refreshBlockPanelIfOpen(id){
 
 function renderLayerCorrelation(){
   const ov = document.getElementById('layer-corr-overlay'); if(!ov||!lcState) return;
-  const { furos:fs, rows } = lcState;
+  const fs = lcVis(), rows = lcState.rows;
+  const visIdx = rows.map((r,i)=>lcRowVisible(r)?i:-1).filter(i=>i>=0);
   const bad = lcConflicts();
   const orph = lcOrphans();
   const nOrph = Object.values(orph).reduce((a,l)=>a+l.length,0);
@@ -5547,10 +5736,12 @@ function renderLayerCorrelation(){
     + fs.map(f=>`<th style="min-width:300px">${esc(f.ident.sondagemNum||'(sem nome)')}${f.tipoSondagem==='CPTU'?' · CPTu':''}<small title="${escAttr([f.ident.obra,f.ident.cliente].filter(Boolean).join(' · '))}">${furoCotaNum(f)!=null ? '<b>topo '+fmtM(furoCotaNum(f))+' m</b>' : '<b style="color:#b85c1a">sem cota do topo</b>'} · ${f.camadas.length} camada(s) até ${(+f.camadas[f.camadas.length-1].profFinal||0).toFixed(2).replace('.',',')} m${furoCotaNum(f)!=null ? ' (cota '+fmtM(furoCotaNum(f)-(+f.camadas[f.camadas.length-1].profFinal||0))+')' : ''}${[f.ident.obra].filter(Boolean).length?'<br>'+esc(f.ident.obra):''}</small></th>`).join('')
     + '</tr></thead><tbody>';
   rows.forEach((r,ri)=>{
+    if(!lcRowVisible(r)) return;
     const tipoCor = soilColorHex(r.tipo);
-    h += `<tr class="${lcState.hl===ri?'lc-hl':''}" data-ri="${ri}"><td class="lc-row-h"><div class="lc-rowh"><span class="lc-sw" style="background:${tipoCor}"></span><b>${ri+1}</b>
+    const nU = nsptResumo(lcState.furos.map(f=> r.m[f.id]!=null ? nsptDoTrecho(f, lcSegs(f)[r.m[f.id]]) : null));
+    h += `<tr class="${lcState.hl===ri?'lc-hl':''}" data-ri="${ri}"><td class="lc-row-h"><div class="lc-nspt" title="Média do N-SPT médio das camadas desta unidade (mín–máx entre furos)">N-SPT médio da unidade: <b>${esc(nsptResumoTxt(nU))}</b></div><div class="lc-rowh"><span class="lc-sw" style="background:${tipoCor}"></span><b>${ri+1}</b>
       <select class="lc-tipo" data-r="${ri}">${tipoOpts(r.tipo)}</select>
-      <div class="lc-rowbtns"><button type="button" class="up" data-r="${ri}" ${ri===0?'disabled':''} title="Subir">▲</button><button type="button" class="dn" data-r="${ri}" ${ri===rows.length-1?'disabled':''} title="Descer">▼</button><button type="button" class="x" data-r="${ri}" title="Remover unidade (as camadas ficam sem correspondência e voltam como unidades próprias)">✕</button></div></div>${gaps.has(ri)?'<div class="lc-gap">⚠ camadas sem sobreposição de cota</div>':''}</td>`;
+      <div class="lc-rowbtns"><button type="button" class="up" data-r="${ri}" ${ri===visIdx[0]?'disabled':''} title="Subir">▲</button><button type="button" class="dn" data-r="${ri}" ${ri===visIdx[visIdx.length-1]?'disabled':''} title="Descer">▼</button><button type="button" class="x" data-r="${ri}" title="Remover unidade (as camadas ficam sem correspondência e voltam como unidades próprias)">✕</button></div></div>${gaps.has(ri)?'<div class="lc-gap">⚠ camadas sem sobreposição de cota</div>':''}</td>`;
     fs.forEach(f=>{
       const v = r.m[f.id];
       const segsF = lcSegs(f);
@@ -5565,7 +5756,8 @@ function renderLayerCorrelation(){
           + (c.editado ? ib('lc-orig','↺','Voltar à classificação original deste furo') : '')
         : '';
       h += `<td class="${bad.has(ri+':'+f.id)?'bad':''}"><div class="lc-cellrow"><select class="lc-cell" data-r="${ri}" data-f="${escAttr(f.id)}">${opts}</select>${btns}</div>`
-        + (c ? `<div class="lc-chip" title="${escAttr((c.descricao||'')+'')}"><span class="lc-sw" style="background:${soilColorHex(c.tipo)}"></span><span>${c.editado?'✎ ':''}${lcLayerElev(f,v)?'<b>cota '+fmtM(lcLayerElev(f,v).top)+' → '+fmtM(lcLayerElev(f,v).base)+'</b> · ':''}${esc((c.descricao||'').slice(0,90))||'<i>sem descrição</i>'}</span></div>` : '')
+        + (c ? `<div class="lc-chip" title="${escAttr((c.descricao||'')+'')}"><span class="lc-sw" style="background:${soilColorHex(c.tipo)}"></span><span>${c.editado?'✎ ':''}${lcLayerElev(f,v)?'<b>cota '+fmtM(lcLayerElev(f,v).top)+' → '+fmtM(lcLayerElev(f,v).base)+'</b> · ':''}${esc((c.descricao||'').slice(0,90))||'<i>sem descrição</i>'}</span></div>`
+        + `<div class="lc-nspt" title="N-SPT médio da camada (golpes 2º+3º trechos dentro da faixa)">N-SPT médio: <b>${fmtNspt(nsptDoTrecho(f,c))}</b></div>` : '')
         + '</td>';
     });
     h += '</tr>';
@@ -5573,7 +5765,7 @@ function renderLayerCorrelation(){
   h += '</tbody></table>';
   ov.querySelector('#lc-wrap').innerHTML = h;
   const p3 = ov.querySelector('#lc-3d'); if(p3) p3.hidden = !lcState.v3d;
-  renderLcChart(ov); renderLcPlan(ov);
+  renderLcChart(ov); renderLcPlan(ov); renderLcPairBar(ov);
   if(lcState.v3d) lc3dRender(); else lc3dStop();
   lcRenderSplitBar(ov);
   ov.querySelectorAll('.lc-split').forEach(b=> b.onclick = ()=>{ const f=lcState.furos.find(x=>x.id===b.dataset.f); const sg=lcSegs(f)[+b.dataset.k]; lcOpenSplit(f.id, +b.dataset.k, null); });
@@ -5583,7 +5775,9 @@ function renderLayerCorrelation(){
   ov.querySelectorAll('.lc-orig').forEach(b=> b.onclick = ()=> lcRestoreClassif(b.dataset.f, +b.dataset.k));
   renderLcModeBar(ov);
   const st = ov.querySelector('#lc-status');
-  if(bad.size){ st.className='lc-status err'; st.textContent = 'Ordem de profundidade violada (células em vermelho): em cada furo, as unidades devem seguir a ordem das camadas, de cima para baixo.'; }
+  const visIds = new Set(fs.map(f=>f.id)), badVis = Array.from(bad).some(k=> visIds.has(k.slice(k.indexOf(':')+1)));
+  if(bad.size && !badVis){ st.className='lc-status err'; st.textContent = 'Há conflito de ordem de profundidade em outro furo do bloco (fora do par exibido). Volte a "Todos os furos" para corrigir.'; }
+  else if(bad.size){ st.className='lc-status err'; st.textContent = 'Ordem de profundidade violada (células em vermelho): em cada furo, as unidades devem seguir a ordem das camadas, de cima para baixo.'; }
   else if(nOrph){ st.className='lc-status warn'; st.textContent = nOrph+' camada(s) sem correspondência — ao aplicar, entram como unidades próprias na posição correta (nenhuma camada é descartada).'+(gaps.size?' Atenção: '+gaps.size+' unidade(s) com camadas que não se sobrepõem em cota.':''); }
   else if(gaps.size){ st.className='lc-status warn'; st.textContent = gaps.size+' unidade(s) com camadas que não se sobrepõem em cota (confira a correlação — pode ser mergulho real ou equivalência errada).'; }
   else { st.className='lc-status'; st.textContent = rows.length+' unidade(s) · todas as camadas correlacionadas.'; }
@@ -5596,9 +5790,13 @@ function renderLayerCorrelation(){
     renderLayerCorrelation();
   });
   ov.querySelectorAll('.lc-tipo').forEach(sel=> sel.onchange = ()=>{ const r=lcState.rows[+sel.dataset.r]; r.tipo = sel.value; r.tipoManual = true; renderLayerCorrelation(); });
-  ov.querySelectorAll('.lc-rowbtns .up').forEach(b=> b.onclick = ()=>{ const i=+b.dataset.r; const [r]=lcState.rows.splice(i,1); lcState.rows.splice(i-1,0,r); renderLayerCorrelation(); });
-  ov.querySelectorAll('.lc-rowbtns .dn').forEach(b=> b.onclick = ()=>{ const i=+b.dataset.r; const [r]=lcState.rows.splice(i,1); lcState.rows.splice(i+1,0,r); renderLayerCorrelation(); });
-  ov.querySelectorAll('.lc-rowbtns .x').forEach(b=> b.onclick = ()=>{ lcState.rows.splice(+b.dataset.r,1); renderLayerCorrelation(); });
+  ov.querySelectorAll('.lc-rowbtns .up').forEach(b=> b.onclick = ()=>{ const i=+b.dataset.r, j=visIdx[visIdx.indexOf(i)-1]; if(j==null) return; const [r]=lcState.rows.splice(i,1); lcState.rows.splice(j,0,r); renderLayerCorrelation(); });
+  ov.querySelectorAll('.lc-rowbtns .dn').forEach(b=> b.onclick = ()=>{ const i=+b.dataset.r, j=visIdx[visIdx.indexOf(i)+1]; if(j==null) return; const [r]=lcState.rows.splice(i,1); lcState.rows.splice(j,0,r); renderLayerCorrelation(); });
+  ov.querySelectorAll('.lc-rowbtns .x').forEach(b=> b.onclick = ()=>{
+    const i = +b.dataset.r, r = lcState.rows[i]; if(!r) return;
+    if(lcState.pair){ lcVis().forEach(f=>{ r.m[f.id] = null; }); if(!lcState.furos.some(f=>r.m[f.id]!=null)) lcState.rows.splice(i,1); }   // no modo par só solta as camadas dos dois furos
+    else lcState.rows.splice(i,1);
+    renderLayerCorrelation(); });
 }
 
 // camadas sem linha viram unidades próprias, logo após a unidade da camada anterior do mesmo furo
@@ -6766,8 +6964,7 @@ function openInterpBlockPanel(id){
   for(let i=0;i<hullXY.length;i++){ const p=hullXY[i], q=hullXY[(i+1)%hullXY.length]; areaM2 += p.x*q.y - q.x*p.y; }
   areaM2 = Math.abs(areaM2/2);
   const areaTxt = areaM2>=10000 ? (areaM2/10000).toFixed(2).replace('.',',')+' ha' : Math.round(areaM2)+' m²';
-  const nInterp = (typeof interpFuros!=='undefined' && Array.isArray(interpFuros))
-    ? interpFuros.filter(f=>f.blockId===b.id).length : 0;
+  const ptsInterp = blockInterpPoints(b), nInterp = ptsInterp.length;
   panel.innerHTML = `
     <div class="pb-hdr">
       <span class="pb-dot"></span>
@@ -6820,6 +7017,13 @@ function openInterpBlockPanel(id){
           <span>Prévia de impressão com planta de localização, furos, perfis e rasters do bloco — ordene e exclua itens antes de imprimir.</span>
         </button>
       </div>
+      ${ptsInterp.length ? `<div class="fieldset-title" style="margin-top:14px;">Pontos interpolados (${ptsInterp.length})</div>
+      <div id="pb-interp-list">${ptsInterp.map(f=>`<div style="display:flex;align-items:center;gap:8px;padding:5px 2px;border-bottom:1px dashed var(--bdr);font-size:12px;">
+        <span>🔮</span><b>${esc(f.ident.sondagemNum||'PI')}</b>
+        <span style="color:var(--muted,#777)">${furoCotaNum(f)!=null?'cota '+fmtM(furoCotaNum(f))+' m · ':''}${f.camadas.length} camada(s)</span>
+        <button type="button" class="mini-btn pb-ip-open" data-id="${escAttr(f.id)}" style="margin-left:auto" title="Abrir o boletim do ponto">Abrir</button>
+        <button type="button" class="mini-btn pb-ip-del" data-id="${escAttr(f.id)}" style="color:#c0392b" title="Excluir este ponto interpolado do bloco">🗑 Excluir</button>
+      </div>`).join('')}</div>` : ''}
     </div>
 
     <div class="pb-pane" id="pb-pane-ajustes" hidden>
@@ -6856,6 +7060,8 @@ function openInterpBlockPanel(id){
     startPickCptuForBlock(b.id);
   };
   document.getElementById('pb-export-report').onclick=()=>{ openBlockReport(b.id); };
+  panel.querySelectorAll('.pb-ip-del').forEach(bt=> bt.onclick = ()=> excluirPontoInterpolado(bt.dataset.id));
+  panel.querySelectorAll('.pb-ip-open').forEach(bt=> bt.onclick = ()=>{ const f=furos.find(x=>x.id===bt.dataset.id); if(f){ try{ if(map && isFinite(f.lat)) map.panTo([f.lat,f.lng]); }catch(e){} selectFuro(f.id); } });
   document.getElementById('pb-add-interp-point').onclick=()=>{
     startPickInterpPoint(b.id);
   };
@@ -8060,6 +8266,19 @@ function renderProfileHtml(profile){
     });
   }
 
+  // N-SPT médio de cada camada do molde (média dos furos de origem)
+  const nsptCam = nsptPorCamadaBloco(interpBlocks.find(b=>b.id===profile.blockId));
+  let nsptLabels = '';
+  if(!temEdicaoManual && nsptCam && samples.length){
+    const sm = samples[Math.floor(samples.length/2)], cotaM = cotaOf(sm); let pa = 0;
+    sm.camadas.forEach((c,i)=>{
+      const y1 = elevToY(cotaM-pa), y2 = elevToY(cotaM-c.profFinal); pa = c.profFinal;
+      if(y2-y1<14 || !nsptCam[i]) return;
+      const xm = marginL + sm.dist*scaleX;
+      nsptLabels += `<text x="${xm.toFixed(1)}" y="${((y1+y2)/2+3.5).toFixed(1)}" text-anchor="middle" font-size="10" font-weight="700" fill="#fff" stroke="rgba(0,0,0,.6)" stroke-width=".7" paint-order="stroke" pointer-events="none">N ${fmtNspt(nsptCam[i].media)}<title>N-SPT médio da camada: ${esc(nsptResumoTxt(nsptCam[i]))}</title></text>`;
+    });
+  }
+
   // linha do terreno — topografia interpolada (ou o topo da 1ª fronteira, se editado manualmente)
   let terrainLine;
   if(temEdicaoManual){
@@ -8145,12 +8364,13 @@ function renderProfileHtml(profile){
   if(!temEdicaoManual && samples.length){
     const camadaRef = samples[0].camadas;
     let profAntRef = 0;
-    descList = camadaRef.map(c=>{
+    descList = camadaRef.map((c,idxC)=>{
       const row = `<div style="display:flex;gap:10px;align-items:flex-start;padding:6px 2px;border-bottom:1px dashed #bdb8ae;">
         <span class="soil-${soilPatId(c.tipo)}" style="width:28px;height:20px;border-radius:3px;border:1px solid rgba(0,0,0,.25);flex-shrink:0;margin-top:1px;${soilColorStyleAttr(c.tipo)}"></span>
         <div>
           <div style="font-family:'Courier New',monospace;font-size:9.5px;color:#b85c1a;font-weight:700;">até ${c.profFinal.toFixed(2)} m (prof. ${profAntRef.toFixed(2)}–${c.profFinal.toFixed(2)} m)</div>
           <div style="font-size:11.5px;">${esc(c.descricao)||'<i>sem descrição</i>'}</div>
+          <div style="font-size:10.5px;color:#555;margin-top:2px;">N-SPT médio: <b>${esc(nsptResumoTxt(nsptCam&&nsptCam[idxC]))}</b></div>
         </div>
       </div>`;
       profAntRef = c.profFinal;
@@ -8195,6 +8415,7 @@ function renderProfileHtml(profile){
         ${elevAxis}
         ${distAxis}
         ${rects}
+        ${nsptLabels}
         ${terrainLine}
         ${naLine}
         ${furoMarkers}
@@ -8206,7 +8427,8 @@ function renderProfileHtml(profile){
     <div class="fieldset-title" style="margin-top:14px;">Descrição do material (perfil estratigráfico — estrutura constante ao longo do perfil)</div>
     <div>${descList}</div>` : `
     <div class="fieldset-title" style="margin-top:14px;">Descrição do material</div>
-    <p class="hint">Camadas ajustadas manualmente — as descrições textuais originais não se aplicam mais ponto a ponto; a legenda acima mostra os tipos de material presentes no perfil editado.</p>`}
+    <p class="hint">Camadas ajustadas manualmente — as descrições textuais originais não se aplicam mais ponto a ponto; a legenda acima mostra os tipos de material presentes no perfil editado.</p>
+    ${nsptCam ? `<div style="font-size:11px;margin-top:6px;"><b>N-SPT médio por camada do molde:</b> ${nsptCam.map((r,i)=>`C${i+1}: ${esc(nsptResumoTxt(r,true))}`).join(' · ')}</div>` : ''}`}
     ${(profile.nearFuros&&profile.nearFuros.length) ? `<p class="hint">Linhas tracejadas pretas: furos reais a até 5 m do traçado. Linhas tracejadas roxas (🔮): furos interpolados já salvos a até 5 m do traçado. Os círculos marcam a cota real cadastrada de cada furo, para conferir contra a linha de terreno interpolada. Posições projetadas sobre a linha.</p>` : ''}
   `;
 }
